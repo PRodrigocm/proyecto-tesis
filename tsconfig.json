@@ -16,7 +16,7 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/frontend/*"]
+      "@/*": ["./src/*"]
     },
     "plugins": [
       {

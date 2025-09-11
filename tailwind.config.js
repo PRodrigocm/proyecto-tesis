@@ -1,5 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  safelist: [
+    'bg-background',
+    'bg-card',
+    'text-foreground',
+    'bg-accent',
+    'text-accent-foreground',
+    'border-input'
+  ],
   darkMode: ["class"],
   content: [
     './src/frontend/app/**/*.{js,ts,jsx,tsx,mdx}',
