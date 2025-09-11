@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Modalidad
+model Modalidad {
+  id            Int    @id @default(autoincrement())
+  nombre        String @unique
+  instituciones IE[]
+}
+
+// Modelo de Institución Educativa (IE)
+model IE {
+  id                Int                 @id @default(autoincrement())
+  nombre            String              @unique
+  codigoIe          String              @unique
+  idModalidad       Int
+  modalidad         Modalidad           @relation(fields: [idModalidad], references: [id])
+  niveles           Nivel[]
+  grados            Grado[]
+  usuarios          Usuario[]
+  estudiantes       Estudiante[]
+  asistencias       Asistencia[]
+  talleres          Taller[]
+  calendarioEscolar CalendarioEscolar[]
+  retiros           Retiro[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+// Modelo de Nivel
+model Nivel {
+  id     Int     @id @default(autoincrement())
+  idIe   Int
+  nombre String
+  ie     IE      @relation(fields: [idIe], references: [id])
+  grados Grado[]
+
+  @@unique([idIe, nombre])
+}
+
+// Modelo de Grado
+model Grado {
+  id        Int            @id @default(autoincrement())
+  idNivel   Int
+  nombre    String
+  nivel     Nivel          @relation(fields: [idNivel], references: [id])
+  secciones GradoSeccion[]
+  ie        IE             @relation(fields: [idIe], references: [id])
+  idIe      Int
+
+  @@unique([idNivel, nombre])
+}
+
+// Modelo de Sección
+model Seccion {
+  id     Int            @id @default(autoincrement())
+  nombre String         @unique
+  grados GradoSeccion[]
+}
+
+// Modelo de Grado y Sección
+model GradoSeccion {
+  id          Int                    @id @default(autoincrement())
+  idGrado     Int
+  idSeccion   Int
+  grado       Grado                  @relation(fields: [idGrado], references: [id])
+  seccion     Seccion                @relation(fields: [idSeccion], references: [id])
+  estudiantes Estudiante[]
+  horarios    HorariosGradoSeccion[]
+  retiros     Retiro[]
+
+  @@unique([idGrado, idSeccion])
+}
+
+// Modelo de Usuario
+model Usuario {
+  id                 Int          @id @default(autoincrement())
+  nombre             String
+  apellido           String
+  dni                String       @unique
+  email              String?
+  telefono           String?
+  passwordHash       String?
+  estado             String // activo / inactivo
+  idIe               Int
+  ie                 IE           @relation(fields: [idIe], references: [id])
+  roles              UsuarioRol[]
+  apoderado          Apoderado?
+  docente            Docente?
+  estudiante         Estudiante?
+  retirosVerificados Retiro[]     @relation("UsuarioVerificador")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+// Modelo de Rol
+model Rol {
+  id       Int          @id @default(autoincrement())
+  nombre   String       @unique
+  usuarios UsuarioRol[]
+}
+
+// Relación entre Usuario y Rol
+model UsuarioRol {
+  idUsuario Int
+  idRol     Int
+  usuario   Usuario @relation(fields: [idUsuario], references: [id])
+  rol       Rol     @relation(fields: [idRol], references: [id])
+
+  @@id([idUsuario, idRol])
+}
+
+// Modelo de Estudiante
+model Estudiante {
+  id                   Int                   @id @default(autoincrement())
+  idUsuario            Int                   @unique
+  usuario              Usuario               @relation(fields: [idUsuario], references: [id])
+  idIe                 Int
+  ie                   IE                    @relation(fields: [idIe], references: [id])
+  idGradoSeccion       Int
+  gradoSeccion         GradoSeccion          @relation(fields: [idGradoSeccion], references: [id])
+  qr                   String                @unique
+  codigo               String                @unique
+  fechaNacimiento      DateTime
+  asistencias          Asistencia[]
+  apoderados           EstudianteApoderado[]
+  notificaciones       Notificacion[]
+  inscripcionesTaller  InscripcionTaller[]
+  autorizacionesRetiro AutorizacionRetiro[]
+  retiros              Retiro[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+}
+
+// Modelo de Asistencia
+model Asistencia {
+  id            Int        @id @default(autoincrement())
+  idEstudiante  Int
+  estudiante    Estudiante @relation(fields: [idEstudiante], references: [id])
+  idIe          Int
+  ie            IE         @relation(fields: [idIe], references: [id])
+  fecha         DateTime   @default(now())
+  sesion        String     @default("AM")
+  horaEntrada   DateTime?
+  horaSalida    DateTime?
+  fuente        String // QR, facial, manual
+  observaciones String?
+  registradoPor Int // idUsuario
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// Relación entre Estudiante y Apoderado
+model EstudianteApoderado {
+  idEstudiante Int
+  idApoderado  Int
+  estudiante   Estudiante @relation(fields: [idEstudiante], references: [id])
+  apoderado    Apoderado  @relation(fields: [idApoderado], references: [id])
+  relacion     String
+  esTitular    Boolean    @default(false)
+  puedeRetirar Boolean    @default(true)
+
+  @@id([idEstudiante, idApoderado])
+}
+
+// Modelo de Apoderado
+model Apoderado {
+  id                Int                   @id @default(autoincrement())
+  idUsuario         Int                   @unique
+  usuario           Usuario               @relation(fields: [idUsuario], references: [id])
+  codigo            String                @unique
+  ocupacion         String
+  estudiantes       EstudianteApoderado[]
+  notificaciones    Notificacion[]
+  autorizaciones    AutorizacionRetiro[]
+  retirosContactado Retiro[]              @relation("ApoderadoContacto")
+  retirosQueRetiran Retiro[]              @relation("ApoderadoRetira")
+  fcmToken          String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+}
+
+// Modelo de Docente
+model Docente {
+  id           Int      @id @default(autoincrement())
+  idUsuario    Int      @unique
+  usuario      Usuario  @relation(fields: [idUsuario], references: [id])
+  codigo       String   @unique
+  especialidad String
+  grados       String[]
+  retiros      Retiro[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Modelo de Calendario Escolar
+model CalendarioEscolar {
+  id        Int      @id @default(autoincrement())
+  idIe      Int
+  fecha     DateTime
+  esLectivo Boolean  @default(true)
+  motivo    String?
+  ie        IE       @relation(fields: [idIe], references: [id])
+
+  @@unique([idIe, fecha])
+}
+
+// Modelo de Horarios de Grado y Sección
+model HorariosGradoSeccion {
+  id             Int          @id @default(autoincrement())
+  idGradoSeccion Int
+  diaSemana      Int
+  horaEntrada    DateTime
+  horaSalida     DateTime
+  toleranciaMin  Int          @default(10)
+  sesiones       Int          @default(1)
+  gradoSeccion   GradoSeccion @relation(fields: [idGradoSeccion], references: [id])
+
+  @@unique([idGradoSeccion, diaSemana])
+}
+
+// Modelo de Talleres
+model Taller {
+  id            Int                 @id @default(autoincrement())
+  idIe          Int
+  codigo        String              @unique
+  nombre        String
+  descripcion   String?
+  activo        Boolean             @default(true)
+  ie            IE                  @relation(fields: [idIe], references: [id])
+  inscripciones InscripcionTaller[]
+  horarios      HorariosTaller[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+// Modelo de Inscripción de Taller
+model InscripcionTaller {
+  id               Int        @id @default(autoincrement())
+  idEstudiante     Int
+  idTaller         Int
+  anio             Int
+  fechaInscripcion DateTime
+  estado           String     @default("activa")
+  estudiante       Estudiante @relation(fields: [idEstudiante], references: [id])
+  taller           Taller     @relation(fields: [idTaller], references: [id])
+
+  @@unique([idEstudiante, idTaller, anio])
+}
+
+// Modelo de Horarios de Taller
+model HorariosTaller {
+  id            Int      @id @default(autoincrement())
+  idTaller      Int
+  diaSemana     Int
+  horaInicio    DateTime
+  horaFin       DateTime
+  toleranciaMin Int      @default(10)
+  lugar         String?
+  taller        Taller   @relation(fields: [idTaller], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Modelo de Tipo de Retiro
+model TipoRetiro {
+  id      Int      @id @default(autoincrement())
+  nombre  String   @unique
+  retiros Retiro[]
+}
+
+// Modelo de Estado de Retiro
+model EstadoRetiro {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique // p.ej., 'reportado', 'contactado', 'en_proceso', etc.
+  nombre    String // Etiqueta legible
+  orden     Int      @default(1)
+  esFinal   Boolean  @default(false) // Indica si es el estado final
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  retiros   Retiro[]
+}
+
+// Modelo de Autorización de Retiro
+model AutorizacionRetiro {
+  id           Int        @id @default(autoincrement())
+  idEstudiante Int
+  estudiante   Estudiante @relation(fields: [idEstudiante], references: [id])
+  idApoderado  Int
+  apoderado    Apoderado  @relation(fields: [idApoderado], references: [id])
+  vigenteDesde DateTime
+  vigenteHasta DateTime
+  observacion  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// Modelo de Retiro
+model Retiro {
+  id                  Int          @id @default(autoincrement())
+  idEstudiante        Int
+  estudiante          Estudiante   @relation(fields: [idEstudiante], references: [id])
+  idIe                Int
+  ie                  IE           @relation(fields: [idIe], references: [id])
+  idGradoSeccion      Int
+  gradoSeccion        GradoSeccion @relation(fields: [idGradoSeccion], references: [id])
+  fecha               DateTime     @default(now())
+  hora                DateTime     @default(now()) // Hora del retiro
+  idTipoRetiro        Int
+  tipoRetiro          TipoRetiro   @relation(fields: [idTipoRetiro], references: [id])
+  origen              String // aula, enfermería, patio, etc.
+  reportadoPorDocente Int
+  docente             Docente      @relation(fields: [reportadoPorDocente], references: [id])
+  apoderadoContactado Int
+  apoderadoContacto   Apoderado    @relation("ApoderadoContacto", fields: [apoderadoContactado], references: [id])
+  horaContacto        DateTime?
+  medioContacto       String // teléfono, whatsapp, sms, etc.
+  apoderadoQueRetira  Int
+  apoderadoRetira     Apoderado    @relation("ApoderadoRetira", fields: [apoderadoQueRetira], references: [id])
+  dniVerificado       String
+  verificadoPor       Int
+  usuarioVerificador  Usuario      @relation("UsuarioVerificador", fields: [verificadoPor], references: [id])
+  idEstadoRetiro      Int
+  estadoRetiro        EstadoRetiro @relation(fields: [idEstadoRetiro], references: [id])
+  observaciones       String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([idEstudiante])
+  @@index([idIe])
+  @@index([idEstadoRetiro])
+}
+
+// Modelo de Notificación
+model Notificacion {
+  id           Int        @id @default(autoincrement())
+  idEstudiante Int
+  estudiante   Estudiante @relation(fields: [idEstudiante], references: [id])
+  mensaje      String
+  leida        Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  Apoderado    Apoderado? @relation(fields: [apoderadoId], references: [id])
+  apoderadoId  Int?
+}
