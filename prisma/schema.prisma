@@ -1,0 +1,485 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================
+// Institución y modalidad
+// ======================
+model Modalidad {
+  idModalidad Int    @id @default(autoincrement()) @map("id_modalidad")
+  nombre      String @unique
+  
+  // Relaciones
+  ies Ie[]
+  
+  @@map("modalidad")
+}
+
+model Ie {
+  idIe         Int        @id @default(autoincrement()) @map("id_ie")
+  nombre       String     @unique
+  codigoIe     String     @unique @map("codigo_ie") @db.VarChar(10)
+  idModalidad  Int        @map("id_modalidad")
+  modalidad    Modalidad  @relation(fields: [idModalidad], references: [idModalidad])
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime?  @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  niveles              Nivel[]
+  usuarios             Usuario[]
+  estudiantes          Estudiante[]
+  calendarioEscolar    CalendarioEscolar[]
+  talleres             Taller[]
+  asistencias          Asistencia[]
+  retiros              Retiro[]
+  consecutivos         Consecutivo[]
+  
+  @@map("ie")
+}
+
+// ======================
+// Niveles / Grados / Secciones
+// ======================
+model Nivel {
+  idNivel Int    @id @default(autoincrement()) @map("id_nivel")
+  idIe    Int    @map("id_ie")
+  nombre  String
+  ie      Ie     @relation(fields: [idIe], references: [idIe])
+  
+  // Relaciones
+  grados Grado[]
+  
+  @@unique([idIe, nombre], name: "uq_nivel_ie_nombre")
+  @@map("nivel")
+}
+
+model Grado {
+  idGrado Int    @id @default(autoincrement()) @map("id_grado")
+  idNivel Int    @map("id_nivel")
+  nombre  String
+  nivel   Nivel  @relation(fields: [idNivel], references: [idNivel])
+  
+  // Relaciones
+  gradoSecciones GradoSeccion[]
+  
+  @@unique([idNivel, nombre], name: "uq_grado_nivel_nombre")
+  @@map("grado")
+}
+
+model Seccion {
+  idSeccion Int    @id @default(autoincrement()) @map("id_seccion")
+  nombre    String
+  
+  // Relaciones
+  gradoSecciones GradoSeccion[]
+  
+  @@map("seccion")
+}
+
+model GradoSeccion {
+  idGradoSeccion Int     @id @default(autoincrement()) @map("id_grado_seccion")
+  idGrado        Int     @map("id_grado")
+  idSeccion      Int     @map("id_seccion")
+  grado          Grado   @relation(fields: [idGrado], references: [idGrado])
+  seccion        Seccion @relation(fields: [idSeccion], references: [idSeccion])
+  
+  // Relaciones
+  estudiantes         Estudiante[]
+  horariosGradoSeccion HorarioGradoSeccion[]
+  docenteAulas        DocenteAula[]
+  retiros             Retiro[]
+  
+  @@unique([idGrado, idSeccion], name: "uq_grado_seccion")
+  @@map("grado_seccion")
+}
+
+// ======================
+// Usuarios / Roles
+// ======================
+model Usuario {
+  idUsuario    Int       @id @default(autoincrement()) @map("id_usuario")
+  nombre       String?
+  apellido     String?
+  dni          String    @unique
+  email        String?
+  telefono     String?
+  passwordHash String?   @map("password_hash")
+  estado       String?
+  idIe         Int?      @map("id_ie")
+  ie           Ie?       @relation(fields: [idIe], references: [idIe])
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  roles                    UsuarioRol[]
+  estudiante               Estudiante?
+  apoderado                Apoderado?
+  docente                  Docente?
+  asistenciasRegistradas   Asistencia[] @relation("RegistradoPor")
+  historicoEstados         HistoricoEstadoAsistencia[]
+  retirosVerificados       Retiro[] @relation("VerificadoPor")
+  
+  @@map("usuarios")
+}
+
+model Rol {
+  idRol  Int    @id @default(autoincrement()) @map("id_rol")
+  nombre String @unique
+  
+  // Relaciones
+  usuarios UsuarioRol[]
+  
+  @@map("roles")
+}
+
+model UsuarioRol {
+  idUsuario Int     @map("id_usuario")
+  idRol     Int     @map("id_rol")
+  usuario   Usuario @relation(fields: [idUsuario], references: [idUsuario])
+  rol       Rol     @relation(fields: [idRol], references: [idRol])
+  
+  @@id([idUsuario, idRol])
+  @@map("usuario_rol")
+}
+
+// ======================
+// Perfiles 1:1 + códigos
+// ======================
+model Estudiante {
+  idEstudiante     Int           @id @default(autoincrement()) @map("id_estudiante")
+  idUsuario        Int           @unique @map("id_usuario")
+  idIe             Int?          @map("id_ie")
+  idGradoSeccion   Int?          @map("id_grado_seccion")
+  qr               String        @unique
+  codigo           String?       @unique @db.VarChar(32)
+  fechaNacimiento  DateTime?     @map("fecha_nacimiento") @db.Date
+  usuario          Usuario       @relation(fields: [idUsuario], references: [idUsuario])
+  ie               Ie?           @relation(fields: [idIe], references: [idIe])
+  gradoSeccion     GradoSeccion? @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime?     @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  apoderados           EstudianteApoderado[]
+  inscripcionesTaller  InscripcionTaller[]
+  asistencias          Asistencia[]
+  autorizacionesRetiro AutorizacionRetiro[]
+  retiros              Retiro[]
+  
+  @@map("estudiante")
+}
+
+model Apoderado {
+  idApoderado Int       @id @default(autoincrement()) @map("id_apoderado")
+  idUsuario   Int       @unique @map("id_usuario")
+  codigo      String?   @unique @db.VarChar(32)
+  ocupacion   String?
+  usuario     Usuario   @relation(fields: [idUsuario], references: [idUsuario])
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  estudiantes          EstudianteApoderado[]
+  autorizacionesRetiro AutorizacionRetiro[]
+  retirosContactados   Retiro[] @relation("ApoderadoContactado")
+  retirosRealizados    Retiro[] @relation("ApoderadoQueRetira")
+  
+  @@map("apoderado")
+}
+
+model Docente {
+  idDocente    Int       @id @default(autoincrement()) @map("id_docente")
+  idUsuario    Int       @unique @map("id_usuario")
+  codigo       String?   @unique @db.VarChar(32)
+  especialidad String?
+  usuario      Usuario   @relation(fields: [idUsuario], references: [idUsuario])
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  docenteAulas     DocenteAula[]
+  retirosReportados Retiro[] @relation("ReportadoPorDocente")
+  
+  @@map("docente")
+}
+
+// Alumno ↔ apoderado
+model EstudianteApoderado {
+  idEstudiante  Int        @map("id_estudiante")
+  idApoderado   Int        @map("id_apoderado")
+  relacion      String
+  esTitular     Boolean    @default(false) @map("es_titular")
+  puedeRetirar  Boolean    @default(true) @map("puede_retirar")
+  estudiante    Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  apoderado     Apoderado  @relation(fields: [idApoderado], references: [idApoderado])
+  
+  @@id([idEstudiante, idApoderado])
+  @@map("estudiante_apoderado")
+}
+
+// Docente ↔ aula
+model TipoAsignacion {
+  idTipoAsignacion Int    @id @default(autoincrement()) @map("id_tipo_asignacion")
+  nombre           String @unique
+  
+  // Relaciones
+  docenteAulas DocenteAula[]
+  
+  @@map("tipos_asignacion")
+}
+
+model DocenteAula {
+  idDocenteAula      Int             @id @default(autoincrement()) @map("id_docente_aula")
+  idDocente          Int             @map("id_docente")
+  idGradoSeccion     Int             @map("id_grado_seccion")
+  idTipoAsignacion   Int             @map("id_tipo_asignacion")
+  docente            Docente         @relation(fields: [idDocente], references: [idDocente])
+  gradoSeccion       GradoSeccion    @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+  tipoAsignacion     TipoAsignacion  @relation(fields: [idTipoAsignacion], references: [idTipoAsignacion])
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime?       @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@unique([idDocente, idGradoSeccion, idTipoAsignacion], name: "uq_docente_aula_tipo")
+  @@map("docente_aula")
+}
+
+// ======================
+// Calendario y horarios
+// ======================
+model CalendarioEscolar {
+  idCal      Int       @id @default(autoincrement()) @map("id_cal")
+  idIe       Int       @map("id_ie")
+  fecha      DateTime  @db.Date
+  esLectivo  Boolean   @default(true) @map("es_lectivo")
+  motivo     String?
+  ie         Ie        @relation(fields: [idIe], references: [idIe])
+  
+  @@unique([idIe, fecha], name: "uq_cal_ie_fecha")
+  @@map("calendario_escolar")
+}
+
+model HorarioGradoSeccion {
+  idHorario        Int          @id @default(autoincrement()) @map("id_horario")
+  idGradoSeccion   Int          @map("id_grado_seccion")
+  diaSemana        Int          @map("dia_semana")
+  horaEntrada      DateTime     @map("hora_entrada") @db.Time
+  horaSalida       DateTime     @map("hora_salida") @db.Time
+  toleranciaMin    Int          @default(10) @map("tolerancia_min")
+  sesiones         Int          @default(1)
+  gradoSeccion     GradoSeccion @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+  
+  @@unique([idGradoSeccion, diaSemana], name: "uq_hgs_aula_dia")
+  @@map("horarios_grado_seccion")
+}
+
+// ======================
+// Talleres
+// ======================
+model Taller {
+  idTaller    Int       @id @default(autoincrement()) @map("id_taller")
+  idIe        Int       @map("id_ie")
+  codigo      String?   @unique @db.VarChar(32)
+  nombre      String
+  descripcion String?   @db.Text
+  activo      Boolean   @default(true)
+  ie          Ie        @relation(fields: [idIe], references: [idIe])
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relaciones
+  inscripciones InscripcionTaller[]
+  horarios      HorarioTaller[]
+  
+  @@unique([idIe, nombre], name: "uq_taller_ie_nombre")
+  @@map("talleres")
+}
+
+model InscripcionTaller {
+  idInscripcion     Int        @id @default(autoincrement()) @map("id_inscripcion")
+  idEstudiante      Int        @map("id_estudiante")
+  idTaller          Int        @map("id_taller")
+  anio              Int
+  fechaInscripcion  DateTime   @map("fecha_inscripcion") @db.Date
+  estado            String     @default("activa")
+  estudiante        Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  taller            Taller     @relation(fields: [idTaller], references: [idTaller])
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relaciones
+  asistencias Asistencia[]
+  
+  @@unique([idEstudiante, idTaller, anio], name: "uq_insc_est_taller_anio")
+  @@map("inscripcion_taller")
+}
+
+model HorarioTaller {
+  idHorarioTaller Int      @id @default(autoincrement()) @map("id_horario_taller")
+  idTaller        Int      @map("id_taller")
+  diaSemana       Int      @map("dia_semana")
+  horaInicio      DateTime @map("hora_inicio") @db.Time
+  horaFin         DateTime @map("hora_fin") @db.Time
+  toleranciaMin   Int      @default(10) @map("tolerancia_min")
+  lugar           String?
+  taller          Taller   @relation(fields: [idTaller], references: [idTaller])
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  @@unique([idTaller, diaSemana, horaInicio], name: "uq_htaller_taller_dia_inicio")
+  @@map("horarios_taller")
+}
+
+// ======================
+// Asistencias
+// ======================
+model EstadoAsistencia {
+  idEstadoAsistencia Int    @id @default(autoincrement()) @map("id_estado_asistencia")
+  nombreEstado       String @unique @map("nombre_estado")
+  
+  // Relaciones
+  asistencias      Asistencia[]
+  historicoEstados HistoricoEstadoAsistencia[]
+  
+  @@map("estados_asistencia")
+}
+
+model Asistencia {
+  idAsistencia         Int                @id @default(autoincrement()) @map("id_asistencia")
+  idEstudiante         Int                @map("id_estudiante")
+  idIe                 Int                @map("id_ie")
+  fecha                DateTime           @db.Date
+  sesion               String             @default("AM")
+  idInscripcionTaller  Int?               @map("id_inscripcion_taller")
+  horaEntrada          DateTime?          @map("hora_entrada") @db.Time
+  horaSalida           DateTime?          @map("hora_salida") @db.Time
+  idEstadoAsistencia   Int?               @map("id_estado_asistencia")
+  fuente               String?
+  observaciones        String?            @db.Text
+  registradoPor        Int?               @map("registrado_por")
+  estudiante           Estudiante         @relation(fields: [idEstudiante], references: [idEstudiante])
+  ie                   Ie                 @relation(fields: [idIe], references: [idIe])
+  inscripcionTaller    InscripcionTaller? @relation(fields: [idInscripcionTaller], references: [idInscripcion])
+  estadoAsistencia     EstadoAsistencia?  @relation(fields: [idEstadoAsistencia], references: [idEstadoAsistencia])
+  usuarioRegistrador   Usuario?           @relation("RegistradoPor", fields: [registradoPor], references: [idUsuario])
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime?          @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  historicoEstados HistoricoEstadoAsistencia[]
+  
+  @@unique([idEstudiante, fecha, sesion], name: "uq_asistencia_est_fecha_sesion")
+  @@index([fecha])
+  @@index([idIe, fecha])
+  @@index([idInscripcionTaller])
+  @@map("asistencias")
+}
+
+model HistoricoEstadoAsistencia {
+  idHistorico          Int              @id @default(autoincrement()) @map("id_historico")
+  idAsistencia         Int              @map("id_asistencia")
+  idEstadoAsistencia   Int              @map("id_estado_asistencia")
+  fechaCambio          DateTime         @default(now()) @map("fecha_cambio") @db.Timestamptz
+  cambiadoPor          Int?             @map("cambiado_por")
+  asistencia           Asistencia       @relation(fields: [idAsistencia], references: [idAsistencia])
+  estadoAsistencia     EstadoAsistencia @relation(fields: [idEstadoAsistencia], references: [idEstadoAsistencia])
+  usuario              Usuario?         @relation(fields: [cambiadoPor], references: [idUsuario])
+  
+  @@map("historico_estados_asistencia")
+}
+
+// ======================
+// Retiros
+// ======================
+model TipoRetiro {
+  idTipoRetiro Int    @id @default(autoincrement()) @map("id_tipo_retiro")
+  nombre       String @unique
+  
+  // Relaciones
+  retiros Retiro[]
+  
+  @@map("tipo_retiro")
+}
+
+model EstadoRetiro {
+  idEstadoRetiro Int       @id @default(autoincrement()) @map("id_estado_retiro")
+  codigo         String    @unique
+  nombre         String
+  orden          Int       @default(1)
+  esFinal        Boolean   @default(false) @map("es_final")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relaciones
+  retiros Retiro[]
+  
+  @@map("estados_retiro")
+}
+
+model AutorizacionRetiro {
+  idAut         Int        @id @default(autoincrement()) @map("id_aut")
+  idEstudiante  Int        @map("id_estudiante")
+  idApoderado   Int        @map("id_apoderado")
+  vigenteDesde  DateTime?  @map("vigente_desde") @db.Date
+  vigenteHasta  DateTime?  @map("vigente_hasta") @db.Date
+  observacion   String?    @db.Text
+  estudiante    Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  apoderado     Apoderado  @relation(fields: [idApoderado], references: [idApoderado])
+  
+  @@index([idEstudiante, idApoderado, vigenteDesde])
+  @@map("autorizaciones_retiro")
+}
+
+model Retiro {
+  idRetiro              Int             @id @default(autoincrement()) @map("id_retiro")
+  idEstudiante          Int             @map("id_estudiante")
+  idIe                  Int             @map("id_ie")
+  idGradoSeccion        Int?            @map("id_grado_seccion")
+  fecha                 DateTime        @db.Date
+  hora                  DateTime        @db.Time
+  idTipoRetiro          Int?            @map("id_tipo_retiro")
+  origen                String?
+  reportadoPorDocente   Int?            @map("reportado_por_docente")
+  apoderadoContactado   Int?            @map("apoderado_contactado")
+  horaContacto          DateTime?       @map("hora_contacto") @db.Timestamptz
+  medioContacto         String?         @map("medio_contacto")
+  apoderadoQueRetira    Int?            @map("apoderado_que_retira")
+  dniVerificado         String?         @map("dni_verificado")
+  verificadoPor         Int?            @map("verificado_por")
+  idEstadoRetiro        Int?            @map("id_estado_retiro")
+  observaciones         String?         @db.Text
+  estudiante            Estudiante      @relation(fields: [idEstudiante], references: [idEstudiante])
+  ie                    Ie              @relation(fields: [idIe], references: [idIe])
+  gradoSeccion          GradoSeccion?   @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+  tipoRetiro            TipoRetiro?     @relation(fields: [idTipoRetiro], references: [idTipoRetiro])
+  docenteReportador     Docente?        @relation("ReportadoPorDocente", fields: [reportadoPorDocente], references: [idDocente])
+  apoderadoContacto     Apoderado?      @relation("ApoderadoContactado", fields: [apoderadoContactado], references: [idApoderado])
+  apoderadoRetira       Apoderado?      @relation("ApoderadoQueRetira", fields: [apoderadoQueRetira], references: [idApoderado])
+  usuarioVerificador    Usuario?        @relation("VerificadoPor", fields: [verificadoPor], references: [idUsuario])
+  estadoRetiro          EstadoRetiro?   @relation(fields: [idEstadoRetiro], references: [idEstadoRetiro])
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime?       @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([idEstudiante, fecha])
+  @@index([idIe, fecha])
+  @@index([idEstadoRetiro])
+  @@map("retiros")
+}
+
+// ======================
+// Códigos de negocio
+// ======================
+model Consecutivo {
+  tabla       String  @map("tabla")
+  idIe        Int     @map("id_ie")
+  ultimoNum   Int     @default(0) @map("ultimo_num")
+  ancho       Int     @default(2)
+  prefijoFijo String? @map("prefijo_fijo") @db.VarChar(10)
+  ie          Ie      @relation(fields: [idIe], references: [idIe])
+  
+  @@id([tabla, idIe])
+  @@map("consecutivos")
+}
