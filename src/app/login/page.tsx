@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -14,9 +16,12 @@ export default function LoginPage() {
     email: '',
     password: '',
     institucionEducativa: '',
-    rol: ''
+    rol: '',
+    general: ''
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isAdminDetected, setIsAdminDetected] = useState(false)
+  const [showRoleSelection, setShowRoleSelection] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -36,8 +41,51 @@ export default function LoginPage() {
     { id: 3, nombre: 'Apoderado' }
   ]
 
+  // Función para detectar si es admin y manejar login inteligente
+  const handleEmailPasswordSubmit = async () => {
+    if (!formData.email || !formData.password) {
+      setErrors(prev => ({
+        ...prev,
+        email: !formData.email ? 'El email es requerido' : '',
+        password: !formData.password ? 'La contraseña es requerida' : ''
+      }))
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Primero intentar login como ADMIN
+      const adminResponse = await fetch('http://localhost:3001/api/auth/admin-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      })
+
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json()
+        localStorage.setItem('token', adminData.data.token)
+        localStorage.setItem('user', JSON.stringify(adminData.data.user))
+        router.push('/admin')
+        return
+      }
+
+      // Si no es admin, mostrar selección de rol e institución
+      setIsAdminDetected(false)
+      setShowRoleSelection(true)
+    } catch (error) {
+      setErrors(prev => ({ ...prev, general: 'Error de conexión' }))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const validateForm = () => {
-    const newErrors = { email: '', password: '', institucionEducativa: '', rol: '' }
+    const newErrors = { email: '', password: '', institucionEducativa: '', rol: '', general: '' }
     let isValid = true
 
     if (!formData.email) {
@@ -56,14 +104,16 @@ export default function LoginPage() {
       isValid = false
     }
 
-    if (!formData.institucionEducativa) {
-      newErrors.institucionEducativa = 'Debe seleccionar una institución educativa'
-      isValid = false
-    }
+    if (showRoleSelection) {
+      if (!formData.institucionEducativa) {
+        newErrors.institucionEducativa = 'Debe seleccionar una institución educativa'
+        isValid = false
+      }
 
-    if (!formData.rol) {
-      newErrors.rol = 'Debe seleccionar un rol'
-      isValid = false
+      if (!formData.rol) {
+        newErrors.rol = 'Debe seleccionar un rol'
+        isValid = false
+      }
     }
 
     setErrors(newErrors)
@@ -73,19 +123,54 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!showRoleSelection) {
+      await handleEmailPasswordSubmit()
+      return
+    }
+
     if (!validateForm()) return
 
     setIsLoading(true)
     
     try {
-      // Simular llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('Login attempt:', formData)
-      // Aquí iría la lógica de autenticación real
-      alert('Login exitoso!')
+      const response = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          institucionEducativa: formData.institucionEducativa,
+          rol: formData.rol
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        
+        // Redirigir según el rol
+        switch (data.data.user.rol) {
+          case 'ADMINISTRATIVO':
+            router.push('/administrativo')
+            break
+          case 'DOCENTE':
+            router.push('/docente')
+            break
+          case 'APODERADO':
+            router.push('/apoderado')
+            break
+          default:
+            router.push('/dashboard')
+        }
+      } else {
+        setErrors(prev => ({ ...prev, general: data.error || 'Error en el login' }))
+      }
     } catch (error) {
-      console.error('Error en login:', error)
-      alert('Error en el login')
+      setErrors(prev => ({ ...prev, general: 'Error de conexión' }))
     } finally {
       setIsLoading(false)
     }
@@ -102,7 +187,8 @@ export default function LoginPage() {
     if (errors[name as keyof typeof errors]) {
       setErrors(prev => ({
         ...prev,
-        [name]: ''
+        [name]: '',
+        general: ''
       }))
     }
   }
@@ -117,12 +203,21 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Iniciar Sesión
+              {showRoleSelection ? 'Selecciona tu Rol' : 'Iniciar Sesión'}
             </h2>
             <p className="text-gray-600">
-              Ingresa tus credenciales para acceder
+              {showRoleSelection 
+                ? 'Completa la información para acceder'
+                : 'Ingresa tus credenciales para acceder'
+              }
             </p>
           </div>
+
+          {errors.general && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{errors.general}</p>
+            </div>
+          )}
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -168,76 +263,103 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <div>
-                <label htmlFor="institucionEducativa" className="block text-sm font-medium text-gray-700 mb-1">
-                  Institución Educativa
-                </label>
-                <select
-                  id="institucionEducativa"
-                  name="institucionEducativa"
-                  value={formData.institucionEducativa}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.institucionEducativa ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Seleccione una institución</option>
-                  {institucionesEducativas.map((ie) => (
-                    <option key={ie.id} value={ie.id.toString()}>
-                      {ie.nombre}
-                    </option>
-                  ))}
-                </select>
-                {errors.institucionEducativa && (
-                  <p className="mt-1 text-sm text-red-600">{errors.institucionEducativa}</p>
-                )}
-              </div>
+              {showRoleSelection && (
+                <>
+                  <div>
+                    <label htmlFor="institucionEducativa" className="block text-sm font-medium text-gray-700 mb-1">
+                      Institución Educativa
+                    </label>
+                    <select
+                      id="institucionEducativa"
+                      name="institucionEducativa"
+                      value={formData.institucionEducativa}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
+                        errors.institucionEducativa ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Seleccione una institución</option>
+                      {institucionesEducativas.map((ie) => (
+                        <option key={ie.id} value={ie.id.toString()}>
+                          {ie.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.institucionEducativa && (
+                      <p className="mt-1 text-sm text-red-600">{errors.institucionEducativa}</p>
+                    )}
+                  </div>
 
-              <div>
-                <label htmlFor="rol" className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol
-                </label>
-                <select
-                  id="rol"
-                  name="rol"
-                  value={formData.rol}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.rol ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Seleccione un rol</option>
-                  {roles.map((rol) => (
-                    <option key={rol.id} value={rol.id.toString()}>
-                      {rol.nombre}
-                    </option>
-                  ))}
-                </select>
-                {errors.rol && (
-                  <p className="mt-1 text-sm text-red-600">{errors.rol}</p>
-                )}
-              </div>
+                  <div>
+                    <label htmlFor="rol" className="block text-sm font-medium text-gray-700 mb-1">
+                      Rol
+                    </label>
+                    <select
+                      id="rol"
+                      name="rol"
+                      value={formData.rol}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
+                        errors.rol ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Seleccione un rol</option>
+                      {roles.map((rol) => (
+                        <option key={rol.id} value={rol.nombre}>
+                          {rol.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.rol && (
+                      <p className="mt-1 text-sm text-red-600">{errors.rol}</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Recordarme
-                </label>
+            {showRoleSelection && (
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRoleSelection(false)
+                    setFormData(prev => ({ ...prev, institucionEducativa: '', rol: '' }))
+                    setErrors({ email: '', password: '', institucionEducativa: '', rol: '', general: '' })
+                  }}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                >
+                  ← Volver
+                </button>
+                <div className="text-sm">
+                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
               </div>
+            )}
 
-              <div className="text-sm">
-                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-                  ¿Olvidaste tu contraseña?
-                </a>
+            {!showRoleSelection && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                    Recordarme
+                  </label>
+                </div>
+
+                <div className="text-sm">
+                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"
@@ -257,18 +379,17 @@ export default function LoginPage() {
                   Iniciando sesión...
                 </div>
               ) : (
-                'Iniciar Sesión'
+                showRoleSelection ? 'Continuar' : 'Iniciar Sesión'
               )}
             </button>
 
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                ¿Eres administrador del sistema?{' '}
-                <a href="/admin-login" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-                  Acceso administrativo
-                </a>
-              </p>
-            </div>
+            {!showRoleSelection && (
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Sistema de Control de Asistencia Escolar
+                </p>
+              </div>
+            )}
           </form>
         </div>
       </div>
