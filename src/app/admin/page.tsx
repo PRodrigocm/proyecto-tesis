@@ -87,101 +87,75 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Panel de Administración
-              </h1>
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                Bienvenido, <span className="font-medium">{user?.nombre} {user?.apellido}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Usuarios</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsuarios.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Estudiantes</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalEstudiantes.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Instituciones</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalInstituciones}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Asistencias Hoy</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.asistenciasHoy.toLocaleString()}</p>
-              </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Usuarios</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalUsuarios.toLocaleString()}</p>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Management Actions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Gestión del Sistema</h3>
-              <p className="text-sm text-gray-600">Administrar usuarios, instituciones y configuraciones</p>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
             </div>
-            <div className="p-6">
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Estudiantes</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalEstudiantes.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Instituciones</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalInstituciones}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Asistencias Hoy</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.asistenciasHoy.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Management Actions */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Gestión del Sistema</h3>
+            <p className="text-sm text-gray-600">Administrar usuarios, instituciones y configuraciones</p>
+          </div>
+          <div className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="p-2 bg-blue-100 rounded-lg mr-3">
@@ -295,56 +269,55 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="mt-8 bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Actividad Reciente</h3>
-            <p className="text-sm text-gray-600">Últimas acciones en el sistema</p>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-green-100 rounded-full">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Nuevo usuario registrado</p>
-                  <p className="text-sm text-gray-600">María González - Docente en I.E. San José</p>
-                </div>
-                <span className="text-sm text-gray-500">Hace 2 horas</span>
+      {/* Recent Activity */}
+      <div className="mt-8 bg-white rounded-lg shadow">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Actividad Reciente</h3>
+          <p className="text-sm text-gray-600">Últimas acciones en el sistema</p>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-full">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
               </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">Nuevo usuario registrado</p>
+                <p className="text-sm text-gray-600">María González - Docente en I.E. San José</p>
+              </div>
+              <span className="text-sm text-gray-500">Hace 2 horas</span>
+            </div>
 
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-full">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Asistencias procesadas</p>
-                  <p className="text-sm text-gray-600">156 registros de asistencia actualizados</p>
-                </div>
-                <span className="text-sm text-gray-500">Hace 4 horas</span>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">Asistencias procesadas</p>
+                <p className="text-sm text-gray-600">156 registros de asistencia actualizados</p>
+              </div>
+              <span className="text-sm text-gray-500">Hace 4 horas</span>
+            </div>
 
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 rounded-full">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Nueva institución agregada</p>
-                  <p className="text-sm text-gray-600">I.E. Nuestra Señora del Carmen</p>
-                </div>
-                <span className="text-sm text-gray-500">Ayer</span>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-100 rounded-full">
+                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
               </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">Nueva institución agregada</p>
+                <p className="text-sm text-gray-600">I.E. Nuestra Señora del Carmen</p>
+              </div>
+              <span className="text-sm text-gray-500">Ayer</span>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

@@ -30,8 +30,8 @@ router.post('/login', async (req, res) => {
     const validatedData = loginSchema.parse(req.body);
     const { email, password, institucionEducativa, rol } = validatedData;
 
-    // Buscar usuario
-    const usuario = await prisma.usuario.findUnique({
+    // Buscar usuario por email
+    const usuario = await prisma.usuario.findFirst({
       where: { email },
       include: {
         roles: {
@@ -139,7 +139,7 @@ router.post('/admin-login', async (req, res) => {
     const { email, password } = validatedData;
 
     // Buscar usuario admin
-    const usuario = await prisma.usuario.findUnique({
+    const usuario = await prisma.usuario.findFirst({
       where: { email },
       include: {
         roles: {
