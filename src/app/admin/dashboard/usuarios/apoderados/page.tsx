@@ -154,6 +154,7 @@ export default function ApoderadosPage() {
         <ApoderadosTable
           apoderados={apoderados}
           onEstadoChange={handleEstadoChange}
+          onApoderadoUpdated={loadApoderados}
         />
       </div>
     </div>

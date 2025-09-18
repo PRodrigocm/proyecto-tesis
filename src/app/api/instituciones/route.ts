@@ -3,35 +3,35 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    console.log('Fetching institutions from database...')
+    console.log('Prisma client available:', !!prisma)
+    console.log('Prisma ie model available:', !!prisma?.ie)
+    
     const instituciones = await prisma.ie.findMany({
       select: {
         idIe: true,
         nombre: true,
         codigoIe: true,
-        direccion: true,
-        telefono: true,
-        email: true,
-        created_at: true
+        createdAt: true
       },
       orderBy: {
         nombre: 'asc'
       }
     })
 
-    // Transform to match expected interface
+    console.log('Found institutions:', instituciones.length)
+
     const transformedData = instituciones.map(ie => ({
       id: ie.idIe,
       nombre: ie.nombre,
       codigo: ie.codigoIe,
-      direccion: ie.direccion,
-      telefono: ie.telefono,
-      email: ie.email,
-      created_at: ie.created_at
+      created_at: ie.createdAt
     }))
 
     return NextResponse.json(transformedData)
   } catch (error) {
     console.error('Error fetching instituciones:', error)
+    console.error('Error details:', error.message)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { nombre, direccion, telefono, email } = body
+    const { nombre } = body
 
     if (!nombre) {
       return NextResponse.json(
@@ -55,9 +55,6 @@ export async function POST(request: NextRequest) {
       data: {
         nombre,
         codigoIe: `IE-${Date.now()}`, // Generate a unique code
-        direccion,
-        telefono,
-        email,
         idModalidad: 1 // Default modalidad, you may want to make this configurable
       }
     })
@@ -67,10 +64,7 @@ export async function POST(request: NextRequest) {
       id: institucion.idIe,
       nombre: institucion.nombre,
       codigo: institucion.codigoIe,
-      direccion: institucion.direccion,
-      telefono: institucion.telefono,
-      email: institucion.email,
-      created_at: institucion.created_at
+      created_at: institucion.createdAt
     }
 
     return NextResponse.json(transformedResponse, { status: 201 })

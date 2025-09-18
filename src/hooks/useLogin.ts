@@ -120,7 +120,7 @@ export const useLogin = () => {
     try {
       // Si el rol seleccionado es ADMIN, usar admin-login
       if (formData.rol === 'ADMIN') {
-        const response = await fetch('http://localhost:3001/api/auth/admin-login', {
+        const response = await fetch('/api/auth/admin-login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ export const useLogin = () => {
         }
       } else {
         // Login normal para otros roles
-        const response = await fetch('http://localhost:3001/api/auth/login', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

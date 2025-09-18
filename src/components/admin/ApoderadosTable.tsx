@@ -1,11 +1,44 @@
+import { useState } from 'react'
 import { Apoderado } from '@/hooks/useApoderados'
+import { useEditApoderado } from '@/hooks/useEditApoderado'
+import EditApoderadoModal from './EditApoderadoModal'
+import ViewApoderadoModal from './ViewApoderadoModal'
 
 interface ApoderadosTableProps {
   apoderados: Apoderado[]
   onEstadoChange: (id: string, estado: 'ACTIVO' | 'INACTIVO') => void
+  onApoderadoUpdated: () => void
 }
 
-export default function ApoderadosTable({ apoderados, onEstadoChange }: ApoderadosTableProps) {
+export default function ApoderadosTable({ apoderados, onEstadoChange, onApoderadoUpdated }: ApoderadosTableProps) {
+  const [selectedApoderado, setSelectedApoderado] = useState<Apoderado | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const { updateApoderado } = useEditApoderado()
+
+  const handleEditClick = (apoderado: Apoderado) => {
+    setSelectedApoderado(apoderado)
+    setIsEditModalOpen(true)
+  }
+
+  const handleViewClick = (apoderado: Apoderado) => {
+    setSelectedApoderado(apoderado)
+    setIsViewModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false)
+    setIsViewModalOpen(false)
+    setSelectedApoderado(null)
+  }
+
+  const handleSaveApoderado = async (apoderadoData: any) => {
+    const success = await updateApoderado(apoderadoData)
+    if (success) {
+      onApoderadoUpdated()
+      handleCloseModal()
+    }
+  }
   if (apoderados.length === 0) {
     return (
       <div className="text-center py-12">
@@ -87,10 +120,16 @@ export default function ApoderadosTable({ apoderados, onEstadoChange }: Apoderad
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex space-x-2">
-                  <button className="text-indigo-600 hover:text-indigo-900">
+                  <button 
+                    onClick={() => handleViewClick(apoderado)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
                     Ver
                   </button>
-                  <button className="text-yellow-600 hover:text-yellow-900">
+                  <button 
+                    onClick={() => handleEditClick(apoderado)}
+                    className="text-yellow-600 hover:text-yellow-900"
+                  >
                     Editar
                   </button>
                   <button
@@ -112,6 +151,21 @@ export default function ApoderadosTable({ apoderados, onEstadoChange }: Apoderad
           ))}
         </tbody>
       </table>
+
+      {/* Modal de Visualización */}
+      <ViewApoderadoModal
+        apoderado={selectedApoderado}
+        isOpen={isViewModalOpen}
+        onClose={handleCloseModal}
+      />
+
+      {/* Modal de Edición */}
+      <EditApoderadoModal
+        apoderado={selectedApoderado}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveApoderado}
+      />
     </div>
   )
 }

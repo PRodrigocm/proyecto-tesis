@@ -180,6 +180,7 @@ model Apoderado {
   idUsuario   Int       @unique @map("id_usuario")
   codigo      String?   @unique @db.VarChar(32)
   ocupacion   String?
+  direccion   String?
   usuario     Usuario   @relation(fields: [idUsuario], references: [idUsuario])
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamptz

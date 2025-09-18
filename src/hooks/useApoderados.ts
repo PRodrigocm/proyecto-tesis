@@ -9,12 +9,18 @@ export interface Apoderado {
   dni: string
   direccion: string
   fechaRegistro: string
+  fechaNacimiento?: string
+  fechaCreacion?: string
+  ocupacion?: string
   estado: 'ACTIVO' | 'INACTIVO'
   estudiantes: Array<{
     id: string
     nombre: string
     apellido: string
+    dni: string
     grado: string
+    seccion: string
+    relacion: string
   }>
 }
 
@@ -35,15 +41,31 @@ export const useApoderados = () => {
     loadApoderados()
   }, [])
 
+  useEffect(() => {
+    loadApoderados()
+  }, [filters.filterEstado])
+
   const loadApoderados = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/users/apoderados', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      // Get user's institution ID from localStorage
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe
+      
+      if (!ieId) {
+        console.error('No institution ID found for user')
+        return
+      }
+
+      // Include inactive apoderados when filter is set to show them
+      const includeInactive = filters.filterEstado === 'INACTIVO' || filters.filterEstado === 'TODOS'
+      const response = await fetch(`/api/apoderados?ieId=${ieId}&includeInactive=${includeInactive}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -72,12 +94,10 @@ export const useApoderados = () => {
 
   const handleEstadoChange = async (id: string, nuevoEstado: 'ACTIVO' | 'INACTIVO') => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/users/apoderados/${id}`, {
+      const response = await fetch(`/api/apoderados?id=${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ estado: nuevoEstado })
       })
@@ -93,6 +113,40 @@ export const useApoderados = () => {
       }
     } catch (error) {
       console.error('Error updating estado:', error)
+    }
+  }
+
+  const updateApoderado = async (apoderadoData: {
+    id: string
+    nombre: string
+    apellido: string
+    email: string
+    telefono: string
+    dni: string
+    direccion: string
+    estado: 'ACTIVO' | 'INACTIVO'
+    estudiantesIds: string[]
+    estudiantesRelaciones: {[key: string]: string}
+  }) => {
+    try {
+      const response = await fetch(`/api/apoderados/${apoderadoData.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(apoderadoData)
+      })
+
+      if (response.ok) {
+        await loadApoderados() // Reload to get updated data
+        return true
+      } else {
+        console.error('Error updating apoderado')
+        return false
+      }
+    } catch (error) {
+      console.error('Error updating apoderado:', error)
+      return false
     }
   }
 
@@ -114,6 +168,7 @@ export const useApoderados = () => {
     stats,
     loadApoderados,
     handleEstadoChange,
+    updateApoderado,
     updateFilters
   }
 }

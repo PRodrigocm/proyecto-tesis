@@ -41,12 +41,22 @@ export const useDocentes = () => {
   const loadDocentes = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/users/docentes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      // Get user's institution ID from localStorage
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe
+      
+      if (!ieId) {
+        console.error('No institution ID found for user')
+        return
+      }
+
+      const response = await fetch(`/api/docentes?ieId=${ieId}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -80,12 +90,10 @@ export const useDocentes = () => {
 
   const handleEstadoChange = async (id: string, nuevoEstado: 'ACTIVO' | 'INACTIVO') => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/users/docentes/${id}`, {
+      const response = await fetch(`/api/docentes?id=${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ estado: nuevoEstado })
       })

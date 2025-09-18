@@ -85,10 +85,10 @@ export default function AdminLayout({
       ]
     },
     {
-      name: 'Instituciones',
-      href: '/admin/dashboard/instituciones',
+      name: 'Salones',
+      href: '/admin/dashboard/salones',
       icon: '🏫',
-      current: pathname === '/admin/dashboard/instituciones'
+      current: pathname === '/admin/dashboard/salones'
     },
     {
       name: 'Asistencias',
