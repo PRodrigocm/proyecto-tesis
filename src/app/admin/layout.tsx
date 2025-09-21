@@ -33,12 +33,16 @@ export default function AdminLayout({
 
     try {
       const parsedUser = JSON.parse(userData)
-      if (parsedUser.rol !== 'ADMIN') {
+      console.log('🔍 Admin Layout - Checking user role:', parsedUser.rol)
+      if (parsedUser.rol !== 'ADMINISTRATIVO') {
+        console.log('❌ Admin Layout - Invalid role, redirecting to login')
         router.push('/login')
         return
       }
+      console.log('✅ Admin Layout - Role valid, setting user')
       setUser(parsedUser)
     } catch (error) {
+      console.log('❌ Admin Layout - Error parsing user data:', error)
       router.push('/login')
     }
   }, [router])

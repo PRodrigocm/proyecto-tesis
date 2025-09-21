@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       { 
         userId: user.idUsuario, 
         email: user.email, 
-        rol: user.rol,
+        rol: user.roles[0]?.rol?.nombre || rol,
         ieId: user.idIe
       },
       process.env.JWT_SECRET || 'fallback-secret',
@@ -73,6 +73,13 @@ export async function POST(request: NextRequest) {
       rol: user.roles[0]?.rol?.nombre || rol,
       institucion: user.ie?.nombre || null
     }
+
+    console.log('🔍 Login API - User found:', {
+      id: user.idUsuario,
+      email: user.email,
+      roles: user.roles.map(r => r.rol.nombre),
+      finalRole: userData.rol
+    })
 
     return NextResponse.json({
       data: {

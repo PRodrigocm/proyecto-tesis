@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       email: apoderado.usuario.email || '',
       telefono: apoderado.usuario.telefono || '',
       dni: apoderado.usuario.dni,
-      direccion: apoderado.usuario.direccion || '',
+      direccion: apoderado.direccion || '',
       fechaRegistro: apoderado.usuario.createdAt.toISOString(),
       fechaNacimiento: apoderado.usuario.fechaNacimiento?.toISOString(),
       fechaCreacion: apoderado.usuario.createdAt.toISOString(),

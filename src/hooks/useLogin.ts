@@ -118,66 +118,64 @@ export const useLogin = () => {
     setIsLoading(true)
     
     try {
-      // Si el rol seleccionado es ADMIN, usar admin-login
-      if (formData.rol === 'ADMIN') {
-        const response = await fetch('/api/auth/admin-login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          })
+      console.log('🔐 Starting login process...')
+      console.log('Form data:', {
+        email: formData.email,
+        institucionEducativa: formData.institucionEducativa,
+        rol: formData.rol
+      })
+
+      // Login unificado para todos los roles
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          institucionEducativa: formData.institucionEducativa,
+          rol: formData.rol
         })
+      })
 
-        const data = await response.json()
+      console.log('📡 Login response status:', response.status)
+      const data = await response.json()
+      console.log('📡 Login response data:', data)
 
-        if (response.ok) {
-          localStorage.setItem('token', data.data.token)
-          localStorage.setItem('user', JSON.stringify(data.data.user))
-          router.push('/admin')
-        } else {
-          setErrors(prev => ({ ...prev, general: data.error || 'Error en el login administrativo' }))
+      if (response.ok) {
+        console.log('✅ Login successful!')
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        
+        // Debug: Log the user data to see what role is being returned
+        console.log('👤 User data saved to localStorage:', data.data.user)
+        console.log('🎭 User role:', data.data.user.rol)
+        console.log('🎭 Role type:', typeof data.data.user.rol)
+        
+        // Redirigir según el rol
+        console.log('🔄 Starting redirect logic...')
+        switch (data.data.user.rol) {
+          case 'ADMINISTRATIVO':
+            console.log('🚀 Redirecting to admin dashboard...')
+            router.push('/admin')
+            break
+          case 'DOCENTE':
+            console.log('🚀 Redirecting to docente dashboard...')
+            router.push('/docente')
+            break
+          case 'APODERADO':
+            console.log('🚀 Redirecting to apoderado dashboard...')
+            router.push('/apoderado')
+            break
+          default:
+            console.log('🚀 Redirecting to default dashboard...')
+            console.log('⚠️ Unrecognized role:', data.data.user.rol)
+            router.push('/dashboard')
         }
       } else {
-        // Login normal para otros roles
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            institucionEducativa: formData.institucionEducativa,
-            rol: formData.rol
-          })
-        })
-
-        const data = await response.json()
-
-        if (response.ok) {
-          localStorage.setItem('token', data.data.token)
-          localStorage.setItem('user', JSON.stringify(data.data.user))
-          
-          // Redirigir según el rol
-          switch (data.data.user.rol) {
-            case 'ADMINISTRATIVO':
-              router.push('/administrativo')
-              break
-            case 'DOCENTE':
-              router.push('/docente')
-              break
-            case 'APODERADO':
-              router.push('/apoderado')
-              break
-            default:
-              router.push('/dashboard')
-          }
-        } else {
-          setErrors(prev => ({ ...prev, general: data.error || 'Error en el login' }))
-        }
+        console.log('❌ Login failed:', data.error)
+        setErrors(prev => ({ ...prev, general: data.error || 'Error en el login' }))
       }
     } catch (error) {
       setErrors(prev => ({ ...prev, general: 'Error de conexión' }))

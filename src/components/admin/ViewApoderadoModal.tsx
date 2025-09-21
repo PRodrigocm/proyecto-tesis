@@ -95,15 +95,6 @@ export default function ViewApoderadoModal({ apoderado, isOpen, onClose }: ViewA
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {apoderado.fechaNacimiento 
-                      ? new Date(apoderado.fechaNacimiento).toLocaleDateString('es-ES')
-                      : 'No especificada'
-                    }
-                  </p>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700">Fecha de Registro</label>
                   <p className="mt-1 text-sm text-gray-900">
                     {apoderado.fechaCreacion 

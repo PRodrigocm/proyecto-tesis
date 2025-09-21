@@ -75,12 +75,20 @@ export async function PUT(
         }
       })
 
-      // 2. Eliminar todas las relaciones actuales de estudiante-apoderado
+      // 2. Actualizar datos específicos del apoderado (incluyendo direccion)
+      await tx.apoderado.update({
+        where: { idApoderado: apoderadoId },
+        data: {
+          direccion
+        }
+      })
+
+      // 3. Eliminar todas las relaciones actuales de estudiante-apoderado
       await tx.estudianteApoderado.deleteMany({
         where: { idApoderado: apoderadoId }
       })
 
-      // 3. Crear nuevas relaciones estudiante-apoderado
+      // 4. Crear nuevas relaciones estudiante-apoderado
       if (estudiantesIds.length > 0) {
         const estudiantesIdsInt = estudiantesIds.map((id: string) => parseInt(id))
         
@@ -100,7 +108,7 @@ export async function PUT(
         }
       }
 
-      // 4. Obtener el apoderado actualizado con sus estudiantes
+      // 5. Obtener el apoderado actualizado con sus estudiantes
       return await tx.apoderado.findUnique({
         where: { idApoderado: apoderadoId },
         include: {
