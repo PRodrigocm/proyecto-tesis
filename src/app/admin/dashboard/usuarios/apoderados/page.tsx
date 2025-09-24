@@ -1,9 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { useApoderados } from '@/hooks/useApoderados'
 import ApoderadosTable from '@/components/admin/ApoderadosTable'
+import CreateApoderadoModal from '@/components/forms/CreateApoderadoModal'
 
 export default function ApoderadosPage() {
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  
   const {
     apoderados,
     loading,
@@ -35,6 +39,7 @@ export default function ApoderadosPage() {
         <div className="mt-4 sm:mt-0">
           <button
             type="button"
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,6 +162,12 @@ export default function ApoderadosPage() {
           onApoderadoUpdated={loadApoderados}
         />
       </div>
+
+      <CreateApoderadoModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={loadApoderados}
+      />
     </div>
   )
 }

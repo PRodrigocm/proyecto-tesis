@@ -3,6 +3,7 @@
 import { useCalendarios } from '@/hooks/useCalendarios'
 import CalendariosTable from '@/components/admin/CalendariosTable'
 import CalendariosStats from '@/components/admin/CalendariosStats'
+import CalendarioMes from '@/components/admin/CalendarioMes'
 
 export default function CalendariosPage() {
   const {
@@ -158,6 +159,12 @@ export default function CalendariosPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Visor de calendario con horarios */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-4 text-gray-800">Horarios de la semana</h2>
+        <CalendarioMes />
       </div>
 
       {/* Stats */}

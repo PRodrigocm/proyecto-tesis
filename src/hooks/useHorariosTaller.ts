@@ -54,7 +54,7 @@ export const useHorariosTaller = () => {
       if (filters.diaSemana) params.append('diaSemana', filters.diaSemana)
       if (filters.activo !== 'TODOS') params.append('activo', filters.activo === 'ACTIVO' ? 'true' : 'false')
 
-      const response = await fetch(`http://localhost:3001/api/horarios-taller?${params}`, {
+      const response = await fetch(`/api/horarios-taller?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -98,7 +98,7 @@ export const useHorariosTaller = () => {
   }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/horarios-taller', {
+      const response = await fetch('/api/horarios-taller', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +121,7 @@ export const useHorariosTaller = () => {
   const actualizarHorarioTaller = async (id: string, data: Partial<HorarioTaller>) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios-taller/${id}`, {
+      const response = await fetch(`/api/horarios-taller/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ export const useHorariosTaller = () => {
   const eliminarHorarioTaller = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios-taller/${id}`, {
+      const response = await fetch(`/api/horarios-taller/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

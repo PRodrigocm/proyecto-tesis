@@ -60,7 +60,7 @@ export const useRetiros = () => {
         ...(filters.searchTerm && { search: filters.searchTerm })
       })
 
-      const response = await fetch(`http://localhost:3001/api/retiros?${params}`, {
+      const response = await fetch(`/api/retiros?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -103,7 +103,7 @@ export const useRetiros = () => {
   }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/retiros', {
+      const response = await fetch('/api/retiros', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export const useRetiros = () => {
   const autorizarRetiro = async (retiroId: string, autorizado: boolean, observaciones?: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/retiros/${retiroId}/autorizar`, {
+      const response = await fetch(`/api/retiros/${retiroId}/autorizar`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +155,7 @@ export const useRetiros = () => {
   const completarRetiro = async (retiroId: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/retiros/${retiroId}/completar`, {
+      const response = await fetch(`/api/retiros/${retiroId}/completar`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

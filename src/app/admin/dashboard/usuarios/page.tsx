@@ -9,6 +9,17 @@ export default function UsuariosPage() {
 
   const userTypes = [
     {
+      name: 'Estudiantes',
+      description: 'Gestiona los estudiantes registrados en el sistema',
+      href: '/admin/dashboard/usuarios/estudiantes',
+      icon: '🎓',
+      color: 'bg-indigo-500',
+      stats: {
+        total: 0,
+        active: 0
+      }
+    },
+    {
       name: 'Apoderados',
       description: 'Gestiona los apoderados registrados en el sistema',
       href: '/admin/dashboard/usuarios/apoderados',
@@ -36,6 +47,17 @@ export default function UsuariosPage() {
       href: '/admin/dashboard/usuarios/administrativos',
       icon: '👔',
       color: 'bg-purple-500',
+      stats: {
+        total: 0,
+        active: 0
+      }
+    },
+    {
+      name: 'Auxiliares',
+      description: 'Gestiona el personal auxiliar y de apoyo',
+      href: '/admin/dashboard/usuarios/auxiliares',
+      icon: '🔧',
+      color: 'bg-orange-500',
       stats: {
         total: 0,
         active: 0

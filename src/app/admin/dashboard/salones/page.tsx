@@ -102,10 +102,9 @@ export default function SalonesPage() {
             </div>
           </div>
 
-          {showCreateForm ? (
-            <CreateSalonForm />
-          ) : (
-            <div className="bg-white rounded-lg shadow">
+          {showCreateForm && <CreateSalonForm />} 
+
+          <div className="bg-white rounded-lg shadow">
               {viewMode !== 'sidebar' && (
                 <div className="px-6 py-4 border-b border-gray-200">
                   <div className="flex justify-between items-center">
@@ -136,7 +135,6 @@ export default function SalonesPage() {
                 )}
               </div>
             </div>
-          )}
         </div>
       </div>
     </div>

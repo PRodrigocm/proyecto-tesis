@@ -21,6 +21,7 @@ export default function AdminLayout({
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [openUsers, setOpenUsers] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -85,6 +86,11 @@ export default function AdminLayout({
           name: 'Estudiantes',
           href: '/admin/dashboard/usuarios/estudiantes',
           current: pathname === '/admin/dashboard/usuarios/estudiantes'
+        },
+        {
+          name: 'Auxiliares',
+          href: '/admin/dashboard/usuarios/auxiliares',
+          current: pathname === '/admin/dashboard/usuarios/auxiliares'
         }
       ]
     },
@@ -95,10 +101,10 @@ export default function AdminLayout({
       current: pathname === '/admin/dashboard/salones'
     },
     {
-      name: 'Asistencias',
-      href: '/admin/dashboard/asistencias',
-      icon: '✅',
-      current: pathname === '/admin/dashboard/asistencias'
+      name: 'Calendario',
+      href: '/admin/dashboard/calendarios',
+      icon: '📅',
+      current: pathname.startsWith('/admin/dashboard/calendarios')
     },
     {
       name: 'Retiros',
@@ -142,9 +148,10 @@ export default function AdminLayout({
               <div key={item.name}>
                 {item.children ? (
                   <div>
-                    <Link
-                      href={item.href}
-                      className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    <button
+                      type="button"
+                      onClick={() => setOpenUsers(!openUsers)}
+                      className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                         item.current
                           ? 'bg-indigo-100 text-indigo-700'
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -152,22 +159,32 @@ export default function AdminLayout({
                     >
                       <span className="mr-3">{item.icon}</span>
                       {item.name}
-                    </Link>
-                    <div className="ml-8 space-y-1 mt-1">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.name}
-                          href={child.href}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                            child.current
-                              ? 'bg-indigo-100 text-indigo-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                          }`}
-                        >
-                          {child.name}
-                        </Link>
-                      ))}
-                    </div>
+                      <svg
+                        className={`ml-auto h-4 w-4 transform transition-transform ${openUsers ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    {openUsers && (
+                      <div className="ml-8 space-y-1 mt-1">
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.name}
+                            href={child.href}
+                            className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                              child.current
+                                ? 'bg-indigo-100 text-indigo-700 font-medium'
+                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            }`}
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <Link

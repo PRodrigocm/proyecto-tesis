@@ -47,7 +47,7 @@ export function AdministrativosTable({ administrativos, onRefresh }: Administrat
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/usuarios/${id}`, {
+      const response = await fetch(`/api/usuarios/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -113,57 +113,57 @@ export function AdministrativosTable({ administrativos, onRefresh }: Administrat
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAdministrativos.map((admin) => (
-                <tr key={admin.idUsuario} className="hover:bg-gray-50">
+                <tr key={(admin as any).id || admin.idUsuario || Math.random()} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
                           <span className="text-sm font-medium text-indigo-700">
-                            {admin.nombre.charAt(0)}{admin.apellido.charAt(0)}
+                            {admin.nombre?.charAt(0) || 'N'}{admin.apellido?.charAt(0) || 'A'}
                           </span>
                         </div>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {admin.nombre} {admin.apellido}
+                          {admin.nombre || 'Sin nombre'} {admin.apellido || 'Sin apellido'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {admin.roles.map(r => r.rol.nombre).join(', ')}
+                          {admin.roles?.map((r, index) => r.rol?.nombre || 'Sin rol').join(', ') || 'Administrativo'}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {admin.dni}
+                    {admin.dni || 'Sin DNI'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {admin.email}
+                    {admin.email || 'Sin email'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {admin.telefono || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {admin.ie.nombre}
+                    {(admin as any).institucionEducativa || 'Sin institución'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      admin.estado === 'ACTIVO' 
+                      (admin.estado || 'INACTIVO') === 'ACTIVO' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {admin.estado}
+                      {admin.estado || 'INACTIVO'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => handleEdit(admin.idUsuario)}
+                        onClick={() => handleEdit((admin as any).id || admin.idUsuario)}
                         className="text-indigo-600 hover:text-indigo-900 transition-colors"
                       >
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDelete(admin.idUsuario)}
+                        onClick={() => handleDelete((admin as any).id || admin.idUsuario)}
                         className="text-red-600 hover:text-red-900 transition-colors"
                       >
                         Eliminar

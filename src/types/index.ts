@@ -41,8 +41,8 @@ export interface AdminLoginRequest {
 
 // User roles
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  ADMINISTRATIVO = 'ADMINISTRATIVO', 
+  ADMINISTRATIVO = 'ADMINISTRATIVO',
+  AUXILIAR = 'AUXILIAR', 
   DOCENTE = 'DOCENTE',
   APODERADO = 'APODERADO'
 }

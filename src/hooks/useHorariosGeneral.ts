@@ -42,7 +42,7 @@ export const useHorariosGeneral = () => {
       if (filters.sesion !== 'TODOS') params.append('sesion', filters.sesion)
       if (filters.activo !== 'TODOS') params.append('activo', filters.activo === 'ACTIVO' ? 'true' : 'false')
 
-      const response = await fetch(`http://localhost:3001/api/horarios-general?${params}`, {
+      const response = await fetch(`/api/horarios-general?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -83,7 +83,7 @@ export const useHorariosGeneral = () => {
   }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/horarios-general', {
+      const response = await fetch('/api/horarios-general', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export const useHorariosGeneral = () => {
   const actualizarHorarioGeneral = async (id: string, data: Partial<HorarioGeneral>) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios-general/${id}`, {
+      const response = await fetch(`/api/horarios-general/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export const useHorariosGeneral = () => {
   const eliminarHorarioGeneral = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios-general/${id}`, {
+      const response = await fetch(`/api/horarios-general/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

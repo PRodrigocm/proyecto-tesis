@@ -46,7 +46,19 @@ export const useCalendarios = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
+      
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe || user.institucionId || 1
+      
       const params = new URLSearchParams()
+      params.append('ieId', ieId.toString())
       
       if (filters.tipo) params.append('tipo', filters.tipo)
       if (filters.prioridad) params.append('prioridad', filters.prioridad)
@@ -54,7 +66,7 @@ export const useCalendarios = () => {
       if (filters.año) params.append('año', filters.año)
       if (filters.visible !== 'TODOS') params.append('visible', filters.visible === 'VISIBLE' ? 'true' : 'false')
 
-      const response = await fetch(`http://localhost:3001/api/calendario?${params}`, {
+      const response = await fetch(`/api/calendario?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -100,7 +112,7 @@ export const useCalendarios = () => {
   }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/calendario', {
+      const response = await fetch('/api/calendario', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +135,7 @@ export const useCalendarios = () => {
   const actualizarEvento = async (id: string, data: Partial<EventoCalendario>) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/calendario/${id}`, {
+      const response = await fetch(`/api/calendario/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +158,7 @@ export const useCalendarios = () => {
   const eliminarEvento = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/calendario/${id}`, {
+      const response = await fetch(`/api/calendario/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

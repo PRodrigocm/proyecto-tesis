@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import EstudiantesTable from '@/components/admin/EstudiantesTable'
+import CreateEstudianteModal from '@/components/forms/CreateEstudianteModal'
 
 interface Estudiante {
   idEstudiante: number
@@ -32,7 +33,7 @@ export default function EstudiantesPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
+  const [showCreateModal, setShowCreateModal] = useState(false)
   useEffect(() => {
     fetchEstudiantes()
   }, [])
@@ -40,7 +41,18 @@ export default function EstudiantesPage() {
   const fetchEstudiantes = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/estudiantes', {
+      
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe || user.institucionId || 1
+      
+      const response = await fetch(`/api/estudiantes?ieId=${ieId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -94,6 +106,7 @@ export default function EstudiantesPage() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <button
             type="button"
+            onClick={() => setShowCreateModal(true)}
             className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Agregar Estudiante
@@ -130,6 +143,12 @@ export default function EstudiantesPage() {
           // TODO: Implementar generación de QR
           console.log('Generar QR:', id)
         }}
+      />
+
+      <CreateEstudianteModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchEstudiantes}
       />
     </div>
   )

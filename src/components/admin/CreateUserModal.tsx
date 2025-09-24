@@ -224,7 +224,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
     }
   }
 
-  const requiresEmailPhone = selectedRoleName === 'APODERADO' || selectedRoleName === 'DOCENTE' || selectedRoleName === 'ADMINISTRATIVO' || selectedRoleName === 'ADMIN'
+  const requiresEmailPhone = ['APODERADO', 'DOCENTE', 'ADMINISTRATIVO', 'AUXILIAR'].includes(selectedRoleName)
   const requiresEspecialidad = selectedRoleName === 'DOCENTE'
   const requiresOcupacion = selectedRoleName === 'APODERADO'
   const requiresFechaNacimiento = selectedRoleName === 'ESTUDIANTE'
@@ -629,6 +629,9 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   )}
                   {selectedRoleName === 'ADMINISTRATIVO' && (
                     <li>• <strong>Administrativo:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>
+                  )}
+                  {selectedRoleName === 'AUXILIAR' && (
+                    <li>• <strong>Auxiliar:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>
                   )}
                   {selectedRoleName === 'ADMIN' && (
                     <li>• <strong>Admin:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>

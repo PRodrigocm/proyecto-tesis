@@ -14,11 +14,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar usuario con el rol y institución especificados
+    // Construir filtro de institución
+    const ieFilter = rol === 'ADMINISTRATIVO'
+      ? {} // El administrativo puede no estar ligado a una IE específica
+      : { idIe: parseInt(institucionEducativa) }
+
+    // Buscar usuario con el rol y (si aplica) institución especificados
     const user = await prisma.usuario.findFirst({
       where: {
         email: email,
-        idIe: parseInt(institucionEducativa),
+        ...ieFilter,
         roles: {
           some: {
             rol: {

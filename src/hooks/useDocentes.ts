@@ -49,12 +49,7 @@ export const useDocentes = () => {
       }
       
       const user = JSON.parse(userStr)
-      const ieId = user.idIe
-      
-      if (!ieId) {
-        console.error('No institution ID found for user')
-        return
-      }
+      const ieId = user.idIe || user.institucionId || 1 // Fallback a IE por defecto
 
       const response = await fetch(`/api/docentes?ieId=${ieId}`)
 

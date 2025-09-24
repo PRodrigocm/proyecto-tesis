@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import { useDocentes } from '@/hooks/useDocentes'
 import DocentesTable from '@/components/admin/DocentesTable'
 import DocentesFilters from '@/components/admin/DocentesFilters'
 import DocentesStats from '@/components/admin/DocentesStats'
+import CreateDocenteModal from '@/components/forms/CreateDocenteModal'
 
 export default function DocentesPage() {
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  
   const {
     docentes,
     loading,
@@ -39,6 +43,7 @@ export default function DocentesPage() {
         <div className="mt-4 sm:mt-0">
           <button
             type="button"
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,6 +78,12 @@ export default function DocentesPage() {
           onEstadoChange={handleEstadoChange}
         />
       </div>
+
+      <CreateDocenteModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={loadDocentes}
+      />
     </div>
   )
 }

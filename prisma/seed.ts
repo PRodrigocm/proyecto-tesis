@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -147,12 +148,12 @@ async function main() {
 
   // 7. Roles
   console.log('👥 Creando roles...')
+
+  // Eliminar rol ADMIN si existiera (ya no se usa)
+  await prisma.usuarioRol.deleteMany({ where: { rol: { nombre: 'ADMIN' } } })
+  await prisma.rol.deleteMany({ where: { nombre: 'ADMIN' } })
+
   const roles = await Promise.all([
-    prisma.rol.upsert({
-      where: { nombre: 'ADMIN' },
-      update: {},
-      create: { nombre: 'ADMIN' }
-    }),
     prisma.rol.upsert({
       where: { nombre: 'ADMINISTRATIVO' },
       update: {},
@@ -172,6 +173,11 @@ async function main() {
       where: { nombre: 'ESTUDIANTE' },
       update: {},
       create: { nombre: 'ESTUDIANTE' }
+    }),
+    prisma.rol.upsert({
+      where: { nombre: 'AUXILIAR' },
+      update: {},
+      create: { nombre: 'AUXILIAR' }
     })
   ])
 
@@ -413,7 +419,7 @@ async function main() {
   })
 
   // Asignar rol ADMIN al usuario
-  const adminRole = roles.find((rol: any) => rol.nombre === 'ADMIN')
+  const adminRole = roles.find((rol: any) => rol.nombre === 'ADMINISTRATIVO')
   if (adminRole) {
     await prisma.usuarioRol.upsert({
       where: { 

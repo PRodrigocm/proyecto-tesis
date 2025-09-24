@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdministrativosTable } from '@/components/admin/AdministrativosTable'
+import CreateAdministrativoModal from '@/components/forms/CreateAdministrativoModal'
 
 interface Administrativo {
   idUsuario: number
@@ -25,7 +26,7 @@ export default function AdministrativosPage() {
   const [administrativos, setAdministrativos] = useState<Administrativo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
+  const [showCreateModal, setShowCreateModal] = useState(false)
   useEffect(() => {
     fetchAdministrativos()
   }, [])
@@ -33,7 +34,18 @@ export default function AdministrativosPage() {
   const fetchAdministrativos = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/usuarios/administrativos', {
+      
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe || user.institucionId || 1
+      
+      const response = await fetch(`/api/usuarios/administrativos?ieId=${ieId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -42,7 +54,6 @@ export default function AdministrativosPage() {
       if (!response.ok) {
         throw new Error('Error al cargar administrativos')
       }
-
       const data = await response.json()
       setAdministrativos(data.data || [])
     } catch (error) {
@@ -87,6 +98,7 @@ export default function AdministrativosPage() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <button
             type="button"
+            onClick={() => setShowCreateModal(true)}
             className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Agregar Administrativo
@@ -97,6 +109,12 @@ export default function AdministrativosPage() {
       <AdministrativosTable 
         administrativos={administrativos}
         onRefresh={fetchAdministrativos}
+      />
+
+      <CreateAdministrativoModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchAdministrativos}
       />
     </div>
   )

@@ -46,7 +46,19 @@ export const useHorarios = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
+      
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe || user.institucionId || 1
+      
       const params = new URLSearchParams()
+      params.append('ieId', ieId.toString())
       
       if (filters.grado) params.append('grado', filters.grado)
       if (filters.seccion) params.append('seccion', filters.seccion)
@@ -54,7 +66,7 @@ export const useHorarios = () => {
       if (filters.sesion !== 'TODOS') params.append('sesion', filters.sesion)
       if (filters.docente) params.append('docente', filters.docente)
 
-      const response = await fetch(`http://localhost:3001/api/horarios?${params}`, {
+      const response = await fetch(`/api/horarios?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -101,13 +113,24 @@ export const useHorarios = () => {
   }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3001/api/horarios', {
+      
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        console.error('No user data found')
+        return false
+      }
+      
+      const user = JSON.parse(userStr)
+      const ieId = user.idIe || user.institucionId || 1
+      
+      const response = await fetch('/api/horarios', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ ...data, ieId })
       })
 
       if (response.ok) {
@@ -124,7 +147,7 @@ export const useHorarios = () => {
   const actualizarHorario = async (id: string, data: Partial<Horario>) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios/${id}`, {
+      const response = await fetch(`/api/horarios/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +170,7 @@ export const useHorarios = () => {
   const eliminarHorario = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3001/api/horarios/${id}`, {
+      const response = await fetch(`/api/horarios/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

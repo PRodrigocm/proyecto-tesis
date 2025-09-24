@@ -45,22 +45,7 @@ export const useEstudiantes = () => {
   const loadEstudiantes = async () => {
     setLoading(true)
     try {
-      // Get user's institution ID from localStorage
-      const userStr = localStorage.getItem('user')
-      if (!userStr) {
-        console.error('No user data found')
-        return
-      }
-      
-      const user = JSON.parse(userStr)
-      const ieId = user.idIe
-      
-      if (!ieId) {
-        console.error('No institution ID found for user')
-        return
-      }
-
-      const response = await fetch(`/api/estudiantes?ieId=${ieId}`)
+      const response = await fetch('/api/estudiantes')
 
       if (response.ok) {
         const data = await response.json()

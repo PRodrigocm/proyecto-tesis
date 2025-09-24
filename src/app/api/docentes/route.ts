@@ -7,19 +7,17 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const ieId = url.searchParams.get('ieId')
     
-    if (!ieId) {
-      return NextResponse.json(
-        { error: 'Institution ID is required' },
-        { status: 400 }
-      )
+    const whereClause: any = {}
+    
+    // Filtrar por institución si se proporciona
+    if (ieId) {
+      whereClause.usuario = {
+        idIe: parseInt(ieId)
+      }
     }
 
     const docentes = await prisma.docente.findMany({
-      where: {
-        usuario: {
-          idIe: parseInt(ieId)
-        }
-      },
+      where: whereClause,
       include: {
         usuario: {
           include: {
@@ -42,7 +40,7 @@ export async function GET(request: NextRequest) {
       telefono: docente.usuario.telefono || '',
       dni: docente.usuario.dni,
       especialidad: docente.especialidad || '',
-      institucionEducativa: docente.usuario.ie.nombre,
+      institucionEducativa: docente.usuario.ie?.nombre || 'Sin institución',
       fechaRegistro: docente.usuario.createdAt.toISOString(),
       estado: docente.usuario.estado as 'ACTIVO' | 'INACTIVO'
     }))
