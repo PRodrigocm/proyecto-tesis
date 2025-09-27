@@ -40,12 +40,51 @@ export default function HorarioClasesPage() {
 
   const handleCreateHorario = async (data: any) => {
     try {
-      console.log('Creando horario de clases:', data)
-      // Aquí implementarías la lógica para crear el horario
-      // usando la API de horarios semanales
-      return true
+      console.log('🎯 === CREANDO HORARIO DE CLASES ===')
+      console.log('📋 Datos recibidos:', data)
+      
+      // Verificar token
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('❌ No hay token de autenticación')
+        alert('No hay sesión activa. Por favor, inicia sesión.')
+        return false
+      }
+      
+      console.log('🔑 Token encontrado, enviando a API...')
+      
+      // Llamar a la API real de horarios base
+      const response = await fetch('/api/horarios/base', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      })
+      
+      console.log('📡 Response status:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Horario creado exitosamente:', result)
+        
+        if (result.data?.horariosCreados > 0) {
+          alert(`✅ ${result.data.horariosCreados} horarios creados para ${result.data.gradoSeccion}`)
+        } else {
+          alert(`⚠️ Los horarios para ${result.data?.gradoSeccion} ya existían`)
+        }
+        
+        return true
+      } else {
+        const error = await response.json()
+        console.error('❌ Error de la API:', error)
+        alert(`❌ Error: ${error.error}`)
+        return false
+      }
     } catch (error) {
-      console.error('Error creating horario:', error)
+      console.error('💥 Error creating horario:', error)
+      alert(`💥 Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`)
       return false
     }
   }

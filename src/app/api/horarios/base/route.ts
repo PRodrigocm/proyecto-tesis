@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import jwt from 'jsonwebtoken'
+
+interface JWTPayload {
+  userId: number
+  email: string
+  rol: string
+  ieId?: number
+}
+
+function verifyToken(token: string): JWTPayload | null {
+  try {
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET no está configurado')
+      return null
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as JWTPayload
+    return decoded
+  } catch (error) {
+    console.error('Error verificando token:', error)
+    return null
+  }
+}
 
 // GET - Obtener horarios base por grado-sección
 export async function GET(request: NextRequest) {
@@ -108,6 +130,8 @@ export async function POST(request: NextRequest) {
   
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    console.log('🔑 Token recibido:', token ? 'SÍ' : 'NO')
+    
     if (!token) {
       console.error('❌ Token no proporcionado')
       return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
@@ -180,6 +204,18 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('📅 Iniciando creación de horarios L-V (días 1-5)...')
+    console.log('🎯 Datos para crear:', {
+      idGradoSeccion: parseInt(idGradoSeccion),
+      horaInicio,
+      horaFin,
+      aula: aula || null,
+      toleranciaMin: parseInt(toleranciaMin)
+    })
+
+    // DEBUG: Verificar conexión a BD
+    console.log('🔍 Verificando conexión a BD...')
+    const testConnection = await prisma.$queryRaw`SELECT 1 as test`
+    console.log('✅ Conexión a BD OK:', testConnection)
     
     // Crear horarios para L-V (días 1-5)
     const horariosCreados = []
@@ -189,6 +225,8 @@ export async function POST(request: NextRequest) {
       console.log(`🔍 Verificando ${diasSemana[dia]} (día ${dia})...`)
       
       // Verificar si ya existe horario para este día
+      console.log(`🔍 Buscando horario existente para grado-sección ${idGradoSeccion}, día ${dia}...`)
+      
       const existeHorario = await prisma.horarioClase.findFirst({
         where: {
           idGradoSeccion: parseInt(idGradoSeccion),
@@ -197,43 +235,72 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      console.log(`📊 Resultado búsqueda para ${diasSemana[dia]}:`, existeHorario ? 'EXISTE' : 'NO EXISTE')
+
       if (existeHorario) {
-        console.log(`⚠️ Ya existe horario para ${diasSemana[dia]}, saltando...`)
+        console.log(`⚠️ Ya existe horario para ${diasSemana[dia]}:`, {
+          id: existeHorario.idHorarioClase,
+          hora: `${existeHorario.horaInicio} - ${existeHorario.horaFin}`,
+          aula: existeHorario.aula,
+          idGradoSeccion: existeHorario.idGradoSeccion,
+          diaSemana: existeHorario.diaSemana
+        })
+        console.log('⚠️ Saltando creación...')
         continue
       }
 
       console.log(`➕ Creando horario para ${diasSemana[dia]}...`)
       
-      const nuevoHorario = await prisma.horarioClase.create({
-        data: {
-          idGradoSeccion: parseInt(idGradoSeccion),
-          diaSemana: dia,
-          horaInicio: new Date(`1970-01-01T${horaInicio}:00.000Z`),
-          horaFin: new Date(`1970-01-01T${horaFin}:00.000Z`),
-          aula: aula || null,
-          idDocente: idDocente ? parseInt(idDocente) : null,
-          toleranciaMin: parseInt(toleranciaMin),
-          tipoActividad: 'CLASE_REGULAR',
-          activo: true
-        },
-        include: {
-          gradoSeccion: {
-            include: {
-              grado: true,
-              seccion: true
+      const dataToCreate = {
+        idGradoSeccion: parseInt(idGradoSeccion),
+        diaSemana: dia,
+        horaInicio: new Date(`1970-01-01T${horaInicio}:00.000Z`),
+        horaFin: new Date(`1970-01-01T${horaFin}:00.000Z`),
+        aula: aula || null,
+        idDocente: idDocente ? parseInt(idDocente) : null,
+        toleranciaMin: parseInt(toleranciaMin),
+        tipoActividad: 'CLASE_REGULAR' as any,
+        activo: true
+      }
+      
+      console.log(`📋 Datos a insertar para ${diasSemana[dia]}:`, dataToCreate)
+      
+      try {
+        console.log(`🚀 Ejecutando prisma.horarioClase.create para ${diasSemana[dia]}...`)
+        
+        const nuevoHorario = await prisma.horarioClase.create({
+          data: dataToCreate,
+          include: {
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
+              }
             }
           }
-        }
-      })
-      
-      console.log(`✅ Horario creado para ${diasSemana[dia]}:`, {
-        id: nuevoHorario.idHorarioClase,
-        dia: diasSemana[dia],
-        hora: `${horaInicio} - ${horaFin}`,
-        aula: nuevoHorario.aula || 'Sin especificar'
-      })
-      
-      horariosCreados.push(nuevoHorario)
+        })
+        
+        console.log(`🎉 Horario creado exitosamente en BD para ${diasSemana[dia]}:`, {
+          id: nuevoHorario.idHorarioClase,
+          idGradoSeccion: nuevoHorario.idGradoSeccion,
+          diaSemana: nuevoHorario.diaSemana,
+          horaInicio: nuevoHorario.horaInicio,
+          horaFin: nuevoHorario.horaFin,
+          aula: nuevoHorario.aula
+        })
+        
+        console.log(`✅ Horario creado exitosamente para ${diasSemana[dia]}:`, {
+          id: nuevoHorario.idHorarioClase,
+          dia: diasSemana[dia],
+          hora: `${horaInicio} - ${horaFin}`,
+          aula: nuevoHorario.aula || 'Sin especificar'
+        })
+        
+        horariosCreados.push(nuevoHorario)
+      } catch (error) {
+        console.error(`❌ Error creando horario para ${diasSemana[dia]}:`, error)
+        throw error
+      }
     }
 
     console.log('📊 Resumen de creación:', {
@@ -242,6 +309,10 @@ export async function POST(request: NextRequest) {
       horario: `${horaInicio} - ${horaFin}`,
       aula: aula || 'Sin especificar'
     })
+
+    if (horariosCreados.length === 0) {
+      console.log('⚠️ No se crearon nuevos horarios - todos ya existían')
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 
+// DEPRECADO: Este hook ahora usa la API de horarios base
+// Los horarios semanales complejos fueron eliminados del sistema
 export interface HorarioSemanalDetalle {
   id: string
   diaSemana: number
@@ -55,26 +57,28 @@ export const useHorariosSemanales = () => {
   const loadHorarios = async () => {
     setLoading(true)
     try {
+      console.log('⚠️ DEPRECADO: useHorariosSemanales ahora usa API de horarios base')
+      
       const token = localStorage.getItem('token')
       
       // Obtener ieId del usuario
       const userStr = localStorage.getItem('user')
       if (!userStr) {
         console.error('No user data found')
+        setHorarios([])
         return
       }
       
       const user = JSON.parse(userStr)
       const ieId = user.idIe || user.institucionId || user.ieId || 1
       
+      console.log('🔄 Cargando horarios base en lugar de horarios semanales...')
+      
       const params = new URLSearchParams()
       params.append('ieId', ieId.toString())
-      
-      if (filters.fechaInicio) params.append('fechaInicio', filters.fechaInicio)
-      if (filters.fechaFin) params.append('fechaFin', filters.fechaFin)
-      if (filters.activo) params.append('activo', filters.activo)
 
-      const response = await fetch(`/api/horarios/semanales?${params}`, {
+      // Usar la nueva API de horarios base
+      const response = await fetch(`/api/horarios/base?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -82,19 +86,80 @@ export const useHorariosSemanales = () => {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Horarios semanales cargados exitosamente:', data)
-        setHorarios(data.data || [])
+        console.log('✅ Horarios base cargados exitosamente:', data)
+        
+        // Transformar horarios base a formato semanal para compatibilidad
+        const horariosTransformados = transformarHorariosBase(data.data || [])
+        setHorarios(horariosTransformados)
       } else {
         const errorText = await response.text()
-        console.error('Error loading horarios semanales:', response.status, errorText)
+        console.error('❌ Error loading horarios base:', response.status, errorText)
         setHorarios([])
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('❌ Error:', error)
       setHorarios([])
     } finally {
       setLoading(false)
     }
+  }
+
+  // Función para transformar horarios base al formato semanal (compatibilidad)
+  const transformarHorariosBase = (horariosBase: any[]): HorarioSemanal[] => {
+    console.log('🔄 Transformando horarios base a formato semanal...')
+    
+    if (!horariosBase.length) return []
+
+    // Agrupar por grado-sección
+    const agrupados = horariosBase.reduce((acc: Record<string, any[]>, horario: any) => {
+      const key = `${horario.grado}° ${horario.seccion}`
+      if (!acc[key]) {
+        acc[key] = []
+      }
+      acc[key].push(horario)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    // Crear horarios semanales virtuales
+    const horariosSemanales: HorarioSemanal[] = Object.entries(agrupados).map(([gradoSeccion, horarios]: [string, any[]], index) => {
+      const primerHorario = horarios[0]
+      
+      const detalles: HorarioSemanalDetalle[] = horarios.map((horario: any) => ({
+        id: horario.id,
+        diaSemana: horario.diaNumero,
+        diaNombre: horario.diaSemana,
+        horaInicio: horario.horaInicio,
+        horaFin: horario.horaFin,
+        materia: 'Clases Regulares',
+        docente: horario.docente,
+        aula: horario.aula || 'Sin especificar',
+        tipoActividad: 'CLASE_REGULAR' as const,
+        tipoActividadLabel: 'Clase Regular',
+        observaciones: '',
+        grado: horario.grado,
+        seccion: horario.seccion,
+        activo: horario.activo
+      }))
+
+      return {
+        id: `virtual-${index}`,
+        nombre: `Horario Base ${gradoSeccion}`,
+        descripcion: `Horario base para ${gradoSeccion} (L-V ${primerHorario.horaInicio}-${primerHorario.horaFin})`,
+        fechaInicio: new Date().toISOString().split('T')[0],
+        fechaFin: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        activo: true,
+        ie: {
+          id: '1',
+          nombre: 'Institución Educativa'
+        },
+        detalles,
+        createdAt: primerHorario.createdAt,
+        updatedAt: null
+      }
+    })
+
+    console.log('✅ Horarios transformados:', horariosSemanales.length)
+    return horariosSemanales
   }
 
   const crearHorario = async (data: {
@@ -114,37 +179,14 @@ export const useHorariosSemanales = () => {
       observaciones?: string
     }>
   }) => {
-    try {
-      const token = localStorage.getItem('token')
-      
-      // Obtener ieId del usuario
-      const userStr = localStorage.getItem('user')
-      if (!userStr) {
-        console.error('No user data found')
-        return false
-      }
-      
-      const user = JSON.parse(userStr)
-      const ieId = user.idIe || user.institucionId || user.ieId || 1
-      
-      const response = await fetch('/api/horarios/semanales', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ ...data, ieId })
-      })
-
-      if (response.ok) {
-        loadHorarios()
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error creating horario semanal:', error)
-      return false
-    }
+    console.warn('⚠️ DEPRECADO: crearHorario en useHorariosSemanales')
+    console.warn('📋 Usa el nuevo sistema de horarios base: /api/horarios/base')
+    console.warn('🔗 Hook recomendado: useHorariosBase')
+    
+    // Mostrar alerta al usuario
+    alert('⚠️ Función deprecada\n\nEsta funcionalidad ha sido reemplazada por el nuevo sistema de horarios base.\n\nUsa el modal "Crear Horario Base" en su lugar.')
+    
+    return false
   }
 
   const updateFilters = (newFilters: Partial<HorarioSemanalFilters>) => {

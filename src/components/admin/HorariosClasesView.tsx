@@ -30,12 +30,9 @@ export default function HorariosClasesView({ ieId }: HorariosClasesViewProps) {
     console.log('📡 Resultado del hook:', success)
     
     if (success) {
-      console.log('✅ Éxito - Cerrando modal y recargando datos')
+      console.log('✅ Éxito - Cerrando modal')
       setIsCreateModalOpen(false)
-      
-      console.log('🔄 Recargando lista de horarios...')
-      await loadHorariosBase()
-      console.log('✅ Lista recargada exitosamente')
+      // No recargamos aquí porque el hook ya lo hace
     } else {
       console.error('❌ Error en la creación - Modal permanece abierto')
     }
@@ -159,27 +156,66 @@ export default function HorariosClasesView({ ieId }: HorariosClasesViewProps) {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-5 gap-2">
-                  {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map((dia, index) => {
-                    const horarioDia = horarios.find(h => h.diaNumero === index + 1)
+                {/* Información del horario */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">⏰ Horario:</span>
+                      <span className="ml-2 text-gray-600">{horarios[0].horaInicio} - {horarios[0].horaFin}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">📍 Aula:</span>
+                      <span className="ml-2 text-gray-600">{horarios[0].aula || 'Sin especificar'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">⏱️ Tolerancia:</span>
+                      <span className="ml-2 text-gray-600">{horarios[0].toleranciaMin || 10} min</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">📚 Tipo:</span>
+                      <span className="ml-2 text-gray-600">Clase Regular</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Calendario semanal L-V */}
+                <div className="grid grid-cols-5 gap-3">
+                  {[
+                    { nombre: 'Lunes', numero: 1, emoji: '📅' },
+                    { nombre: 'Martes', numero: 2, emoji: '📅' },
+                    { nombre: 'Miércoles', numero: 3, emoji: '📅' },
+                    { nombre: 'Jueves', numero: 4, emoji: '📅' },
+                    { nombre: 'Viernes', numero: 5, emoji: '📅' }
+                  ].map((dia) => {
+                    const horarioDia = horarios.find(h => h.diaNumero === dia.numero)
                     return (
                       <div
-                        key={dia}
-                        className={`p-3 rounded-lg border text-center ${
+                        key={dia.nombre}
+                        className={`p-4 rounded-lg border-2 text-center transition-all ${
                           horarioDia 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-gray-50 border-gray-200'
+                            ? 'bg-green-50 border-green-300 shadow-sm' 
+                            : 'bg-red-50 border-red-300'
                         }`}
                       >
-                        <div className="text-sm font-medium text-gray-700">{dia}</div>
+                        <div className="text-sm font-bold text-gray-800 mb-2">
+                          {dia.emoji} {dia.nombre}
+                        </div>
                         {horarioDia ? (
-                          <div className="mt-1">
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-green-700">
+                              ✅ Configurado
+                            </div>
                             <div className="text-xs text-green-600">
-                              ✅ {horarioDia.horaInicio} - {horarioDia.horaFin}
+                              {horarioDia.horaInicio} - {horarioDia.horaFin}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              👨‍🏫 {horarioDia.docente}
+                            <div className="text-xs text-gray-600 mt-1">
+                              👨‍🏫 {horarioDia.docente || 'Sin asignar'}
                             </div>
+                            {horarioDia.aula && (
+                              <div className="text-xs text-gray-500">
+                                📍 {horarioDia.aula}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="text-xs text-gray-400 mt-1">Sin configurar</div>
@@ -190,9 +226,9 @@ export default function HorariosClasesView({ ieId }: HorariosClasesViewProps) {
                 </div>
                 
                 <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-                  <div>
-                    <span>⏱️ Tolerancia: {horarios[0].toleranciaMin} min</span>
-                    <span className="ml-4">📚 {horarios[0].tipoActividad}</span>
+                  <div className="flex items-center space-x-4">
+                    <span>📊 {horarios.length} días configurados</span>
+                    <span>🎯 Horario base (L-V)</span>
                   </div>
                   <div>
                     Creado: {new Date(horarios[0].createdAt).toLocaleDateString('es-PE')}

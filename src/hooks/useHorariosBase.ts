@@ -84,10 +84,15 @@ export const useHorariosBase = (ieId?: number) => {
 
     try {
       const token = localStorage.getItem('token')
+      console.log('🔑 Verificando token:', token ? 'EXISTE' : 'NO EXISTE')
+      
       if (!token) {
         console.error('❌ Error: No hay token de autenticación')
-        throw new Error('No hay token de autenticación')
+        setError('No hay sesión activa. Por favor, inicia sesión.')
+        return false
       }
+      
+      console.log('🔑 Token encontrado, longitud:', token.length)
 
       console.log('🚀 === INICIANDO CREACIÓN DE HORARIO BASE ===')
       console.log('📋 Datos recibidos:', {
@@ -110,21 +115,43 @@ export const useHorariosBase = (ieId?: number) => {
 
       console.log('📤 Enviando request a API:', requestBody)
 
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+      
+      console.log('🔑 Agregando Authorization header')
+
       const response = await fetch('/api/horarios/base', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(requestBody)
       })
 
       console.log('📡 Response status:', response.status, response.statusText)
 
       if (!response.ok) {
-        const errorData = await response.json()
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { error: 'Error desconocido' }
+        }
+        
         console.error('❌ Error en API:', errorData)
-        throw new Error(errorData.error || 'Error al crear horario base')
+        console.error('❌ Response completo:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          error: errorData
+        })
+        
+        if (response.status === 401) {
+          console.error('🔒 ERROR DE AUTENTICACIÓN: Token requerido o inválido')
+          alert('Error de autenticación: Token requerido o inválido')
+        }
+        
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`)
       }
 
       const result = await response.json()
@@ -137,11 +164,24 @@ export const useHorariosBase = (ieId?: number) => {
         horariosCreados: result.data?.horariosCreados
       })
       
-      console.log('🔄 Recargando lista de horarios...')
-      await loadHorariosBase()
-      console.log('✅ Lista de horarios actualizada')
-      
-      return true
+      // Verificar el resultado
+      if (result.success) {
+        if (result.data?.horariosCreados > 0) {
+          console.log(`✅ Confirmado: ${result.data.horariosCreados} horarios creados en BD`)
+        } else {
+          console.log('⚠️ No se crearon nuevos horarios - ya existían para este grado-sección')
+          alert(`⚠️ Los horarios para ${result.data?.gradoSeccion} ya existen.\n\nSi quieres modificarlos, usa la función de edición.`)
+        }
+        
+        console.log('🔄 Recargando lista de horarios...')
+        await loadHorariosBase()
+        console.log('✅ Lista de horarios actualizada')
+        
+        return true
+      } else {
+        console.error('❌ API retornó error:', result)
+        return false
+      }
 
     } catch (error) {
       console.error('❌ === ERROR AL CREAR HORARIO BASE ===')

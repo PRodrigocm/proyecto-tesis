@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import QuickLoginButton from './QuickLoginButton'
 
 interface CreateHorarioClasesModalProps {
   isOpen: boolean
@@ -35,24 +36,63 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
 
   useEffect(() => {
     if (isOpen) {
+      console.log('🔓 Modal abierto, verificando autenticación...')
+      const token = localStorage.getItem('token')
+      const user = localStorage.getItem('user')
+      
+      if (!token) {
+        console.error('❌ No hay token en localStorage')
+        alert('No hay sesión activa. Por favor, inicia sesión.')
+        onClose()
+        return
+      }
+      
+      if (!user) {
+        console.error('❌ No hay información de usuario')
+        alert('Información de usuario no encontrada. Por favor, inicia sesión nuevamente.')
+        onClose()
+        return
+      }
+      
+      console.log('✅ Token y usuario encontrados')
+      console.log('👤 Usuario:', JSON.parse(user))
+      
       loadGradosSecciones()
     }
   }, [isOpen])
 
   const loadGradosSecciones = async () => {
+    console.log('📚 === CARGANDO GRADOS Y SECCIONES ===')
     setLoadingGrados(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/grados-secciones', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      console.log('🔑 Token para grados:', token ? 'Disponible' : 'NO disponible')
+      
+      // Intentar sin token primero (la API no requiere auth)
+      const response = await fetch('/api/grados-secciones?ieId=1')
+
+      console.log('📡 Response grados-secciones:', response.status, response.statusText)
 
       if (response.ok) {
         const data = await response.json()
-        setGradosSecciones(data.data || [])
+        console.log('✅ Grados-secciones cargados:', data)
+        console.log('📊 Total encontrados:', data.data?.length || 0)
+        
+        if (data.data && data.data.length > 0) {
+          setGradosSecciones(data.data)
+          console.log('✅ Estado actualizado con', data.data.length, 'grados-secciones')
+        } else {
+          console.log('⚠️ No se encontraron grados-secciones')
+          setGradosSecciones([])
+        }
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Error cargando grados-secciones:', errorText)
+        setGradosSecciones([])
       }
     } catch (error) {
-      console.error('Error loading grados y secciones:', error)
+      console.error('💥 Error loading grados y secciones:', error)
+      setGradosSecciones([])
     } finally {
       setLoadingGrados(false)
     }
@@ -71,6 +111,17 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
     
     console.log('🎯 === INICIANDO ENVÍO DE FORMULARIO ===')
     console.log('📋 Datos del formulario:', formData)
+    
+    // DEBUG: Verificar token
+    const token = localStorage.getItem('token')
+    console.log('🔑 Token disponible:', token ? 'SÍ' : 'NO')
+    if (token) {
+      console.log('🔑 Token (primeros 20 chars):', token.substring(0, 20) + '...')
+    }
+    
+    // DEBUG: Verificar grados-secciones cargados
+    console.log('📚 Grados-secciones disponibles:', gradosSecciones.length)
+    console.log('📚 Grados-secciones:', gradosSecciones)
     
     if (!formData.idGradoSeccion) {
       console.error('❌ Validación: Grado y sección no seleccionados')
@@ -93,36 +144,39 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
       alert('La hora de inicio debe ser menor que la hora de fin')
       return
     }
-
     console.log('✅ Todas las validaciones pasaron')
     console.log('🚀 Enviando datos al hook...')
 
     setLoading(true)
     try {
+      console.log('🎯 Llamando a onSave con datos:', formData)
       const success = await onSave(formData)
       
       console.log('📡 Respuesta del hook:', success)
+      console.log('📡 Tipo de respuesta:', typeof success)
       
-      if (success) {
+      if (typeof success === 'boolean' && success === true) {
         console.log('✅ === HORARIO CREADO EXITOSAMENTE ===')
         console.log('🧹 Limpiando formulario...')
         resetForm()
         console.log('🚪 Cerrando modal...')
         onClose()
       } else {
-        console.error('❌ Hook retornó false - Error en la creación')
-        alert('Error al guardar el horario. Por favor intenta de nuevo.')
+        console.error('❌ === ERROR AL CREAR HORARIO ===')
+        console.error('💥 El hook retornó:', success)
+        console.error('💥 Tipo:', typeof success)
+        alert('Error al crear el horario. Revisa los logs para más detalles.')
       }
     } catch (error) {
-      console.error('❌ === ERROR EN ENVÍO DE FORMULARIO ===')
-      console.error('💥 Error details:', error)
-      alert('Error al guardar el horario. Por favor intenta de nuevo.')
+      console.error('💥 === ERROR CAPTURADO EN MODAL ===')
+      console.error('Error details:', error)
+      console.error('Error message:', error instanceof Error ? error.message : 'Error desconocido')
+      alert(`Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`)
     } finally {
       console.log('🏁 Finalizando envío - loading = false')
       setLoading(false)
     }
   }
-
   const resetForm = () => {
     setFormData({
       idGradoSeccion: '',
@@ -185,15 +239,29 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                 required
                 disabled={loadingGrados}
               >
-                <option value="">Seleccionar grado y sección...</option>
-                {gradosSecciones.map((gs) => (
-                  <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
-                    {gs.grado.nombre}° {gs.seccion.nombre}
-                  </option>
-                ))}
+                {loadingGrados ? (
+                  <option value="">🔄 Cargando grados y secciones...</option>
+                ) : gradosSecciones.length === 0 ? (
+                  <option value="">❌ No hay grados disponibles</option>
+                ) : (
+                  <>
+                    <option value="">📚 Seleccionar grado y sección...</option>
+                    {gradosSecciones.map((gs) => (
+                      <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
+                        {gs.grado.nombre}° {gs.seccion.nombre}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
               {loadingGrados && (
-                <p className="text-sm text-gray-500 mt-1">Cargando grados y secciones...</p>
+                <p className="text-sm text-blue-500 mt-1">🔄 Cargando grados y secciones...</p>
+              )}
+              {!loadingGrados && gradosSecciones.length === 0 && (
+                <p className="text-sm text-red-500 mt-1">❌ No se encontraron grados y secciones. Verifica la configuración.</p>
+              )}
+              {!loadingGrados && gradosSecciones.length > 0 && (
+                <p className="text-sm text-green-600 mt-1">✅ {gradosSecciones.length} grados disponibles</p>
               )}
             </div>
 
@@ -271,22 +339,29 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
           </div>
 
           {/* Botones */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              disabled={loading}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              disabled={loading}
-            >
-              {loading ? 'Creando...' : 'Crear Horario Base'}
-            </button>
+          <div className="flex justify-between items-center pt-4 border-t">
+            <QuickLoginButton onLoginSuccess={() => {
+              console.log('🔄 Login exitoso, recargando grados...')
+              loadGradosSecciones()
+            }} />
+            
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? 'Creando...' : 'Crear Horario Base'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
