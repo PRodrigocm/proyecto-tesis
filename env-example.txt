@@ -1,0 +1,12 @@
+# Ejemplo de configuración para archivo .env
+# Copia este contenido a tu archivo .env
+
+# Base de datos PostgreSQL
+DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/nombre_base_datos"
+
+# JWT Secret
+JWT_SECRET="tu_jwt_secret_aqui"
+
+# Otras variables de entorno que puedas necesitar
+NEXTAUTH_SECRET="tu_nextauth_secret"
+NEXTAUTH_URL="http://localhost:3000"

@@ -15,6 +15,8 @@ export interface Estudiante {
     apellido: string
     telefono: string
     email: string
+    relacion: string
+    esTitular: boolean
   }
   estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO'
   fechaRegistro: string

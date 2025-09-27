@@ -4,7 +4,7 @@ export interface Horario {
   id: string
   grado: string
   seccion: string
-  diaSemana: 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES'
+  diaSemana: string
   horaInicio: string
   horaFin: string
   materia: string
@@ -15,7 +15,7 @@ export interface Horario {
     especialidad: string
   }
   aula: string
-  sesion: 'AM' | 'PM'
+  sesion: string
   activo: boolean
 }
 
@@ -74,9 +74,12 @@ export const useHorarios = () => {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Horarios cargados exitosamente:', data)
         setHorarios(data.data || [])
       } else {
-        console.error('Error loading horarios')
+        const errorText = await response.text()
+        console.error('Error loading horarios:', response.status, errorText)
+        setHorarios([])
       }
     } catch (error) {
       console.error('Error:', error)
@@ -91,14 +94,17 @@ export const useHorarios = () => {
     const matchesDia = !filters.diaSemana || horario.diaSemana === filters.diaSemana
     const matchesSesion = filters.sesion === 'TODOS' || horario.sesion === filters.sesion
     const matchesDocente = !filters.docente || 
-      `${horario.docente.nombre} ${horario.docente.apellido}`.toLowerCase().includes(filters.docente.toLowerCase())
+      (horario.docente.nombre && horario.docente.apellido && 
+       `${horario.docente.nombre} ${horario.docente.apellido}`.toLowerCase().includes(filters.docente.toLowerCase()))
 
     return matchesGrado && matchesSeccion && matchesDia && matchesSesion && matchesDocente
   })
 
   const grados = [...new Set(horarios.map(h => h.grado))].filter(Boolean).sort()
   const secciones = [...new Set(horarios.map(h => h.seccion))].filter(Boolean).sort()
-  const docentes = [...new Set(horarios.map(h => `${h.docente.nombre} ${h.docente.apellido}`))].filter(Boolean).sort()
+  const docentes = [...new Set(horarios.map(h => 
+    h.docente.nombre && h.docente.apellido ? `${h.docente.nombre} ${h.docente.apellido}` : ''
+  ))].filter(Boolean).sort()
 
   const crearHorario = async (data: {
     grado: string
@@ -109,7 +115,7 @@ export const useHorarios = () => {
     materia: string
     docenteId: string
     aula: string
-    sesion: 'AM' | 'PM'
+    sesion: string
   }) => {
     try {
       const token = localStorage.getItem('token')

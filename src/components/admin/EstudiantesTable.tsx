@@ -1,12 +1,63 @@
 import { Estudiante } from '@/hooks/useEstudiantes'
+import { generateQRImage } from '@/utils/qr'
+import { useState, useEffect } from 'react'
 
 interface EstudiantesTableProps {
   estudiantes: Estudiante[]
   onEstadoChange: (id: string, estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO') => void
   onGenerateQR: (id: string) => void
+  onView: (id: string) => void
+  onEdit: (id: string) => void
 }
 
-export default function EstudiantesTable({ estudiantes, onEstadoChange, onGenerateQR }: EstudiantesTableProps) {
+// Componente para mostrar el código QR
+function QRCodeDisplay({ qrCode }: { qrCode: string }) {
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const generateImage = async () => {
+      try {
+        setLoading(true)
+        const imageUrl = await generateQRImage(qrCode)
+        setQrImageUrl(imageUrl)
+      } catch (error) {
+        console.error('Error generating QR image:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (qrCode) {
+      generateImage()
+    }
+  }, [qrCode])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-16 h-16">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+      </div>
+    )
+  }
+
+  if (!qrImageUrl) {
+    return (
+      <span className="text-xs text-gray-500">Error generando QR</span>
+    )
+  }
+
+  return (
+    <img 
+      src={qrImageUrl} 
+      alt={`QR Code: ${qrCode}`}
+      className="w-16 h-16 border border-gray-200 rounded"
+      title={qrCode}
+    />
+  )
+}
+
+export default function EstudiantesTable({ estudiantes, onEstadoChange, onGenerateQR, onView, onEdit }: EstudiantesTableProps) {
   if (estudiantes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -74,24 +125,38 @@ export default function EstudiantesTable({ estudiantes, onEstadoChange, onGenera
                 <div className="text-sm text-gray-500">Sección: {estudiante.seccion}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">
-                  {estudiante.apoderado?.nombre} {estudiante.apoderado?.apellido}
-                </div>
+                {estudiante.apoderado?.nombre ? (
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {estudiante.apoderado.nombre} {estudiante.apoderado.apellido}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {estudiante.apoderado.relacion}
+                      {estudiante.apoderado.esTitular && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Titular
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">Sin apoderado</div>
+                )}
                 <div className="text-sm text-gray-500">{estudiante.apoderado?.telefono}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {estudiante.qrCode ? (
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                    Generado
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => onGenerateQR(estudiante.id)}
-                    className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                  >
-                    Generar QR
-                  </button>
-                )}
+                <div className="flex flex-col items-center space-y-2">
+                  {estudiante.qrCode ? (
+                    <QRCodeDisplay qrCode={estudiante.qrCode} />
+                  ) : (
+                    <button
+                      onClick={() => onGenerateQR(estudiante.id)}
+                      className="inline-flex px-3 py-2 text-xs font-semibold rounded-md bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                    >
+                      Generar QR
+                    </button>
+                  )}
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -106,10 +171,16 @@ export default function EstudiantesTable({ estudiantes, onEstadoChange, onGenera
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex space-x-2">
-                  <button className="text-indigo-600 hover:text-indigo-900">
+                  <button 
+                    onClick={() => onView(estudiante.id)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
                     Ver
                   </button>
-                  <button className="text-yellow-600 hover:text-yellow-900">
+                  <button 
+                    onClick={() => onEdit(estudiante.id)}
+                    className="text-yellow-600 hover:text-yellow-900"
+                  >
                     Editar
                   </button>
                   {estudiante.estado !== 'RETIRADO' && (

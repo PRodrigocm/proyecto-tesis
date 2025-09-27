@@ -15,10 +15,11 @@ export const generateQRImage = async (qrCode: string): Promise<string> => {
   try {
     const qrImageUrl = await QRCode.toDataURL(qrCode, {
       errorCorrectionLevel: 'M',
-      margin: 1,
+      margin: 2,
+      width: 128,
       color: {
-        dark: '#000000',
-        light: '#FFFFFF'
+        dark: '#000000',  // Negro para el código
+        light: '#FFFFFF'  // Blanco para el fondo
       }
     });
     

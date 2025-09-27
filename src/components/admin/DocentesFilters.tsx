@@ -2,16 +2,16 @@ import { DocentesFilters } from '@/hooks/useDocentes'
 
 interface DocentesFiltersProps {
   filters: DocentesFilters
-  especialidades: string[]
-  instituciones: string[]
+  grados: string[]
+  secciones: string[]
   onFiltersChange: (filters: Partial<DocentesFilters>) => void
   onRefresh: () => void
 }
 
 export default function DocentesFiltersComponent({ 
   filters, 
-  especialidades, 
-  instituciones, 
+  grados, 
+  secciones, 
   onFiltersChange, 
   onRefresh 
 }: DocentesFiltersProps) {
@@ -47,37 +47,37 @@ export default function DocentesFiltersComponent({
           </select>
         </div>
         <div>
-          <label htmlFor="especialidad" className="block text-sm font-medium text-gray-700 mb-1">
-            Especialidad
+          <label htmlFor="grado" className="block text-sm font-medium text-gray-700 mb-1">
+            Grado
           </label>
           <select
-            id="especialidad"
-            value={filters.filterEspecialidad}
-            onChange={(e) => onFiltersChange({ filterEspecialidad: e.target.value })}
+            id="grado"
+            value={filters.filterGrado}
+            onChange={(e) => onFiltersChange({ filterGrado: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
-            <option value="">Todas</option>
-            {especialidades.map((especialidad) => (
-              <option key={especialidad} value={especialidad}>
-                {especialidad}
+            <option value="">Todos</option>
+            {grados.map((grado) => (
+              <option key={grado} value={grado}>
+                {grado}°
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label htmlFor="institucion" className="block text-sm font-medium text-gray-700 mb-1">
-            Institución
+          <label htmlFor="seccion" className="block text-sm font-medium text-gray-700 mb-1">
+            Sección
           </label>
           <select
-            id="institucion"
-            value={filters.filterInstitucion}
-            onChange={(e) => onFiltersChange({ filterInstitucion: e.target.value })}
+            id="seccion"
+            value={filters.filterSeccion}
+            onChange={(e) => onFiltersChange({ filterSeccion: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="">Todas</option>
-            {instituciones.map((institucion) => (
-              <option key={institucion} value={institucion}>
-                {institucion}
+            {secciones.map((seccion) => (
+              <option key={seccion} value={seccion}>
+                {seccion}
               </option>
             ))}
           </select>

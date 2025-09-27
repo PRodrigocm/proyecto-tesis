@@ -22,28 +22,48 @@ interface Apoderado {
   dni: string
 }
 
+interface ApoderadoRelacion {
+  apoderadoId: number
+  relacion: string
+  esTitular: boolean
+}
+
 interface CreateEstudianteModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
 }
 
+// Tipos de relación disponibles
+const TIPOS_RELACION = [
+  { value: 'PADRE', label: 'Padre' },
+  { value: 'MADRE', label: 'Madre' },
+  { value: 'TUTOR', label: 'Tutor' },
+  { value: 'ABUELO', label: 'Abuelo' },
+  { value: 'ABUELA', label: 'Abuela' },
+  { value: 'TIO', label: 'Tío' },
+  { value: 'TIA', label: 'Tía' },
+  { value: 'HERMANO', label: 'Hermano' },
+  { value: 'HERMANA', label: 'Hermana' },
+  { value: 'OTRO', label: 'Otro' }
+]
+
 export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: CreateEstudianteModalProps) {
   const [loading, setLoading] = useState(false)
   const [grados, setGrados] = useState<Grado[]>([])
   const [secciones, setSecciones] = useState<Seccion[]>([])
   const [apoderados, setApoderados] = useState<Apoderado[]>([])
-  const [selectedApoderados, setSelectedApoderados] = useState<number[]>([])
+  const [apoderadosRelaciones, setApoderadosRelaciones] = useState<ApoderadoRelacion[]>([
+    { apoderadoId: 0, relacion: '', esTitular: false }
+  ])
   
   const [formData, setFormData] = useState({
     dni: '',
     nombre: '',
     apellido: '',
     fechaNacimiento: '',
-    codigo: '',
     gradoId: '',
-    seccionId: '',
-    password: ''
+    seccionId: ''
   })
 
   // Cargar datos iniciales
@@ -150,7 +170,7 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
           ieId,
           gradoId: parseInt(formData.gradoId),
           seccionId: parseInt(formData.seccionId),
-          apoderadosIds: selectedApoderados,
+          apoderadosRelaciones: apoderadosRelaciones.filter(rel => rel.apoderadoId > 0 && rel.relacion),
           fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null
         })
       })
@@ -178,12 +198,10 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
       nombre: '',
       apellido: '',
       fechaNacimiento: '',
-      codigo: '',
       gradoId: '',
-      seccionId: '',
-      password: ''
+      seccionId: ''
     })
-    setSelectedApoderados([])
+    setApoderadosRelaciones([{ apoderadoId: 0, relacion: '', esTitular: false }])
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -193,12 +211,28 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
     })
   }
 
-  const handleApoderadoToggle = (apoderadoId: number) => {
-    setSelectedApoderados(prev => 
-      prev.includes(apoderadoId) 
-        ? prev.filter(id => id !== apoderadoId)
-        : [...prev, apoderadoId]
+  const handleApoderadoChange = (index: number, field: 'apoderadoId' | 'relacion' | 'esTitular', value: string | number | boolean) => {
+    setApoderadosRelaciones(prev => 
+      prev.map((rel, i) => 
+        i === index 
+          ? { 
+              ...rel, 
+              [field]: field === 'apoderadoId' ? Number(value) : 
+                      field === 'esTitular' ? Boolean(value) : value 
+            }
+          : rel
+      )
     )
+  }
+
+  const agregarApoderado = () => {
+    setApoderadosRelaciones(prev => [...prev, { apoderadoId: 0, relacion: '', esTitular: false }])
+  }
+
+  const eliminarApoderado = (index: number) => {
+    if (apoderadosRelaciones.length > 1) {
+      setApoderadosRelaciones(prev => prev.filter((_, i) => i !== index))
+    }
   }
 
   if (!isOpen) return null
@@ -232,19 +266,6 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
               />
             </div>
 
-            {/* Código Estudiante */}
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Código Estudiante *</label>
-              <input
-                type="text"
-                name="codigo"
-                value={formData.codigo}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="EST2024001"
-              />
-            </div>
 
             {/* Nombre */}
             <div>
@@ -285,19 +306,6 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
               />
             </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Contraseña *</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Contraseña del estudiante"
-              />
-            </div>
 
             {/* Grado */}
             <div>
@@ -340,35 +348,111 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
 
           </div>
 
-          {/* Selección de Apoderados */}
+          {/* Selección de Apoderados con Relaciones */}
           <div className="mt-6">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Apoderados</label>
-            <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3 bg-gray-50">
-              {apoderados.length === 0 ? (
-                <p className="text-gray-500 text-sm">No hay apoderados disponibles</p>
-              ) : (
-                <div className="space-y-2">
-                  {apoderados.map((apoderado) => (
-                    <label key={apoderado.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <label className="block text-base font-semibold text-gray-800">Apoderados y Relaciones</label>
+                <p className="text-sm text-gray-600 mt-1">Opcional: Puedes asignar uno o más apoderados al estudiante</p>
+              </div>
+              <button
+                type="button"
+                onClick={agregarApoderado}
+                className="flex items-center space-x-1 px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Agregar Apoderado</span>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {apoderadosRelaciones.map((relacion, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Apoderado {index + 1}
+                    </h4>
+                    {apoderadosRelaciones.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => eliminarApoderado(index)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                        title="Eliminar apoderado"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Selector de Apoderado */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Seleccionar Apoderado
+                      </label>
+                      <select
+                        value={relacion.apoderadoId}
+                        onChange={(e) => handleApoderadoChange(index, 'apoderadoId', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                      >
+                        <option value={0}>Seleccionar apoderado</option>
+                        {apoderados.map((apoderado) => (
+                          <option key={apoderado.id} value={apoderado.id}>
+                            {apoderado.nombre} {apoderado.apellido} - DNI: {apoderado.dni}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Selector de Relación */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de Relación {relacion.apoderadoId > 0 ? '*' : ''}
+                      </label>
+                      <select
+                        value={relacion.relacion}
+                        onChange={(e) => handleApoderadoChange(index, 'relacion', e.target.value)}
+                        required={relacion.apoderadoId > 0}
+                        disabled={relacion.apoderadoId === 0}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Seleccionar relación</option>
+                        {TIPOS_RELACION.map((tipo) => (
+                          <option key={tipo.value} value={tipo.value}>
+                            {tipo.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Checkbox Es Titular */}
+                  <div className="mt-3">
+                    <label className="flex items-center space-x-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={selectedApoderados.includes(apoderado.id)}
-                        onChange={() => handleApoderadoToggle(apoderado.id)}
+                        checked={relacion.esTitular}
+                        onChange={(e) => handleApoderadoChange(index, 'esTitular', e.target.checked)}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {apoderado.nombre} {apoderado.apellido}
-                        </div>
-                        <div className="text-xs text-gray-500">DNI: {apoderado.dni}</div>
-                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        Es titular (puede autorizar retiros)
+                      </span>
                     </label>
-                  ))}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo los apoderados titulares pueden autorizar retiros del estudiante
+                    </p>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Selecciona uno o más apoderados para este estudiante
+            
+            <p className="text-xs text-gray-500 mt-2">
+              Puedes dejar este campo vacío si no deseas asignar un apoderado por ahora
             </p>
           </div>
 

@@ -38,6 +38,7 @@ export default function EditApoderadoModal({
   
   const [selectedEstudiantes, setSelectedEstudiantes] = useState<string[]>([])
   const [estudiantesRelaciones, setEstudiantesRelaciones] = useState<{[key: string]: string}>({})
+  const [estudiantesTitulares, setEstudiantesTitulares] = useState<{[key: string]: boolean}>({})
   const [availableEstudiantes, setAvailableEstudiantes] = useState<Estudiante[]>([])
   const [filteredEstudiantes, setFilteredEstudiantes] = useState<Estudiante[]>([])
   const [searchEstudiantes, setSearchEstudiantes] = useState('')
@@ -57,16 +58,27 @@ export default function EditApoderadoModal({
         estado: apoderado.estado || 'ACTIVO'
       })
       
-      // Set currently assigned students
+      // Set currently assigned students - eliminar duplicados desde el inicio
       const estudiantesIds = apoderado.estudiantes?.map(e => e.id) || []
-      setSelectedEstudiantes(estudiantesIds)
+      const uniqueEstudiantesIds = [...new Set(estudiantesIds)]
+      console.log('Estudiantes asignados al apoderado (original):', estudiantesIds)
+      console.log('Estudiantes asignados al apoderado (únicos):', uniqueEstudiantesIds)
+      console.log('Datos completos de estudiantes:', apoderado.estudiantes)
+      setSelectedEstudiantes(uniqueEstudiantesIds)
       
       // Set relationships from existing data
       const relacionesIniciales: {[key: string]: string} = {}
+      const titularesIniciales: {[key: string]: boolean} = {}
       apoderado.estudiantes?.forEach(estudiante => {
         relacionesIniciales[estudiante.id] = estudiante.relacion || 'Padre/Madre'
+        titularesIniciales[estudiante.id] = estudiante.esTitular || false
       })
       setEstudiantesRelaciones(relacionesIniciales)
+      setEstudiantesTitulares(titularesIniciales)
+      
+      console.log('Estado inicial selectedEstudiantes:', uniqueEstudiantesIds)
+      console.log('Estado inicial relaciones:', relacionesIniciales)
+      console.log('Estado inicial titulares:', titularesIniciales)
       
       // Load available students
       loadAvailableEstudiantes()
@@ -77,18 +89,32 @@ export default function EditApoderadoModal({
     setLoadingEstudiantes(true)
     try {
       const userStr = localStorage.getItem('user')
-      if (!userStr) return
+      if (!userStr) {
+        console.log('No user data found in localStorage')
+        return
+      }
       
       const user = JSON.parse(userStr)
-      const ieId = user.idIe
+      // Intentar diferentes campos posibles para ieId (mismo patrón que en estudiantes page)
+      const ieId = user.idIe || user.institucionId || 1
       
-      if (!ieId) return
+      console.log('User object:', user)
+      console.log('Using ieId:', ieId)
 
+      console.log('Loading estudiantes for ieId:', ieId)
       const response = await fetch(`/api/estudiantes?ieId=${ieId}`)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Estudiantes loaded:', data)
+        console.log('IDs de estudiantes disponibles:', data.data?.map((e: any) => e.id))
+        console.log('Comparación con selectedEstudiantes:', selectedEstudiantes)
         setAvailableEstudiantes(data.data || [])
         setFilteredEstudiantes(data.data || [])
+      } else {
+        console.error('Error response from API:', response.status, response.statusText)
+        const errorData = await response.text()
+        console.error('Error details:', errorData)
       }
     } catch (error) {
       console.error('Error loading estudiantes:', error)
@@ -125,22 +151,43 @@ export default function EditApoderadoModal({
   }
 
   const handleEstudianteToggle = (estudianteId: string) => {
+    console.log('Toggle estudiante:', estudianteId)
+    console.log('Estado actual selectedEstudiantes:', selectedEstudiantes)
+    
     setSelectedEstudiantes(prev => {
-      if (prev.includes(estudianteId)) {
-        // Remove student and their relationship
+      // Asegurar que prev no tenga duplicados antes de procesar
+      const uniquePrev = [...new Set(prev)]
+      
+      if (uniquePrev.includes(estudianteId)) {
+        // Remove student and their relationship and titular status
+        console.log('Removiendo estudiante:', estudianteId)
         setEstudiantesRelaciones(prevRel => {
           const newRel = { ...prevRel }
           delete newRel[estudianteId]
           return newRel
         })
-        return prev.filter(id => id !== estudianteId)
+        setEstudiantesTitulares(prevTit => {
+          const newTit = { ...prevTit }
+          delete newTit[estudianteId]
+          return newTit
+        })
+        const newSelected = uniquePrev.filter(id => id !== estudianteId)
+        console.log('Nuevo estado después de remover:', newSelected)
+        return newSelected
       } else {
-        // Add student with default relationship
+        // Add student with default relationship and titular status
+        console.log('Agregando estudiante:', estudianteId)
         setEstudiantesRelaciones(prevRel => ({
           ...prevRel,
           [estudianteId]: 'Padre/Madre'
         }))
-        return [...prev, estudianteId]
+        setEstudiantesTitulares(prevTit => ({
+          ...prevTit,
+          [estudianteId]: true
+        }))
+        const newSelected = [...uniquePrev, estudianteId]
+        console.log('Nuevo estado después de agregar:', newSelected)
+        return newSelected
       }
     })
   }
@@ -152,17 +199,32 @@ export default function EditApoderadoModal({
     }))
   }
 
+  const handleTitularChange = (estudianteId: string, esTitular: boolean) => {
+    setEstudiantesTitulares(prev => ({
+      ...prev,
+      [estudianteId]: esTitular
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!apoderado) return
 
     setLoading(true)
     try {
+      // Eliminar duplicados y asegurar que todos los IDs sean strings
+      const uniqueEstudiantesIds = [...new Set(selectedEstudiantes)].map(id => id.toString())
+      
+      console.log('Estudiantes seleccionados (únicos):', uniqueEstudiantesIds)
+      console.log('Relaciones:', estudiantesRelaciones)
+      console.log('Titulares:', estudiantesTitulares)
+      
       await onSave({
         ...formData,
         id: apoderado.id,
-        estudiantesIds: selectedEstudiantes,
-        estudiantesRelaciones: estudiantesRelaciones
+        estudiantesIds: uniqueEstudiantesIds,
+        estudiantesRelaciones: estudiantesRelaciones,
+        estudiantesTitulares: estudiantesTitulares
       })
       onClose()
     } catch (error) {
@@ -290,9 +352,47 @@ export default function EditApoderadoModal({
               
               {/* Campo de búsqueda */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Buscar Estudiantes
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Buscar Estudiantes
+                  </label>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={loadAvailableEstudiantes}
+                      disabled={loadingEstudiantes}
+                      className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      {loadingEstudiantes ? 'Cargando...' : '🔄 Recargar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const userStr = localStorage.getItem('user')
+                        const user = userStr ? JSON.parse(userStr) : null
+                        console.log('User data:', user)
+                        
+                        // Intentar diferentes campos posibles para ieId (mismo patrón que en estudiantes page)
+                        const ieId = user?.idIe || user?.institucionId || 1
+                        
+                        console.log('Using ieId:', ieId)
+                        
+                        try {
+                          const response = await fetch(`/api/estudiantes?ieId=${ieId}`)
+                          const data = await response.json()
+                          console.log('Direct API test:', { status: response.status, data })
+                          alert(`API Response: ${response.status} - Total estudiantes: ${data.total || 0}\n\nPrimeros estudiantes: ${JSON.stringify(data.data?.slice(0, 2), null, 2)}`)
+                        } catch (error) {
+                          console.error('Direct API test error:', error)
+                          alert(`Error: ${error}`)
+                        }
+                      }}
+                      className="text-xs text-green-600 hover:text-green-800"
+                    >
+                      🧪 Test API
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={searchEstudiantes}
@@ -310,45 +410,80 @@ export default function EditApoderadoModal({
                 <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-md">
                   {filteredEstudiantes.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
-                      {searchEstudiantes ? 'No se encontraron estudiantes con ese criterio' : 'No hay estudiantes disponibles'}
+                      <div>
+                        {searchEstudiantes ? 'No se encontraron estudiantes con ese criterio' : 'No hay estudiantes disponibles'}
+                      </div>
+                      <div className="text-xs mt-2 text-gray-400">
+                        Total disponibles: {availableEstudiantes.length} | 
+                        Filtrados: {filteredEstudiantes.length} |
+                        Cargando: {loadingEstudiantes ? 'Sí' : 'No'}
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-1 p-2">
-                      {filteredEstudiantes
-                        .filter(estudiante => estudiante.estado === 'ACTIVO')
-                        .map((estudiante) => (
-                        <div key={estudiante.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                      {filteredEstudiantes.map((estudiante) => {
+                        const isSelected = selectedEstudiantes.includes(estudiante.id)
+                        console.log(`Estudiante ${estudiante.id} (${estudiante.nombre}): selected=${isSelected}, selectedArray=${JSON.stringify(selectedEstudiantes)}`)
+                        
+                        return (
+                        <div key={estudiante.id} className={`flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 ${
+                          estudiante.estado !== 'ACTIVO' ? 'opacity-60 bg-gray-50' : ''
+                        }`}>
                           <input
                             type="checkbox"
                             id={`estudiante-${estudiante.id}`}
-                            checked={selectedEstudiantes.includes(estudiante.id)}
+                            checked={isSelected}
                             onChange={() => handleEstudianteToggle(estudiante.id)}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            disabled={estudiante.estado !== 'ACTIVO' && !isSelected}
                           />
                           <label htmlFor={`estudiante-${estudiante.id}`} className="flex-1 cursor-pointer">
-                            <div className="text-sm font-medium text-gray-900">
-                              {estudiante.nombre} {estudiante.apellido}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                {estudiante.nombre} {estudiante.apellido}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                estudiante.estado === 'ACTIVO' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : estudiante.estado === 'INACTIVO'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {estudiante.estado}
+                              </span>
                             </div>
                             <div className="text-sm text-gray-500">
                               DNI: {estudiante.dni} | {estudiante.grado}° {estudiante.seccion}
                             </div>
                           </label>
                           {selectedEstudiantes.includes(estudiante.id) && (
-                            <select
-                              value={estudiantesRelaciones[estudiante.id] || 'Padre/Madre'}
-                              onChange={(e) => handleRelacionChange(estudiante.id, e.target.value)}
-                              className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              <option value="Padre/Madre">Padre/Madre</option>
-                              <option value="Padre">Padre</option>
-                              <option value="Madre">Madre</option>
-                              <option value="Apoderado">Apoderado</option>
-                              <option value="Tutor">Tutor</option>
-                              <option value="Familiar">Familiar</option>
-                            </select>
+                            <div className="flex items-center space-x-2">
+                              <select
+                                value={estudiantesRelaciones[estudiante.id] || 'Padre/Madre'}
+                                onChange={(e) => handleRelacionChange(estudiante.id, e.target.value)}
+                                className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="Padre/Madre">Padre/Madre</option>
+                                <option value="Padre">Padre</option>
+                                <option value="Madre">Madre</option>
+                                <option value="Apoderado">Apoderado</option>
+                                <option value="Tutor">Tutor</option>
+                                <option value="Familiar">Familiar</option>
+                              </select>
+                              <label className="flex items-center space-x-1 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={estudiantesTitulares[estudiante.id] || false}
+                                  onChange={(e) => handleTitularChange(estudiante.id, e.target.checked)}
+                                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <span className="text-gray-700">Titular</span>
+                              </label>
+                            </div>
                           )}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -358,11 +493,93 @@ export default function EditApoderadoModal({
                 {selectedEstudiantes.length} estudiante(s) seleccionado(s)
                 {searchEstudiantes && (
                   <span className="ml-2 text-blue-600">
-                    ({filteredEstudiantes.filter(e => e.estado === 'ACTIVO').length} mostrados)
+                    ({filteredEstudiantes.length} mostrados)
                   </span>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Botones de prueba temporal */}
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              type="button"
+              onClick={async () => {
+                if (apoderado) {
+                  console.log('Testing GET API route for ID:', apoderado.id)
+                  try {
+                    const response = await fetch(`/api/apoderados/${apoderado.id}`, {
+                      method: 'GET'
+                    })
+                    console.log('Test GET Response status:', response.status)
+                    const data = await response.json()
+                    console.log('Test GET Response data:', data)
+                    alert(`GET Test: ${response.status} - ${JSON.stringify(data)}`)
+                  } catch (error) {
+                    console.error('Test GET Error:', error)
+                    alert(`GET Test Error: ${error}`)
+                  }
+                }
+              }}
+              className="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            >
+              🧪 Test GET
+            </button>
+            
+            <button
+              type="button"
+              onClick={async () => {
+                if (apoderado) {
+                  console.log('Testing PUT API route for ID:', apoderado.id)
+                  try {
+                    const testData = {
+                      id: apoderado.id,
+                      test: true,
+                      timestamp: new Date().toISOString()
+                    }
+                    const response = await fetch(`/api/apoderados/${apoderado.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(testData)
+                    })
+                    console.log('Test PUT Response status:', response.status)
+                    const data = await response.json()
+                    console.log('Test PUT Response data:', data)
+                    alert(`PUT Test: ${response.status} - ${JSON.stringify(data)}`)
+                  } catch (error) {
+                    console.error('Test PUT Error:', error)
+                    alert(`PUT Test Error: ${error}`)
+                  }
+                }
+              }}
+              className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              🧪 Test PUT
+            </button>
+            
+            <button
+              type="button"
+              onClick={async () => {
+                console.log('Verificando apoderados existentes')
+                console.log('Apoderado actual en modal:', apoderado)
+                try {
+                  const response = await fetch('/api/apoderados', {
+                    method: 'GET'
+                  })
+                  console.log('Apoderados Response status:', response.status)
+                  const data = await response.json()
+                  console.log('Apoderados disponibles completos:', data.data)
+                  console.log('IDs de apoderados:', data.data?.map((a: any) => ({ id: a.id, nombre: a.nombre, apellido: a.apellido })))
+                  alert(`Apoderado actual: ID="${apoderado?.id}"\n\nApoderados en BD: ${JSON.stringify(data.data?.map((a: any) => ({ id: a.id, nombre: a.nombre })), null, 2)}`)
+                } catch (error) {
+                  console.error('Error verificando apoderados:', error)
+                  alert(`Error: ${error}`)
+                }
+              }}
+              className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              🔍 Ver Apoderados BD
+            </button>
           </div>
 
           {/* Botones de acción */}

@@ -17,23 +17,25 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     apellido: '',
     email: '',
     telefono: '',
-    direccion: '',
-    fechaNacimiento: '',
     especialidad: '',
     grado: '',
     seccion: '',
+    tipoAsignacion: '',
     password: ''
   })
   
   const [grados, setGrados] = useState<any[]>([])
   const [secciones, setSecciones] = useState<any[]>([])
+  const [tiposAsignacion, setTiposAsignacion] = useState<any[]>([])
   const [loadingGrados, setLoadingGrados] = useState(false)
   const [loadingSecciones, setLoadingSecciones] = useState(false)
+  const [loadingTipos, setLoadingTipos] = useState(false)
 
-  // Cargar grados cuando se abre el modal
+  // Cargar grados y tipos de asignación cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
       loadGrados()
+      loadTiposAsignacion()
     }
   }, [isOpen])
 
@@ -92,6 +94,28 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     }
   }
 
+  // Función para cargar tipos de asignación
+  const loadTiposAsignacion = async () => {
+    setLoadingTipos(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/tipos-asignacion', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTiposAsignacion(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading tipos de asignación:', error)
+    } finally {
+      setLoadingTipos(false)
+    }
+  }
+
   // Manejar cambio de grado
   const handleGradoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const gradoId = e.target.value
@@ -114,11 +138,12 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
         return
       }
 
-      const user = JSON.parse(userStr)
-      const ieId = user.idIe || user.institucionId || 1
       const token = localStorage.getItem('token')
+      
+      console.log('Datos del formulario:', formData)
+      console.log('Token:', token)
 
-      const response = await fetch('/api/usuarios', {
+      const response = await fetch('/api/docentes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,18 +151,16 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
         },
         body: JSON.stringify({
           ...formData,
-          ieId,
-          rol: 'DOCENTE',
-          fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
-          docente: {
-            especialidad: formData.especialidad,
-            gradoId: formData.grado ? parseInt(formData.grado) : null,
-            seccionId: formData.seccion ? parseInt(formData.seccion) : null
-          }
+          userInfo: userStr // Enviar información del usuario para obtener ieId
         })
       })
 
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+
       if (response.ok) {
+        const result = await response.json()
+        console.log('Resultado exitoso:', result)
         alert('Docente creado exitosamente')
         onSuccess()
         onClose()
@@ -147,15 +170,15 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
           apellido: '',
           email: '',
           telefono: '',
-          direccion: '',
-          fechaNacimiento: '',
           especialidad: '',
           grado: '',
           seccion: '',
+          tipoAsignacion: '',
           password: ''
         })
       } else {
         const error = await response.json()
+        console.log('Error de la API:', error)
         alert(`Error: ${error.message || 'No se pudo crear el docente'}`)
       }
     } catch (error) {
@@ -251,17 +274,6 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
             </div>
 
             <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                name="fechaNacimiento"
-                value={formData.fechaNacimiento}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
               <label className="block text-base font-semibold text-gray-800 mb-2">Grado</label>
               <select
                 name="grado"
@@ -307,6 +319,30 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
             </div>
 
             <div>
+              <label className="block text-base font-semibold text-gray-800 mb-2">Tipo de Asignación</label>
+              <select
+                name="tipoAsignacion"
+                value={formData.tipoAsignacion}
+                onChange={handleChange}
+                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                disabled={loadingTipos}
+              >
+                <option value="">Seleccionar tipo...</option>
+                {tiposAsignacion.map((tipo) => (
+                  <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </select>
+              {loadingTipos && (
+                <p className="text-sm text-gray-500 mt-1">Cargando tipos de asignación...</p>
+              )}
+              <p className="text-sm text-gray-500 mt-1">
+                Opcional: Define el rol del docente (Tutor, Profesor de materia, etc.)
+              </p>
+            </div>
+
+            <div>
               <label className="block text-base font-semibold text-gray-800 mb-2">Especialidad *</label>
               <input
                 type="text"
@@ -316,18 +352,6 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 required
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Matemáticas, Comunicación, etc."
-              />
-            </div>
-
-
-            <div className="md:col-span-2">
-              <label className="block text-base font-semibold text-gray-800 mb-2">Dirección</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
 

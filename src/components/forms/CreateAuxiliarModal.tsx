@@ -17,8 +17,6 @@ export default function CreateAuxiliarModal({ isOpen, onClose, onSuccess }: Crea
     apellido: '',
     email: '',
     telefono: '',
-    direccion: '',
-    fechaNacimiento: '',
     password: ''
   })
 
@@ -46,8 +44,7 @@ export default function CreateAuxiliarModal({ isOpen, onClose, onSuccess }: Crea
         body: JSON.stringify({
           ...formData,
           ieId,
-          rol: 'AUXILIAR',
-          fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null
+          rol: 'AUXILIAR'
         })
       })
 
@@ -61,8 +58,6 @@ export default function CreateAuxiliarModal({ isOpen, onClose, onSuccess }: Crea
           apellido: '',
           email: '',
           telefono: '',
-          direccion: '',
-          fechaNacimiento: '',
           password: ''
         })
       } else {
@@ -161,27 +156,6 @@ export default function CreateAuxiliarModal({ isOpen, onClose, onSuccess }: Crea
               />
             </div>
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                name="fechaNacimiento"
-                value={formData.fechaNacimiento}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-base font-semibold text-gray-800 mb-2">Dirección</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
 
             <div className="md:col-span-2">
               <label className="block text-base font-semibold text-gray-800 mb-2">Contraseña *</label>

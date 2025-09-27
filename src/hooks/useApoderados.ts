@@ -21,6 +21,7 @@ export interface Apoderado {
     grado: string
     seccion: string
     relacion: string
+    esTitular: boolean
   }>
 }
 
@@ -56,16 +57,21 @@ export const useApoderados = () => {
       }
       
       const user = JSON.parse(userStr)
-      const ieId = user.idIe
+      const ieId = user.idIe || user.institucionId || user.ieId || 1 // Fallback to 1 if not found
       
       if (!ieId) {
-        console.error('No institution ID found for user')
+        console.error('No institution ID found for user:', user)
         return
       }
 
       // Include inactive apoderados when filter is set to show them
       const includeInactive = filters.filterEstado === 'INACTIVO' || filters.filterEstado === 'TODOS'
-      const response = await fetch(`/api/apoderados?ieId=${ieId}&includeInactive=${includeInactive}`)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/apoderados?ieId=${ieId}&includeInactive=${includeInactive}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
 
       if (response.ok) {
         const data = await response.json()
@@ -94,10 +100,12 @@ export const useApoderados = () => {
 
   const handleEstadoChange = async (id: string, nuevoEstado: 'ACTIVO' | 'INACTIVO') => {
     try {
-      const response = await fetch(`/api/apoderados?id=${id}`, {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/apoderados?id=${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ estado: nuevoEstado })
       })
@@ -129,10 +137,12 @@ export const useApoderados = () => {
     estudiantesRelaciones: {[key: string]: string}
   }) => {
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`/api/apoderados/${apoderadoData.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(apoderadoData)
       })

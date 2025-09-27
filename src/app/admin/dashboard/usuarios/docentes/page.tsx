@@ -1,26 +1,47 @@
 'use client'
 
 import { useState } from 'react'
-import { useDocentes } from '@/hooks/useDocentes'
+import { useDocentes, Docente } from '@/hooks/useDocentes'
 import DocentesTable from '@/components/admin/DocentesTable'
 import DocentesFilters from '@/components/admin/DocentesFilters'
 import DocentesStats from '@/components/admin/DocentesStats'
 import CreateDocenteModal from '@/components/forms/CreateDocenteModal'
+import ViewDocenteModal from '@/components/modals/ViewDocenteModal'
+import EditDocenteModal from '@/components/modals/EditDocenteModal'
 
 export default function DocentesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedDocente, setSelectedDocente] = useState<Docente | null>(null)
   
   const {
     docentes,
     loading,
     filters,
-    especialidades,
-    instituciones,
+    grados,
+    secciones,
     stats,
     loadDocentes,
     handleEstadoChange,
     updateFilters
   } = useDocentes()
+
+  const handleView = (docente: Docente) => {
+    setSelectedDocente(docente)
+    setShowViewModal(true)
+  }
+
+  const handleEdit = (docente: Docente) => {
+    setSelectedDocente(docente)
+    setShowEditModal(true)
+  }
+
+  const handleCloseModals = () => {
+    setShowViewModal(false)
+    setShowEditModal(false)
+    setSelectedDocente(null)
+  }
 
   if (loading) {
     return (
@@ -57,8 +78,8 @@ export default function DocentesPage() {
       {/* Filters */}
       <DocentesFilters
         filters={filters}
-        especialidades={especialidades}
-        instituciones={instituciones}
+        grados={grados}
+        secciones={secciones}
         onFiltersChange={updateFilters}
         onRefresh={loadDocentes}
       />
@@ -75,6 +96,8 @@ export default function DocentesPage() {
         </div>
         <DocentesTable
           docentes={docentes}
+          onView={handleView}
+          onEdit={handleEdit}
           onEstadoChange={handleEstadoChange}
         />
       </div>
@@ -83,6 +106,22 @@ export default function DocentesPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={loadDocentes}
+      />
+
+      <ViewDocenteModal
+        isOpen={showViewModal}
+        onClose={handleCloseModals}
+        docente={selectedDocente}
+      />
+
+      <EditDocenteModal
+        isOpen={showEditModal}
+        onClose={handleCloseModals}
+        onSuccess={() => {
+          loadDocentes()
+          handleCloseModals()
+        }}
+        docente={selectedDocente}
       />
     </div>
   )

@@ -35,6 +35,7 @@ model Ie {
   usuarios             Usuario[]
   estudiantes          Estudiante[]
   calendarioEscolar    CalendarioEscolar[]
+  excepciones          ExcepcionHorario[]
   talleres             Taller[]
   asistencias          Asistencia[]
   retiros              Retiro[]
@@ -91,7 +92,7 @@ model GradoSeccion {
   
   // Relaciones
   estudiantes         Estudiante[]
-  horariosGradoSeccion HorarioGradoSeccion[]
+  horariosClase       HorarioClase[]
   docenteAulas        DocenteAula[]
   retiros             Retiro[]
   
@@ -205,6 +206,7 @@ model Docente {
   
   // Relaciones
   docenteAulas     DocenteAula[]
+  horariosClase    HorarioClase[]
   retirosReportados Retiro[] @relation("ReportadoPorDocente")
   
   @@map("docente")
@@ -265,32 +267,108 @@ model CalendarioEscolar {
   @@map("calendario_escolar")
 }
 
-model HorarioGradoSeccion {
-  idHorario        Int          @id @default(autoincrement()) @map("id_horario")
-  idGradoSeccion   Int          @map("id_grado_seccion")
-  diaSemana        Int          @map("dia_semana")
-  horaEntrada      DateTime     @map("hora_entrada") @db.Time
-  horaSalida       DateTime     @map("hora_salida") @db.Time
-  toleranciaMin    Int          @default(10) @map("tolerancia_min")
-  sesiones         Int          @default(1)
-  gradoSeccion     GradoSeccion @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+
+model ExcepcionHorario {
+  idExcepcion      Int                @id @default(autoincrement()) @map("id_excepcion")
+  idIe             Int                @map("id_ie")
+  fecha            DateTime           @db.Date
+  tipoExcepcion    TipoExcepcionEnum  @map("tipo_excepcion")
+  tipoHorario      TipoHorarioEnum    @map("tipo_horario")
+  idHorarioClase   Int?               @map("id_horario_clase")
+  idHorarioTaller  Int?               @map("id_horario_taller")
+  motivo           String?
+  descripcion      String?            @db.Text
+  horaInicioAlt    DateTime?          @map("hora_inicio_alt") @db.Time
+  horaFinAlt       DateTime?          @map("hora_fin_alt") @db.Time
+  activo           Boolean            @default(true)
+  horarioClase     HorarioClase? @relation(fields: [idHorarioClase], references: [idHorarioClase])
+  horarioTaller    HorarioTaller?     @relation(fields: [idHorarioTaller], references: [idHorarioTaller])
+  ie               Ie                 @relation(fields: [idIe], references: [idIe])
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime?          @updatedAt @map("updated_at") @db.Timestamptz
   
-  @@unique([idGradoSeccion, diaSemana], name: "uq_hgs_aula_dia")
-  @@map("horarios_grado_seccion")
+  @@unique([idHorarioClase, fecha], name: "uq_exc_horario_clase_fecha")
+  @@unique([idHorarioTaller, fecha], name: "uq_exc_horario_taller_fecha")
+  @@index([fecha])
+  @@index([idIe, fecha])
+  @@index([tipoHorario])
+  @@map("excepciones_horario")
+}
+
+enum TipoExcepcionEnum {
+  FERIADO           // Día feriado nacional/local
+  DIA_NO_LABORABLE  // Día no laborable (sábado/domingo especial)
+  SUSPENSION_CLASES // Suspensión de clases por emergencia
+  HORARIO_ESPECIAL  // Horario especial (ceremonias, eventos)
+  VACACIONES        // Período de vacaciones
+  CAPACITACION      // Día de capacitación docente
+  OTRO              // Otra excepción
+  
+  @@map("tipo_excepcion")
+}
+
+enum TipoHorarioEnum {
+  CLASE             // Horario de clases regulares
+  TALLER            // Horario de talleres
+  AMBOS             // Aplica a clases y talleres
+  
+  @@map("tipo_horario")
+}
+
+enum TipoActividadEnum {
+  CLASE_REGULAR     // Clases regulares de lunes a viernes
+  REFORZAMIENTO     // Clases de reforzamiento (sábados/domingos)
+  RECUPERACION      // Clases de recuperación (sábados/domingos)
+  EVALUACION        // Evaluaciones especiales
+  TALLER_EXTRA      // Talleres extracurriculares
+  
+  @@map("tipo_actividad")
+}
+
+// ====================== 
+// HORARIOS SIMPLIFICADOS
+// ======================
+
+model HorarioClase {
+  idHorarioClase   Int               @id @default(autoincrement()) @map("id_horario_clase")
+  idGradoSeccion   Int               @map("id_grado_seccion")
+  idDocente        Int?              @map("id_docente")
+  materia          String?           // Opcional - Solo para talleres específicos
+  diaSemana        Int               @map("dia_semana") // 1=Lunes, 2=Martes, ..., 7=Domingo
+  horaInicio       DateTime          @map("hora_inicio") @db.Time
+  horaFin          DateTime          @map("hora_fin") @db.Time
+  aula             String?
+  toleranciaMin    Int               @default(10) @map("tolerancia_min")
+  sesiones         Int               @default(1)
+  tipoActividad    TipoActividadEnum @default(CLASE_REGULAR) @map("tipo_actividad")
+  activo           Boolean           @default(true)
+  gradoSeccion     GradoSeccion      @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
+  docente          Docente?          @relation(fields: [idDocente], references: [idDocente])
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime?         @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relaciones
+  excepciones      ExcepcionHorario[]
+  
+  @@unique([idGradoSeccion, diaSemana, horaInicio], name: "uq_hc_grado_dia_hora")
+  @@map("horarios_clase")
 }
 
 // ======================
 // Talleres
 // ======================
 model Taller {
-  idTaller    Int       @id @default(autoincrement()) @map("id_taller")
-  idIe        Int       @map("id_ie")
-  codigo      String?   @unique @db.VarChar(32)
-  nombre      String
-  descripcion String?   @db.Text
-  activo      Boolean   @default(true)
-  ie          Ie        @relation(fields: [idIe], references: [idIe])
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  idTaller        Int       @id @default(autoincrement()) @map("id_taller")
+  idIe            Int       @map("id_ie")
+  codigo          String?   @unique @db.VarChar(32)
+  nombre          String
+  descripcion     String?   @db.Text
+  instructor      String?
+  capacidadMaxima Int?      @map("capacidad_maxima")
+  activo          Boolean   @default(true)
+  ie              Ie        @relation(fields: [idIe], references: [idIe])
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime? @updatedAt @map("updated_at") @db.Timestamptz
   
   // Relaciones
   inscripciones InscripcionTaller[]
@@ -326,8 +404,12 @@ model HorarioTaller {
   horaFin         DateTime @map("hora_fin") @db.Time
   toleranciaMin   Int      @default(10) @map("tolerancia_min")
   lugar           String?
+  activo          Boolean  @default(true)
   taller          Taller   @relation(fields: [idTaller], references: [idTaller])
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relaciones
+  excepciones     ExcepcionHorario[]
   
   @@unique([idTaller, diaSemana, horaInicio], name: "uq_htaller_taller_dia_inicio")
   @@map("horarios_taller")

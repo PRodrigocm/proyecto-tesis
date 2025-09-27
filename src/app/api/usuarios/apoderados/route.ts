@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const ieId = url.searchParams.get('ieId')
+    const includeInactive = url.searchParams.get('includeInactive') === 'true'
 
     if (!ieId) {
       return NextResponse.json(
@@ -13,17 +14,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const apoderados = await prisma.usuario.findMany({
-      where: {
-        idIe: parseInt(ieId),
-        roles: {
-          some: {
-            rol: {
-              nombre: 'APODERADO'
-            }
+    // Build where condition based on includeInactive parameter
+    const whereCondition: any = {
+      idIe: parseInt(ieId),
+      roles: {
+        some: {
+          rol: {
+            nombre: 'APODERADO'
           }
         }
-      },
+      }
+    }
+
+    // Only filter by estado if includeInactive is false
+    if (!includeInactive) {
+      whereCondition.estado = 'ACTIVO'
+    }
+
+    const apoderados = await prisma.usuario.findMany({
+      where: whereCondition,
       include: {
         apoderado: {
           include: {
@@ -57,8 +66,12 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    const transformedApoderados = apoderados.map(apoderado => ({
-      id: apoderado.idUsuario,
+    const transformedApoderados = apoderados.map(apoderado => {
+      const apoderadoId = apoderado.apoderado?.idApoderado?.toString() || apoderado.idUsuario.toString()
+      console.log(`Transformando usuario ${apoderado.idUsuario} -> apoderado ID: ${apoderadoId} (idApoderado: ${apoderado.apoderado?.idApoderado})`)
+      
+      return {
+        id: apoderadoId,
       nombre: apoderado.nombre,
       apellido: apoderado.apellido,
       dni: apoderado.dni,
@@ -72,13 +85,15 @@ export async function GET(request: NextRequest) {
         apellido: ea.estudiante.usuario.apellido,
         grado: ea.estudiante.gradoSeccion?.grado?.nombre || '',
         seccion: ea.estudiante.gradoSeccion?.seccion?.nombre || '',
-        relacion: ea.relacion
+        relacion: ea.relacion,
+        esTitular: ea.esTitular
       })) || [],
       institucionEducativa: apoderado.ie?.nombre || 'Sin institución',
       estado: apoderado.estado as 'ACTIVO' | 'INACTIVO',
       fechaRegistro: apoderado.createdAt.toISOString(),
       roles: apoderado.roles || []
-    }))
+      }
+    })
 
     return NextResponse.json({
       data: transformedApoderados,

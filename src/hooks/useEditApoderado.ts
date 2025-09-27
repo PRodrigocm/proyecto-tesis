@@ -11,6 +11,7 @@ interface EditApoderadoData {
   estado: 'ACTIVO' | 'INACTIVO'
   estudiantesIds: string[]
   estudiantesRelaciones: {[key: string]: string}
+  estudiantesTitulares: {[key: string]: boolean}
 }
 
 export const useEditApoderado = () => {
@@ -24,8 +25,13 @@ export const useEditApoderado = () => {
     try {
       console.log('=== INICIO ACTUALIZACIÓN DE APODERADO ===')
       console.log('Datos a actualizar:', apoderadoData)
+      
+      const url = `/api/apoderados/${apoderadoData.id}`
+      console.log('URL construida:', url)
+      console.log('ID del apoderado:', apoderadoData.id)
+      console.log('Tipo de ID:', typeof apoderadoData.id)
 
-      const response = await fetch(`/api/apoderados/${apoderadoData.id}`, {
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -34,11 +40,42 @@ export const useEditApoderado = () => {
       })
 
       console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Error response:', errorData)
-        throw new Error(errorData.message || 'Error al actualizar el apoderado')
+        console.log('Response not ok, trying to get error data...')
+        try {
+          const responseText = await response.text()
+          console.log('Raw response text:', responseText)
+          
+          if (responseText) {
+            try {
+              const errorData = JSON.parse(responseText)
+              console.error('Error response parsed:', errorData)
+              
+              // Si hay información de debug, mostrarla
+              if (errorData.debug) {
+                console.log('Debug info from API:', errorData.debug)
+                console.log('Searched ID:', errorData.debug.searchedId)
+                console.log('All apoderados in DB:', errorData.debug.allApoderados)
+                console.log('Simple search result:', errorData.debug.simpleSearch)
+                console.log('Related user:', errorData.debug.relatedUser)
+              }
+              
+              throw new Error(errorData.message || 'Error al actualizar el apoderado')
+            } catch (parseError) {
+              console.error('Error parsing JSON:', parseError)
+              console.error('Raw response text:', responseText)
+              throw new Error(`Error ${response.status}: ${responseText}`)
+            }
+          } else {
+            throw new Error(`Error ${response.status}: ${response.statusText}`)
+          }
+        } catch (fetchError) {
+          console.error('Error getting response text:', fetchError)
+          throw new Error(`Error ${response.status}: ${response.statusText}`)
+        }
       }
 
       const result = await response.json()
@@ -54,8 +91,25 @@ export const useEditApoderado = () => {
     }
   }
 
+  const testApiRoute = async (id: string) => {
+    try {
+      console.log('=== TESTING API ROUTE ===')
+      const response = await fetch(`/api/apoderados/${id}`, {
+        method: 'GET'
+      })
+      console.log('Test GET Response status:', response.status)
+      const data = await response.json()
+      console.log('Test GET Response data:', data)
+      return response.ok
+    } catch (error) {
+      console.error('Test GET Error:', error)
+      return false
+    }
+  }
+
   return {
     updateApoderado,
+    testApiRoute,
     loading,
     error
   }

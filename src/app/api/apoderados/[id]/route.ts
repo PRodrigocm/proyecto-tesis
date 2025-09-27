@@ -9,10 +9,25 @@ export async function PUT(
 ) {
   try {
     console.log('=== INICIO ACTUALIZACIÓN DE APODERADO ===')
+    console.log('PUT function called successfully')
+    
     const { id } = await params
+    console.log('ID extraído de params:', id)
+    
+    if (!id) {
+      console.log('Error: ID no proporcionado')
+      return NextResponse.json(
+        { message: 'ID del apoderado es requerido' },
+        { status: 400 }
+      )
+    }
+    
     const body = await request.json()
     console.log('ID del apoderado:', id)
     console.log('Datos recibidos:', JSON.stringify(body, null, 2))
+    
+    // Test simple para verificar que llegamos hasta aquí
+    console.log('Punto de control 1: Datos recibidos correctamente')
 
     const {
       nombre,
@@ -23,7 +38,8 @@ export async function PUT(
       direccion,
       estado,
       estudiantesIds = [],
-      estudiantesRelaciones = {}
+      estudiantesRelaciones = {},
+      estudiantesTitulares = {}
     } = body
 
     // Validar campos requeridos
@@ -35,8 +51,21 @@ export async function PUT(
     }
 
     const apoderadoId = parseInt(id)
+    console.log('ID recibido como string:', id)
+    console.log('ID convertido a número:', apoderadoId)
+    console.log('Tipo de apoderadoId:', typeof apoderadoId)
+    console.log('¿Es NaN?:', isNaN(apoderadoId))
+
+    if (isNaN(apoderadoId)) {
+      console.log('ID inválido, no es un número')
+      return NextResponse.json(
+        { message: 'ID de apoderado inválido' },
+        { status: 400 }
+      )
+    }
 
     // Verificar que el apoderado existe
+    console.log('Ejecutando consulta Prisma para ID:', apoderadoId)
     const existingApoderado = await prisma.apoderado.findUnique({
       where: { idApoderado: apoderadoId },
       include: {
@@ -49,9 +78,44 @@ export async function PUT(
       }
     })
 
+    console.log('Resultado de búsqueda de apoderado:', existingApoderado)
+
     if (!existingApoderado) {
+      console.log('Apoderado no encontrado con ID:', apoderadoId)
+      
+      // Buscar todos los apoderados para debugging
+      const allApoderados = await prisma.apoderado.findMany({
+        select: { idApoderado: true, idUsuario: true }
+      })
+      console.log('Todos los apoderados en BD:', allApoderados)
+      
+      // Intentar búsqueda alternativa
+      const apoderadoSimple = await prisma.apoderado.findFirst({
+        where: { idApoderado: apoderadoId }
+      })
+      console.log('Búsqueda simple sin includes:', apoderadoSimple)
+      
+      // Verificar si existe en la tabla usuario
+      const usuarioRelacionado = await prisma.usuario.findMany({
+        where: { 
+          apoderado: {
+            idApoderado: apoderadoId
+          }
+        },
+        select: { idUsuario: true, nombre: true, apellido: true }
+      })
+      console.log('Usuario relacionado encontrado:', usuarioRelacionado)
+      
       return NextResponse.json(
-        { message: 'Apoderado no encontrado' },
+        { 
+          message: 'Apoderado no encontrado',
+          debug: {
+            searchedId: apoderadoId,
+            allApoderados: allApoderados,
+            simpleSearch: apoderadoSimple,
+            relatedUser: usuarioRelacionado
+          }
+        },
         { status: 404 }
       )
     }
@@ -90,18 +154,28 @@ export async function PUT(
 
       // 4. Crear nuevas relaciones estudiante-apoderado
       if (estudiantesIds.length > 0) {
-        const estudiantesIdsInt = estudiantesIds.map((id: string) => parseInt(id))
+        // Eliminar duplicados y convertir a enteros
+        const estudiantesIdsString: string[] = estudiantesIds.map((id: any) => String(id))
+        const estudiantesIdsUnicos: number[] = [...new Set(estudiantesIdsString)].map((id: string) => parseInt(id)).filter((id: number) => !isNaN(id))
+        console.log('IDs únicos de estudiantes:', estudiantesIdsUnicos)
         
-        for (const estudianteId of estudiantesIdsInt) {
+        for (const estudianteId of estudiantesIdsUnicos) {
           const estudianteIdStr = estudianteId.toString()
           const relacion = estudiantesRelaciones[estudianteIdStr] || 'Padre/Madre'
+          const esTitular = estudiantesTitulares[estudianteIdStr] !== undefined ? estudiantesTitulares[estudianteIdStr] : true
+          
+          console.log(`Creando relación para estudiante ${estudianteId}:`, {
+            relacion,
+            esTitular,
+            apoderadoId
+          })
           
           await tx.estudianteApoderado.create({
             data: {
               idEstudiante: estudianteId,
               idApoderado: apoderadoId,
               relacion: relacion,
-              esTitular: true,
+              esTitular: esTitular,
               puedeRetirar: true
             }
           })
@@ -145,5 +219,27 @@ export async function PUT(
     )
   } finally {
     await prisma.$disconnect()
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    console.log('=== GET APODERADO TEST ===')
+    const { id } = await params
+    console.log('GET ID:', id)
+    
+    return NextResponse.json({
+      message: 'GET funcionando correctamente',
+      id: id
+    })
+  } catch (error) {
+    console.error('Error en GET:', error)
+    return NextResponse.json(
+      { error: 'Error en GET' },
+      { status: 500 }
+    )
   }
 }

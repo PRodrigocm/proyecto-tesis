@@ -13,13 +13,17 @@ export async function POST(request: NextRequest) {
     
     const {
       dni,
-      nombres,
-      apellidos,
+      nombre,
+      nombres = nombre, // Fallback para compatibilidad
+      apellido,
+      apellidos = apellido, // Fallback para compatibilidad
       email,
       telefono,
-      passwordHash,
+      password,
+      passwordHash = password, // Usar password si passwordHash no está presente
       ieId,
-      roleIds,
+      rol, // Rol único como string
+      roleIds = rol ? [rol] : [], // Convertir rol único a array
       especialidad,
       ocupacion,
       fechaNacimiento,
@@ -27,7 +31,9 @@ export async function POST(request: NextRequest) {
       grado,
       seccion,
       apoderadoId,
-      relacionApoderado
+      relacionApoderado,
+      estudianteId,
+      parentescoEstudiante
     } = body
     
     console.log('Campos extraídos:', {
@@ -38,24 +44,42 @@ export async function POST(request: NextRequest) {
     })
 
     // Validaciones básicas
-    if (!nombres || !apellidos || !dni || !passwordHash || !ieId || !roleIds || roleIds.length === 0) {
+    if (!nombres || !apellidos || !dni || !passwordHash || !ieId) {
       console.log('ERROR: Validación básica falló')
       return NextResponse.json(
-        { error: 'Nombres, apellidos, DNI, contraseña, institución y roles son obligatorios' },
+        { error: 'Nombres, apellidos, DNI, contraseña e institución son obligatorios' },
+        { status: 400 }
+      )
+    }
+
+    // Validar que se proporcione al menos un rol
+    if (!roleIds || roleIds.length === 0) {
+      console.log('ERROR: No se proporcionó ningún rol')
+      return NextResponse.json(
+        { error: 'Debe especificar al menos un rol' },
         { status: 400 }
       )
     }
     console.log('✓ Validaciones básicas pasaron')
 
-    // Validaciones específicas por rol
-    console.log('Buscando roles con IDs:', roleIds)
-    const roleNames = await prisma.rol.findMany({
-      where: { idRol: { in: roleIds.map((id: string) => parseInt(id)) } },
-      select: { nombre: true }
-    })
-    console.log('Roles encontrados:', roleNames)
+    // Obtener información de roles
+    let selectedRoleNames: string[] = []
     
-    const selectedRoleNames = roleNames.map(r => r.nombre)
+    if (typeof roleIds[0] === 'string' && isNaN(Number(roleIds[0]))) {
+      // Si roleIds contiene nombres de roles directamente
+      selectedRoleNames = roleIds
+      console.log('Roles por nombre:', selectedRoleNames)
+    } else {
+      // Si roleIds contiene IDs numéricos
+      console.log('Buscando roles con IDs:', roleIds)
+      const roleNames = await prisma.rol.findMany({
+        where: { idRol: { in: roleIds.map((id: string) => parseInt(id)) } },
+        select: { nombre: true }
+      })
+      console.log('Roles encontrados:', roleNames)
+      selectedRoleNames = roleNames.map(r => r.nombre)
+    }
+    
     console.log('Nombres de roles seleccionados:', selectedRoleNames)
     
     // Si tiene roles que requieren email/teléfono, validar que estén presentes
@@ -80,29 +104,35 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el email ya existe (solo si se proporciona email)
     if (email) {
+      console.log('Verificando email existente:', email)
       const existingUser = await prisma.usuario.findFirst({
         where: { email }
       })
 
       if (existingUser) {
+        console.log('❌ Email ya existe:', email)
         return NextResponse.json(
-          { error: 'El email ya está registrado' },
+          { error: `El email ${email} ya está registrado` },
           { status: 400 }
         )
       }
+      console.log('✓ Email disponible')
     }
 
     // Verificar si el DNI ya existe
+    console.log('Verificando DNI existente:', dni)
     const existingDni = await prisma.usuario.findFirst({
       where: { dni }
     })
 
     if (existingDni) {
+      console.log('❌ DNI ya existe:', dni, 'Usuario:', existingDni.nombre, existingDni.apellido)
       return NextResponse.json(
-        { error: 'El DNI ya está registrado' },
+        { error: `El DNI ${dni} ya está registrado por ${existingDni.nombre} ${existingDni.apellido}` },
         { status: 400 }
       )
     }
+    console.log('✓ DNI disponible')
 
     // Hash de la contraseña
     console.log('Hasheando contraseña...')
@@ -137,9 +167,25 @@ export async function POST(request: NextRequest) {
 
     // Asignar roles al usuario
     console.log('Asignando roles al usuario...')
-    const roleAssignments = roleIds.map((roleId: string) => ({
+    
+    // Obtener IDs de roles por nombre si es necesario
+    let roleIdsToAssign: number[] = []
+    
+    if (typeof roleIds[0] === 'string' && isNaN(Number(roleIds[0]))) {
+      // Buscar IDs por nombres de roles
+      const rolesFromDb = await prisma.rol.findMany({
+        where: { nombre: { in: selectedRoleNames } },
+        select: { idRol: true }
+      })
+      roleIdsToAssign = rolesFromDb.map(r => r.idRol)
+    } else {
+      // Ya son IDs numéricos
+      roleIdsToAssign = roleIds.map((id: string) => parseInt(id))
+    }
+    
+    const roleAssignments = roleIdsToAssign.map((roleId: number) => ({
       idUsuario: newUser.idUsuario,
-      idRol: parseInt(roleId)
+      idRol: roleId
     }))
     console.log('Asignaciones de roles:', roleAssignments)
 
@@ -205,13 +251,34 @@ export async function POST(request: NextRequest) {
           break
         case 'APODERADO':
           console.log('Creando registro de apoderado...')
-          await prisma.apoderado.create({
+          const newApoderado = await prisma.apoderado.create({
             data: {
               idUsuario: newUser.idUsuario,
-              ocupacion: ocupacion || null
+              ocupacion: ocupacion || null,
+              direccion: body.direccion || null
             }
           })
           console.log('✓ Apoderado creado')
+          
+          // Crear relación con estudiante si se especificó
+          if (estudianteId && estudianteId.trim() !== '' && parentescoEstudiante) {
+            console.log('Creando relación apoderado-estudiante...')
+            try {
+              await prisma.estudianteApoderado.create({
+                data: {
+                  idEstudiante: parseInt(estudianteId),
+                  idApoderado: newApoderado.idApoderado,
+                  relacion: parentescoEstudiante
+                }
+              })
+              console.log('✓ Relación apoderado-estudiante creada')
+            } catch (relationError) {
+              console.log('⚠️ No se pudo crear la relación con el estudiante:', relationError)
+              // No fallar la creación del apoderado por esto
+            }
+          } else {
+            console.log('ℹ️ No se especificó estudiante o es opcional')
+          }
           break
       }
     }
@@ -240,9 +307,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('=== ERROR EN CREACIÓN DE USUARIO ===')
     console.error('Error creating user:', error)
-    console.error('Stack trace:', error.stack)
+    
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available'
+    
+    console.error('Stack trace:', errorStack)
     return NextResponse.json(
-      { error: 'Error interno del servidor', details: error.message },
+      { error: 'Error interno del servidor', details: errorMessage },
       { status: 500 }
     )
   }

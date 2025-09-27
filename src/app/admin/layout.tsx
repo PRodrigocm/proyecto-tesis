@@ -22,6 +22,7 @@ export default function AdminLayout({
   const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openUsers, setOpenUsers] = useState(false)
+  const [openCalendario, setOpenCalendario] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -104,7 +105,27 @@ export default function AdminLayout({
       name: 'Calendario',
       href: '/admin/dashboard/calendarios',
       icon: '📅',
-      current: pathname.startsWith('/admin/dashboard/calendarios')
+      current: pathname.startsWith('/admin/dashboard/calendarios') || pathname.startsWith('/admin/dashboard/horarios'),
+      children: [
+        {
+          name: 'Horario Clases',
+          href: '/admin/dashboard/horarios/clases',
+          current: pathname === '/admin/dashboard/horarios/clases',
+          description: 'Administra horarios de clases, excepciones y suspensiones'
+        },
+        {
+          name: 'Horario Talleres',
+          href: '/admin/dashboard/horarios/talleres',
+          current: pathname === '/admin/dashboard/horarios/talleres',
+          description: 'Administra horarios de talleres, excepciones y suspensiones'
+        },
+        {
+          name: 'Horario General',
+          href: '/admin/dashboard/horarios/general',
+          current: pathname === '/admin/dashboard/horarios/general',
+          description: 'Administra ambos horarios, suspensiones y retiros'
+        }
+      ]
     },
     {
       name: 'Retiros',
@@ -150,7 +171,13 @@ export default function AdminLayout({
                   <div>
                     <button
                       type="button"
-                      onClick={() => setOpenUsers(!openUsers)}
+                      onClick={() => {
+                        if (item.name === 'Usuarios') {
+                          setOpenUsers(!openUsers)
+                        } else if (item.name === 'Calendario') {
+                          setOpenCalendario(!openCalendario)
+                        }
+                      }}
                       className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                         item.current
                           ? 'bg-indigo-100 text-indigo-700'
@@ -160,7 +187,10 @@ export default function AdminLayout({
                       <span className="mr-3">{item.icon}</span>
                       {item.name}
                       <svg
-                        className={`ml-auto h-4 w-4 transform transition-transform ${openUsers ? 'rotate-90' : ''}`}
+                        className={`ml-auto h-4 w-4 transform transition-transform ${
+                          (item.name === 'Usuarios' && openUsers) || (item.name === 'Calendario' && openCalendario) 
+                            ? 'rotate-90' : ''
+                        }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -168,20 +198,26 @@ export default function AdminLayout({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
-                    {openUsers && (
+                    {((item.name === 'Usuarios' && openUsers) || (item.name === 'Calendario' && openCalendario)) && (
                       <div className="ml-8 space-y-1 mt-1">
                         {item.children.map((child) => (
-                          <Link
-                            key={child.name}
-                            href={child.href}
-                            className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                              child.current
-                                ? 'bg-indigo-100 text-indigo-700 font-medium'
-                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
-                          >
-                            {child.name}
-                          </Link>
+                          <div key={child.name}>
+                            <Link
+                              href={child.href}
+                              className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                                child.current
+                                  ? 'bg-indigo-100 text-indigo-700 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                              }`}
+                            >
+                              {child.name}
+                            </Link>
+                            {'description' in child && child.description && (
+                              <p className="ml-4 text-xs text-gray-500 mt-1 mb-2">
+                                {child.description}
+                              </p>
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}

@@ -1,8 +1,58 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Salon } from '@/hooks/useSalones'
 import { useSalonDetails } from '@/hooks/useSalonDetails'
+import { generateQRImage } from '@/utils/qr'
+
+// Componente para mostrar el código QR como imagen
+function QRCodeDisplay({ qrCode }: { qrCode: string }) {
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const generateImage = async () => {
+      try {
+        setLoading(true)
+        const imageUrl = await generateQRImage(qrCode)
+        setQrImageUrl(imageUrl)
+      } catch (error) {
+        console.error('Error generating QR image:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (qrCode) {
+      generateImage()
+    }
+  }, [qrCode])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-12 h-12">
+        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+      </div>
+    )
+  }
+
+  if (!qrImageUrl) {
+    return (
+      <div className="text-xs font-mono bg-red-100 text-red-800 px-2 py-1 rounded">
+        Error QR
+      </div>
+    )
+  }
+
+  return (
+    <img 
+      src={qrImageUrl} 
+      alt={`QR Code: ${qrCode}`}
+      className="w-12 h-12 border border-gray-300 rounded"
+      title={qrCode}
+    />
+  )
+}
 
 interface SalonesFilteredViewProps {
   salones: Salon[]
@@ -266,8 +316,14 @@ function SalonTablesView({ salon }: { salon: Salon }) {
                                 }
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap">
-                                <div className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-                                  {estudiante.qr ? estudiante.qr.substring(0, 8) + '...' : 'Sin QR'}
+                                <div className="flex justify-center">
+                                  {estudiante.qr ? (
+                                    <QRCodeDisplay qrCode={estudiante.qr} />
+                                  ) : (
+                                    <div className="text-xs font-mono bg-gray-200 text-gray-800 px-2 py-1 rounded border">
+                                      Sin QR
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                             </tr>

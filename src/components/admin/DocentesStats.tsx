@@ -3,7 +3,7 @@ interface DocentesStatsProps {
     total: number
     activos: number
     inactivos: number
-    especialidades: number
+    grados: number
   }
 }
 
@@ -74,8 +74,8 @@ export default function DocentesStats({ stats }: DocentesStatsProps) {
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">Especialidades</dt>
-                <dd className="text-lg font-medium text-gray-900">{stats.especialidades}</dd>
+                <dt className="text-sm font-medium text-gray-500 truncate">Grados</dt>
+                <dd className="text-lg font-medium text-gray-900">{stats.grados}</dd>
               </dl>
             </div>
           </div>

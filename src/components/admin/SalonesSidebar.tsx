@@ -1,6 +1,7 @@
 'use client'
 
 import { Salon } from '@/hooks/useSalones'
+import { useDocentes } from '@/hooks/useDocentes'
 import { useState } from 'react'
 
 interface SalonesSidebarProps {
@@ -25,6 +26,7 @@ export default function SalonesSidebar({
   selectedSeccion 
 }: SalonesSidebarProps) {
   const [expandedGrados, setExpandedGrados] = useState<Set<string>>(new Set())
+  const { docentes } = useDocentes()
 
   // Agrupar salones por grado y sección
   const groupedSalones: GroupedSalones = salones.reduce((acc, salon) => {
@@ -215,6 +217,10 @@ export default function SalonesSidebar({
               <span className="font-medium">
                 {salones.reduce((total, salon) => total + salon.cantidadEstudiantes, 0)}
               </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Docentes:</span>
+              <span className="font-medium">{docentes.length}</span>
             </div>
           </div>
         </div>

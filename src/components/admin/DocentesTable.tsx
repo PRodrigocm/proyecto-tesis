@@ -2,10 +2,12 @@ import { Docente } from '@/hooks/useDocentes'
 
 interface DocentesTableProps {
   docentes: Docente[]
+  onView: (docente: Docente) => void
+  onEdit: (docente: Docente) => void
   onEstadoChange: (id: string, estado: 'ACTIVO' | 'INACTIVO') => void
 }
 
-export default function DocentesTable({ docentes, onEstadoChange }: DocentesTableProps) {
+export default function DocentesTable({ docentes, onView, onEdit, onEstadoChange }: DocentesTableProps) {
   if (docentes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -37,7 +39,7 @@ export default function DocentesTable({ docentes, onEstadoChange }: DocentesTabl
               Contacto
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Materias
+              Aula
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Estado
@@ -76,15 +78,14 @@ export default function DocentesTable({ docentes, onEstadoChange }: DocentesTabl
                 <div className="text-sm text-gray-500">{docente.telefono}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex flex-wrap gap-1">
-                  {docente.materias?.map((materia) => (
-                    <span
-                      key={materia.id}
-                      className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
-                    >
-                      {materia.nombre}
+                <div className="text-sm text-gray-900">
+                  {docente.grado && docente.seccion ? (
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      {docente.grado}° {docente.seccion}
                     </span>
-                  ))}
+                  ) : (
+                    <span className="text-gray-500">Sin asignar</span>
+                  )}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -98,10 +99,16 @@ export default function DocentesTable({ docentes, onEstadoChange }: DocentesTabl
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex space-x-2">
-                  <button className="text-indigo-600 hover:text-indigo-900">
+                  <button 
+                    onClick={() => onView(docente)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
                     Ver
                   </button>
-                  <button className="text-yellow-600 hover:text-yellow-900">
+                  <button 
+                    onClick={() => onEdit(docente)}
+                    className="text-yellow-600 hover:text-yellow-900"
+                  >
                     Editar
                   </button>
                   <button

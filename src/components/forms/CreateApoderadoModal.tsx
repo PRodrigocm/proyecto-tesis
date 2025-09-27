@@ -3,10 +3,26 @@
 import { useState, useEffect } from 'react'
 // import { XMarkIcon } from '@heroicons/react/24/outline'
 
+interface Estudiante {
+  id: string
+  nombre: string
+  apellido: string
+  dni: string
+  grado: string
+  seccion: string
+  estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO'
+}
+
 interface CreateApoderadoModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+}
+
+interface HijoRelacion {
+  estudianteId: string
+  parentesco: string
+  esTitular: boolean
 }
 
 export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: CreateApoderadoModalProps) {
@@ -20,13 +36,14 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
     direccion: '',
     fechaNacimiento: '',
     ocupacion: '',
-    password: '',
-    estudianteId: '',
-    parentescoEstudiante: 'PADRE'
+    password: ''
   })
   
-  const [estudiantes, setEstudiantes] = useState<any[]>([])
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [loadingEstudiantes, setLoadingEstudiantes] = useState(false)
+  const [hijosRelaciones, setHijosRelaciones] = useState<HijoRelacion[]>([
+    { estudianteId: '', parentesco: 'PADRE', esTitular: false }
+  ])
 
   // Cargar estudiantes cuando se abre el modal
   useEffect(() => {
@@ -92,11 +109,12 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           apoderado: {
             ocupacion: formData.ocupacion
           },
-          // Relación con estudiante si se seleccionó
-          estudianteRelacion: formData.estudianteId ? {
-            estudianteId: parseInt(formData.estudianteId),
-            parentesco: formData.parentescoEstudiante
-          } : null
+          // Relaciones con estudiantes (múltiples hijos)
+          hijosRelaciones: hijosRelaciones.filter(hijo => hijo.estudianteId).map(hijo => ({
+            estudianteId: parseInt(hijo.estudianteId),
+            parentesco: hijo.parentesco,
+            esTitular: hijo.esTitular
+          }))
         })
       })
 
@@ -113,10 +131,11 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           direccion: '',
           fechaNacimiento: '',
           ocupacion: '',
-          password: '',
-          estudianteId: '',
-          parentescoEstudiante: 'PADRE'
+          password: ''
         })
+        setHijosRelaciones([
+          { estudianteId: '', parentesco: 'PADRE', esTitular: false }
+        ])
       } else {
         const error = await response.json()
         alert(`Error: ${error.message || 'No se pudo crear el apoderado'}`)
@@ -134,6 +153,40 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
       ...formData,
       [e.target.name]: e.target.value
     })
+  }
+
+  const agregarHijo = () => {
+    setHijosRelaciones(prev => [
+      ...prev,
+      { estudianteId: '', parentesco: 'PADRE', esTitular: false }
+    ])
+  }
+
+  const eliminarHijo = (index: number) => {
+    if (hijosRelaciones.length > 1) {
+      setHijosRelaciones(prev => prev.filter((_, i) => i !== index))
+    }
+  }
+
+  const handleHijoChange = (index: number, field: keyof HijoRelacion, value: string | boolean) => {
+    setHijosRelaciones(prev => prev.map((hijo, i) => {
+      if (i === index) {
+        // Si se marca como titular, desmarcar todos los demás
+        if (field === 'esTitular' && value === true) {
+          const updatedRelaciones = prev.map((h, idx) => ({
+            ...h,
+            esTitular: idx === index
+          }))
+          return { ...hijo, [field]: value }
+        }
+        return { ...hijo, [field]: value }
+      }
+      // Si se está marcando otro como titular, desmarcar este
+      if (field === 'esTitular' && value === true) {
+        return { ...hijo, esTitular: false }
+      }
+      return hijo
+    }))
   }
 
   if (!isOpen) return null
@@ -248,52 +301,117 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
               />
             </div>
 
-            {/* Sección de hijos */}
+            {/* Sección de hijos múltiples */}
             <div className="md:col-span-2">
-              <h4 className="text-md font-medium text-gray-900 mb-3 border-t pt-4">
-                Hijos (Opcional)
-              </h4>
+              <div className="flex items-center justify-between mb-3 border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900">
+                  Hijos (Opcional)
+                </h4>
+                <button
+                  type="button"
+                  onClick={agregarHijo}
+                  className="flex items-center space-x-1 px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Agregar Hijo</span>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Puedes asignar múltiples hijos al apoderado. Solo uno puede ser titular (autorizar retiros).
+              </p>
             </div>
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Seleccionar Hijo</label>
-              <select
-                name="estudianteId"
-                value={formData.estudianteId}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                disabled={loadingEstudiantes}
-              >
-                <option value="">Seleccionar hijo...</option>
-                {estudiantes.map((estudiante) => (
-                  <option key={estudiante.idEstudiante} value={estudiante.idEstudiante}>
-                    {estudiante.usuario?.nombre} {estudiante.usuario?.apellido} - {estudiante.codigo}
-                  </option>
-                ))}
-              </select>
+            <div className="md:col-span-2 space-y-4">
+              {hijosRelaciones.map((hijo, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="text-sm font-medium text-gray-800">
+                      Hijo {index + 1}
+                    </h5>
+                    {hijosRelaciones.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => eliminarHijo(index)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Selector de Estudiante */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Seleccionar Estudiante
+                      </label>
+                      <select
+                        value={hijo.estudianteId}
+                        onChange={(e) => handleHijoChange(index, 'estudianteId', e.target.value)}
+                        className="w-full px-3 py-2 text-black bg-white border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                        disabled={loadingEstudiantes}
+                      >
+                        <option value="">Seleccionar estudiante...</option>
+                        {estudiantes.map((estudiante) => (
+                          <option key={estudiante.id} value={estudiante.id}>
+                            {estudiante.nombre} {estudiante.apellido} - {estudiante.grado}° {estudiante.seccion} - DNI: {estudiante.dni}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Selector de Parentesco */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parentesco
+                      </label>
+                      <select
+                        value={hijo.parentesco}
+                        onChange={(e) => handleHijoChange(index, 'parentesco', e.target.value)}
+                        className="w-full px-3 py-2 text-black bg-white border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                        disabled={!hijo.estudianteId}
+                      >
+                        <option value="PADRE">Padre</option>
+                        <option value="MADRE">Madre</option>
+                        <option value="TUTOR">Tutor Legal</option>
+                        <option value="ABUELO">Abuelo</option>
+                        <option value="ABUELA">Abuela</option>
+                        <option value="TIO">Tío</option>
+                        <option value="TIA">Tía</option>
+                        <option value="OTRO">Otro</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Checkbox Es Titular */}
+                  {hijo.estudianteId && (
+                    <div className="mt-3">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hijo.esTitular}
+                          onChange={(e) => handleHijoChange(index, 'esTitular', e.target.checked)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          Es titular (puede autorizar retiros)
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Solo un apoderado puede ser titular por estudiante
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
               {loadingEstudiantes && (
-                <p className="text-sm text-gray-500 mt-1">Cargando estudiantes...</p>
+                <p className="text-sm text-gray-500 text-center">Cargando estudiantes...</p>
               )}
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Parentesco con el Hijo</label>
-              <select
-                name="parentescoEstudiante"
-                value={formData.parentescoEstudiante}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                disabled={!formData.estudianteId}
-              >
-                <option value="PADRE">Padre</option>
-                <option value="MADRE">Madre</option>
-                <option value="TUTOR">Tutor Legal</option>
-                <option value="ABUELO">Abuelo</option>
-                <option value="ABUELA">Abuela</option>
-                <option value="TIO">Tío</option>
-                <option value="TIA">Tía</option>
-                <option value="OTRO">Otro</option>
-              </select>
             </div>
 
             <div className="md:col-span-2">

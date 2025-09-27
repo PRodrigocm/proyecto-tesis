@@ -38,7 +38,13 @@ export async function GET(request: NextRequest) {
           include: {
             estudiante: {
               include: {
-                usuario: true
+                usuario: true,
+                gradoSeccion: {
+                  include: {
+                    grado: true,
+                    seccion: true
+                  }
+                }
               }
             }
           }
@@ -51,16 +57,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const transformedApoderados = apoderados.map(apoderado => ({
-      id: apoderado.idApoderado.toString(),
-      nombre: apoderado.usuario.nombre,
-      apellido: apoderado.usuario.apellido,
+    console.log('Apoderados encontrados en BD:', apoderados.map(a => ({ 
+      idApoderado: a.idApoderado, 
+      idUsuario: a.idUsuario,
+      nombre: a.usuario.nombre 
+    })))
+
+    const transformedApoderados = apoderados.map(apoderado => {
+      const transformedId = apoderado.idApoderado.toString()
+      console.log(`Transformando apoderado: idApoderado=${apoderado.idApoderado} -> id="${transformedId}"`)
+      
+      return {
+        id: transformedId,
+        nombre: apoderado.usuario.nombre,
+        apellido: apoderado.usuario.apellido,
       email: apoderado.usuario.email || '',
       telefono: apoderado.usuario.telefono || '',
       dni: apoderado.usuario.dni,
       direccion: apoderado.direccion || '',
       fechaRegistro: apoderado.usuario.createdAt.toISOString(),
-      fechaNacimiento: apoderado.usuario.fechaNacimiento?.toISOString(),
+      fechaNacimiento: undefined, // Campo no existe en Usuario
       fechaCreacion: apoderado.usuario.createdAt.toISOString(),
       ocupacion: apoderado.ocupacion,
       estado: apoderado.usuario.estado as 'ACTIVO' | 'INACTIVO',
@@ -69,11 +85,13 @@ export async function GET(request: NextRequest) {
         nombre: rel.estudiante.usuario.nombre,
         apellido: rel.estudiante.usuario.apellido,
         dni: rel.estudiante.usuario.dni,
-        grado: `${rel.estudiante.grado}`,
-        seccion: rel.estudiante.seccion,
-        relacion: rel.relacion
+        grado: rel.estudiante.gradoSeccion?.grado?.nombre || '',
+        seccion: rel.estudiante.gradoSeccion?.seccion?.nombre || '',
+        relacion: rel.relacion,
+        esTitular: rel.esTitular
       }))
-    }))
+      }
+    })
 
     return NextResponse.json({
       data: transformedApoderados,

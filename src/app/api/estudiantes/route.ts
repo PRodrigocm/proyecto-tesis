@@ -31,6 +31,15 @@ export async function GET(request: NextRequest) {
             grado: true,
             seccion: true
           }
+        },
+        apoderados: {
+          include: {
+            apoderado: {
+              include: {
+                usuario: true
+              }
+            }
+          }
         }
       },
       orderBy: [
@@ -39,26 +48,33 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    const transformedEstudiantes = estudiantes.map(estudiante => ({
-      id: estudiante.idEstudiante.toString(),
-      nombre: estudiante.usuario.nombre,
-      apellido: estudiante.usuario.apellido,
-      dni: estudiante.usuario.dni,
-      fechaNacimiento: estudiante.fechaNacimiento?.toISOString() || '',
-      grado: estudiante.gradoSeccion?.grado?.nombre || '',
-      seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
-      institucionEducativa: estudiante.usuario.ie?.nombre || '',
-      apoderado: {
-        id: '',
-        nombre: '',
-        apellido: '',
-        telefono: '',
-        email: ''
-      },
-      estado: estudiante.usuario.estado as 'ACTIVO' | 'INACTIVO' | 'RETIRADO',
-      fechaRegistro: estudiante.usuario.createdAt.toISOString(),
-      qrCode: estudiante.qr || ''
-    }))
+    const transformedEstudiantes = estudiantes.map(estudiante => {
+      // Buscar apoderado titular
+      const apoderadoTitular = estudiante.apoderados?.find(ap => ap.esTitular) || estudiante.apoderados?.[0]
+      
+      return {
+        id: estudiante.idEstudiante.toString(),
+        nombre: estudiante.usuario.nombre,
+        apellido: estudiante.usuario.apellido,
+        dni: estudiante.usuario.dni,
+        fechaNacimiento: estudiante.fechaNacimiento?.toISOString() || '',
+        grado: estudiante.gradoSeccion?.grado?.nombre || '',
+        seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+        institucionEducativa: estudiante.usuario.ie?.nombre || '',
+        apoderado: {
+          id: apoderadoTitular?.apoderado.usuario.idUsuario.toString() || '',
+          nombre: apoderadoTitular?.apoderado.usuario.nombre || '',
+          apellido: apoderadoTitular?.apoderado.usuario.apellido || '',
+          telefono: apoderadoTitular?.apoderado.usuario.telefono || '',
+          email: apoderadoTitular?.apoderado.usuario.email || '',
+          relacion: apoderadoTitular?.relacion || '',
+          esTitular: apoderadoTitular?.esTitular || false
+        },
+        estado: estudiante.usuario.estado as 'ACTIVO' | 'INACTIVO' | 'RETIRADO',
+        fechaRegistro: estudiante.usuario.createdAt.toISOString(),
+        qrCode: estudiante.qr || ''
+      }
+    })
 
     return NextResponse.json({
       data: transformedEstudiantes,
@@ -82,11 +98,10 @@ export async function POST(request: NextRequest) {
       nombre, 
       apellido, 
       fechaNacimiento, 
-      codigo, 
       gradoId, 
       seccionId, 
-      apoderadosIds, 
-      password,
+      apoderadosIds, // Mantener para compatibilidad
+      apoderadosRelaciones, // Nuevo formato con relaciones
       ieId 
     } = body
 
@@ -128,25 +143,28 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Crear usuario estudiante
+    // Crear usuario estudiante (sin contraseña ya que no interactúa directamente)
     const newUser = await prisma.usuario.create({
       data: {
         nombre,
         apellido,
         dni,
-        passwordHash: password, // En producción debería estar hasheado
+        passwordHash: null, // Los estudiantes no necesitan contraseña
         estado: 'ACTIVO',
         idIe: ieId
       }
     })
 
+    // Generar código único para el estudiante
+    const codigoEstudiante = `EST${String(newUser.idUsuario).padStart(4, '0')}`
+    
     // Crear registro de estudiante
     const newEstudiante = await prisma.estudiante.create({
       data: {
         idUsuario: newUser.idUsuario,
         idIe: ieId,
         idGradoSeccion: gradoSeccion.idGradoSeccion,
-        codigo,
+        codigo: codigoEstudiante,
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
         qr: `EST-${newUser.idUsuario}-${Date.now()}` // Generar QR único
       }
@@ -160,12 +178,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Crear relaciones con apoderados si se proporcionaron
-    if (apoderadosIds && apoderadosIds.length > 0) {
-      for (const apoderadoId of apoderadosIds) {
+    // Crear relaciones con apoderados
+    const relacionesACrear = apoderadosRelaciones || (apoderadosIds ? apoderadosIds.map((id: number) => ({ apoderadoId: id, relacion: 'PADRE/MADRE' })) : [])
+    
+    if (relacionesACrear && relacionesACrear.length > 0) {
+      for (const relacion of relacionesACrear) {
         // Verificar que el apoderado existe
         const apoderado = await prisma.apoderado.findFirst({
-          where: { idUsuario: apoderadoId }
+          where: { idUsuario: relacion.apoderadoId }
         })
 
         if (apoderado) {
@@ -173,7 +193,9 @@ export async function POST(request: NextRequest) {
             data: {
               idEstudiante: newEstudiante.idEstudiante,
               idApoderado: apoderado.idApoderado,
-              relacion: 'PADRE/MADRE' // Valor por defecto, se puede personalizar
+              relacion: relacion.relacion || 'PADRE/MADRE',
+              esTitular: relacion.esTitular || false,
+              puedeRetirar: relacion.esTitular || false
             }
           })
         }
@@ -197,35 +219,142 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const url = new URL(request.url)
-    const estudianteId = url.searchParams.get('id')
-    const body = await request.json()
-    const { estado } = body
-
-    if (!estudianteId) {
+    const id = url.searchParams.get('id')
+    
+    if (!id) {
       return NextResponse.json(
-        { error: 'Estudiante ID is required' },
+        { error: 'ID del estudiante es requerido' },
         { status: 400 }
       )
     }
 
+    const body = await request.json()
+    const { estado } = body
+
+    if (!estado || !['ACTIVO', 'INACTIVO', 'RETIRADO'].includes(estado)) {
+      return NextResponse.json(
+        { error: 'Estado inválido' },
+        { status: 400 }
+      )
+    }
+
+    // Buscar el estudiante
     const estudiante = await prisma.estudiante.findUnique({
-      where: { idEstudiante: parseInt(estudianteId) },
+      where: { idEstudiante: parseInt(id) },
       include: { usuario: true }
     })
 
     if (!estudiante) {
       return NextResponse.json(
-        { error: 'Estudiante not found' },
+        { error: 'Estudiante no encontrado' },
         { status: 404 }
       )
     }
 
+    // Actualizar el estado del usuario
     await prisma.usuario.update({
       where: { idUsuario: estudiante.usuario.idUsuario },
       data: { estado }
     })
 
-    return NextResponse.json({ message: 'Estado actualizado exitosamente' })
+    return NextResponse.json({
+      message: 'Estado actualizado exitosamente',
+      id: id,
+      nuevoEstado: estado
+    })
+
+  } catch (error) {
+    console.error('Error updating estudiante:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID del estudiante es requerido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { dni, nombre, apellido, fechaNacimiento, gradoId, seccionId } = body
+
+    // Buscar el estudiante
+    const estudiante = await prisma.estudiante.findUnique({
+      where: { idEstudiante: parseInt(id) },
+      include: { usuario: true }
+    })
+
+    if (!estudiante) {
+      return NextResponse.json(
+        { error: 'Estudiante no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar si el DNI ya existe (excluyendo el estudiante actual)
+    if (dni !== estudiante.usuario.dni) {
+      const existingUser = await prisma.usuario.findFirst({
+        where: { 
+          dni,
+          idUsuario: { not: estudiante.usuario.idUsuario }
+        }
+      })
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: `El DNI ${dni} ya está registrado por otro usuario` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Verificar que la combinación grado-sección sea válida
+    const gradoSeccionValida = await prisma.gradoSeccion.findFirst({
+      where: {
+        idGrado: gradoId,
+        idSeccion: seccionId
+      }
+    })
+
+    if (!gradoSeccionValida) {
+      return NextResponse.json(
+        { error: 'La combinación de grado y sección no es válida' },
+        { status: 400 }
+      )
+    }
+
+    // Actualizar usuario
+    await prisma.usuario.update({
+      where: { idUsuario: estudiante.usuario.idUsuario },
+      data: {
+        dni,
+        nombre,
+        apellido
+      }
+    })
+
+    // Actualizar estudiante
+    await prisma.estudiante.update({
+      where: { idEstudiante: parseInt(id) },
+      data: {
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
+        idGradoSeccion: gradoSeccionValida.idGradoSeccion
+      }
+    })
+
+    return NextResponse.json({
+      message: 'Estudiante actualizado exitosamente',
+      id: id
+    })
 
   } catch (error) {
     console.error('Error updating estudiante:', error)

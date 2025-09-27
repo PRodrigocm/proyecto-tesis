@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const sesion = url.searchParams.get('sesion')
     const docente = url.searchParams.get('docente')
     const ieId = url.searchParams.get('ieId')
+    const fecha = url.searchParams.get('fecha') // Para verificar excepciones en fecha específica
 
     if (!ieId) {
       return NextResponse.json(
@@ -21,12 +22,24 @@ export async function GET(request: NextRequest) {
     const whereClause: any = {
       gradoSeccion: {
         grado: {
-          idIe: parseInt(ieId)
+          nivel: {
+            idIe: parseInt(ieId)
+          }
         }
       }
     }
 
-    if (diaSemana) whereClause.diaSemana = diaSemana
+    if (diaSemana) {
+      // Convertir nombre del día a número
+      const diasSemana: { [key: string]: number } = {
+        'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'JUEVES': 4, 'VIERNES': 5,
+        'SABADO': 6, 'DOMINGO': 0
+      }
+      const diaNumero = diasSemana[diaSemana.toUpperCase()]
+      if (diaNumero !== undefined) {
+        whereClause.diaSemana = diaNumero
+      }
+    }
     if (sesion && sesion !== 'TODOS') whereClause.sesiones = sesion
 
     const horarios = await prisma.horarioGradoSeccion.findMany({
@@ -34,10 +47,20 @@ export async function GET(request: NextRequest) {
       include: {
         gradoSeccion: {
           include: {
-            grado: true,
+            grado: {
+              include: {
+                nivel: true
+              }
+            },
             seccion: true
           }
-        }
+        },
+        // excepciones: fecha ? {
+        //   where: {
+        //     fecha: new Date(fecha),
+        //     activo: true
+        //   }
+        // } : false
       },
       orderBy: [
         { diaSemana: 'asc' },
@@ -53,24 +76,57 @@ export async function GET(request: NextRequest) {
       return gradoMatch && seccionMatch
     })
 
-    const transformedHorarios = filteredHorarios.map(horario => ({
-      id: horario.idHorario.toString(),
-      grado: horario.gradoSeccion?.grado?.nombre || '',
-      seccion: horario.gradoSeccion?.seccion?.nombre || '',
-      diaSemana: horario.diaSemana.toString(),
-      horaInicio: horario.horaEntrada.toTimeString().slice(0, 5),
-      horaFin: horario.horaSalida.toTimeString().slice(0, 5),
-      materia: 'Horario General',
-      docenteId: '',
-      docente: {
-        nombre: '',
-        apellido: '',
-        especialidad: ''
-      },
-      aula: '',
-      sesion: horario.sesiones || 'AM',
-      activo: true
-    }))
+    // Simular horarios de clases basados en horarios generales
+    const transformedHorarios: any[] = []
+    
+    filteredHorarios.forEach((horario: any) => {
+      // Convertir número del día a nombre
+      const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
+      const nombreDia = diasSemana[horario.diaSemana] || horario.diaSemana.toString()
+      
+      // Simular materias comunes para cada grado
+      const materiasPorGrado: { [key: string]: string[] } = {
+        '1': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física'],
+        '2': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física'],
+        '3': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física'],
+        '4': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física'],
+        '5': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física'],
+        '6': ['Matemáticas', 'Comunicación', 'Personal Social', 'Ciencia y Tecnología', 'Arte', 'Educación Física']
+      }
+      
+      const grado = horario.gradoSeccion?.grado?.nombre || '1'
+      const materias = materiasPorGrado[grado] || materiasPorGrado['1']
+      
+      // Crear horarios de clase simulados (dividir el tiempo en bloques de 45 minutos)
+      const horaInicio = new Date(`1970-01-01T${horario.horaEntrada.toTimeString()}`)
+      const horaFin = new Date(`1970-01-01T${horario.horaSalida.toTimeString()}`)
+      const duracionMinutos = (horaFin.getTime() - horaInicio.getTime()) / (1000 * 60)
+      const bloquesPorDia = Math.floor(duracionMinutos / 45) // 45 minutos por materia
+      
+      for (let i = 0; i < Math.min(bloquesPorDia, materias.length); i++) {
+        const inicioBloque = new Date(horaInicio.getTime() + (i * 45 * 60 * 1000))
+        const finBloque = new Date(horaInicio.getTime() + ((i + 1) * 45 * 60 * 1000))
+        
+        transformedHorarios.push({
+          id: `${horario.idHorario}-${i}`,
+          grado: horario.gradoSeccion?.grado?.nombre || '',
+          seccion: horario.gradoSeccion?.seccion?.nombre || '',
+          diaSemana: nombreDia,
+          horaInicio: inicioBloque.toTimeString().slice(0, 5),
+          horaFin: finBloque.toTimeString().slice(0, 5),
+          materia: materias[i],
+          docenteId: '',
+          docente: {
+            nombre: 'Por asignar',
+            apellido: '',
+            especialidad: materias[i]
+          },
+          aula: `${horario.gradoSeccion?.grado?.nombre || ''}° ${horario.gradoSeccion?.seccion?.nombre || ''}`,
+          sesion: horario.sesiones?.toString() || 'AM',
+          activo: true
+        })
+      }
+    })
 
     return NextResponse.json({
       data: transformedHorarios,
@@ -114,7 +170,9 @@ export async function POST(request: NextRequest) {
       where: {
         grado: { 
           nombre: grado,
-          idIe: parseInt(ieId)
+          nivel: {
+            idIe: parseInt(ieId)
+          }
         },
         seccion: { nombre: seccion }
       }
