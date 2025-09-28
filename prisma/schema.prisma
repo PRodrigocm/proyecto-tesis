@@ -25,6 +25,9 @@ model Ie {
   idIe         Int        @id @default(autoincrement()) @map("id_ie")
   nombre       String     @unique
   codigoIe     String     @unique @map("codigo_ie") @db.VarChar(10)
+  direccion    String?    // Dirección de la institución
+  telefono     String?    // Teléfono de contacto
+  email        String?    // Email institucional
   idModalidad  Int        @map("id_modalidad")
   modalidad    Modalidad  @relation(fields: [idModalidad], references: [idModalidad])
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
@@ -40,6 +43,7 @@ model Ie {
   asistencias          Asistencia[]
   retiros              Retiro[]
   consecutivos         Consecutivo[]
+  justificaciones      Justificacion[]
   
   @@map("ie")
 }
@@ -125,6 +129,10 @@ model Usuario {
   asistenciasRegistradas   Asistencia[] @relation("RegistradoPor")
   historicoEstados         HistoricoEstadoAsistencia[]
   retirosVerificados       Retiro[] @relation("VerificadoPor")
+  justificacionesPresentadas Justificacion[] @relation("JustificacionPresentadaPor")
+  justificacionesRevisadas Justificacion[] @relation("JustificacionRevisadaPor")
+  documentosSubidos        DocumentoJustificacion[] @relation("DocumentoSubidoPor")
+  justificacionesAplicadas AsistenciaJustificacion[] @relation("JustificacionAplicadaPor")
   
   @@map("usuarios")
 }
@@ -172,6 +180,7 @@ model Estudiante {
   asistencias          Asistencia[]
   autorizacionesRetiro AutorizacionRetiro[]
   retiros              Retiro[]
+  justificaciones      Justificacion[]
   
   @@map("estudiante")
 }
@@ -423,12 +432,118 @@ model HorarioTaller {
 model EstadoAsistencia {
   idEstadoAsistencia Int    @id @default(autoincrement()) @map("id_estado_asistencia")
   nombreEstado       String @unique @map("nombre_estado")
+  codigo             String @unique // PRESENTE, TARDANZA, INASISTENCIA, JUSTIFICADA
+  requiereJustificacion Boolean @default(false) @map("requiere_justificacion")
+  afectaAsistencia   Boolean @default(true) @map("afecta_asistencia") // Si cuenta para % de asistencia
+  activo             Boolean @default(true)
   
   // Relaciones
   asistencias      Asistencia[]
   historicoEstados HistoricoEstadoAsistencia[]
+  justificaciones  Justificacion[]
   
   @@map("estados_asistencia")
+}
+
+// ======================
+// Justificaciones
+// ======================
+model TipoJustificacion {
+  idTipoJustificacion Int    @id @default(autoincrement()) @map("id_tipo_justificacion")
+  nombre              String @unique
+  codigo              String @unique // MEDICA, FAMILIAR, PERSONAL, ACADEMICA, OTRO
+  requiereDocumento   Boolean @default(false) @map("requiere_documento")
+  diasMaximos         Int?    @map("dias_maximos") // Días máximos para presentar justificación
+  activo              Boolean @default(true)
+  
+  // Relaciones
+  justificaciones Justificacion[]
+  
+  @@map("tipos_justificacion")
+}
+
+model EstadoJustificacion {
+  idEstadoJustificacion Int    @id @default(autoincrement()) @map("id_estado_justificacion")
+  nombre                String @unique
+  codigo                String @unique // PENDIENTE, APROBADA, RECHAZADA, VENCIDA
+  esFinal               Boolean @default(false) @map("es_final")
+  activo                Boolean @default(true)
+  
+  // Relaciones
+  justificaciones Justificacion[]
+  
+  @@map("estados_justificacion")
+}
+
+model Justificacion {
+  idJustificacion         Int                   @id @default(autoincrement()) @map("id_justificacion")
+  idEstudiante            Int                   @map("id_estudiante")
+  idIe                    Int                   @map("id_ie")
+  idTipoJustificacion     Int                   @map("id_tipo_justificacion")
+  idEstadoJustificacion   Int                   @map("id_estado_justificacion")
+  idEstadoAsistencia      Int?                  @map("id_estado_asistencia") // Estado que justifica
+  fechaInicio             DateTime              @map("fecha_inicio") @db.Date
+  fechaFin                DateTime              @map("fecha_fin") @db.Date
+  motivo                  String                @db.Text
+  observaciones           String?               @db.Text
+  fechaPresentacion       DateTime              @default(now()) @map("fecha_presentacion") @db.Timestamptz
+  presentadoPor           Int?                  @map("presentado_por") // Usuario que presenta
+  revisadoPor             Int?                  @map("revisado_por") // Usuario que revisa
+  fechaRevision           DateTime?             @map("fecha_revision") @db.Timestamptz
+  observacionesRevision   String?               @map("observaciones_revision") @db.Text
+  
+  // Relaciones
+  estudiante            Estudiante            @relation(fields: [idEstudiante], references: [idEstudiante])
+  ie                    Ie                    @relation(fields: [idIe], references: [idIe])
+  tipoJustificacion     TipoJustificacion     @relation(fields: [idTipoJustificacion], references: [idTipoJustificacion])
+  estadoJustificacion   EstadoJustificacion   @relation(fields: [idEstadoJustificacion], references: [idEstadoJustificacion])
+  estadoAsistencia      EstadoAsistencia?     @relation(fields: [idEstadoAsistencia], references: [idEstadoAsistencia])
+  usuarioPresentador    Usuario?              @relation("JustificacionPresentadaPor", fields: [presentadoPor], references: [idUsuario])
+  usuarioRevisor        Usuario?              @relation("JustificacionRevisadaPor", fields: [revisadoPor], references: [idUsuario])
+  documentos            DocumentoJustificacion[]
+  asistenciasAfectadas  AsistenciaJustificacion[]
+  
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime?             @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([idEstudiante, fechaInicio, fechaFin])
+  @@index([idIe, fechaPresentacion])
+  @@index([idEstadoJustificacion])
+  @@map("justificaciones")
+}
+
+model DocumentoJustificacion {
+  idDocumento       Int           @id @default(autoincrement()) @map("id_documento")
+  idJustificacion   Int           @map("id_justificacion")
+  nombreArchivo     String        @map("nombre_archivo")
+  rutaArchivo       String        @map("ruta_archivo")
+  tipoArchivo       String        @map("tipo_archivo") // pdf, jpg, png, etc.
+  tamanioBytes      Int           @map("tamanio_bytes")
+  descripcion       String?       @db.Text
+  subidoPor         Int?          @map("subido_por")
+  
+  // Relaciones
+  justificacion     Justificacion @relation(fields: [idJustificacion], references: [idJustificacion])
+  usuarioSubidor    Usuario?      @relation("DocumentoSubidoPor", fields: [subidoPor], references: [idUsuario])
+  
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  
+  @@map("documentos_justificacion")
+}
+
+model AsistenciaJustificacion {
+  idAsistencia    Int           @map("id_asistencia")
+  idJustificacion Int           @map("id_justificacion")
+  fechaAplicacion DateTime      @default(now()) @map("fecha_aplicacion") @db.Timestamptz
+  aplicadoPor     Int?          @map("aplicado_por")
+  
+  // Relaciones
+  asistencia      Asistencia    @relation(fields: [idAsistencia], references: [idAsistencia])
+  justificacion   Justificacion @relation(fields: [idJustificacion], references: [idJustificacion])
+  usuarioAplicador Usuario?     @relation("JustificacionAplicadaPor", fields: [aplicadoPor], references: [idUsuario])
+  
+  @@id([idAsistencia, idJustificacion])
+  @@map("asistencias_justificaciones")
 }
 
 model Asistencia {
@@ -454,6 +569,7 @@ model Asistencia {
   
   // Relaciones
   historicoEstados HistoricoEstadoAsistencia[]
+  justificacionesAfectadas AsistenciaJustificacion[]
   
   @@unique([idEstudiante, fecha, sesion], name: "uq_asistencia_est_fecha_sesion")
   @@index([fecha])

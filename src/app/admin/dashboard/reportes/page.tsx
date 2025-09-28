@@ -245,7 +245,7 @@ export default function ReportesPage() {
     })
   }
 
-  const generateReport = async (tipo: string, formato: 'excel' | 'pdf' = 'excel') => {
+  const generateReport = async (tipo: string, formato: 'excel' | 'pdf' | 'word' = 'excel') => {
     try {
       console.log(`Generando reporte de ${tipo} en formato ${formato}...`)
       
@@ -278,15 +278,26 @@ export default function ReportesPage() {
         }
       })
 
+      console.log('📡 Response status:', response.status)
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()))
+
       if (response.ok) {
+        // Verificar el tipo de contenido
+        const contentType = response.headers.get('content-type')
+        console.log('📄 Content-Type:', contentType)
+        
         // Obtener el blob del archivo
         const blob = await response.blob()
+        console.log('📦 Blob size:', blob.size, 'bytes')
+        console.log('📦 Blob type:', blob.type)
+        
         const url = window.URL.createObjectURL(blob)
         
         // Crear enlace de descarga
         const a = document.createElement('a')
         a.href = url
-        a.download = `reporte-${tipo}-${new Date().toISOString().split('T')[0]}.${formato === 'excel' ? 'xlsx' : 'pdf'}`
+        const extension = formato === 'excel' ? 'xlsx' : formato === 'pdf' ? 'pdf' : 'docx'
+        a.download = `reporte-${tipo}-${new Date().toISOString().split('T')[0]}.${extension}`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
@@ -294,9 +305,20 @@ export default function ReportesPage() {
         
         console.log(`✅ Reporte ${tipo} generado exitosamente`)
       } else {
-        const error = await response.json()
-        console.error('❌ Error generando reporte:', error)
-        alert(`Error generando reporte: ${error.error || 'Error desconocido'}`)
+        console.error('❌ Response not OK. Status:', response.status)
+        
+        // Intentar obtener el error como JSON
+        try {
+          const error = await response.json()
+          console.error('❌ Error JSON:', error)
+          alert(`Error generando reporte: ${error.error || 'Error desconocido'}`)
+        } catch (jsonError) {
+          // Si no es JSON, obtener como texto
+          console.error('❌ Error parsing JSON:', jsonError)
+          const errorText = await response.text()
+          console.error('❌ Error text:', errorText)
+          alert(`Error generando reporte: ${response.status} - ${errorText || 'Error desconocido'}`)
+        }
       }
     } catch (error) {
       console.error('💥 Error generando reporte:', error)
@@ -565,7 +587,181 @@ export default function ReportesPage() {
       </div>
 
       {/* Reportes Disponibles */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Reporte General */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Reporte General</h3>
+            <p className="text-sm text-gray-600">Resumen completo de todas las estadísticas</p>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Reporte Completo</p>
+                      <p className="text-sm text-gray-600">Todas las estadísticas del período</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport('reporte-general', 'excel')}
+                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                    >
+                      📊 Excel
+                    </button>
+                    <button
+                      onClick={() => generateReport('reporte-general', 'pdf')}
+                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      onClick={() => generateReport('reporte-general', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">¿Qué incluye?</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Estadísticas de estudiantes, docentes y apoderados</li>
+                  <li>• Resumen de asistencias y retiros del período</li>
+                  <li>• Análisis por grado y sección</li>
+                  <li>• Promedios y porcentajes de asistencia</li>
+                  <li>• Datos filtrados según selección actual</li>
+                </ul>
+              </div>
+
+              {/* Reportes Institucionales */}
+              <div className="space-y-3 mt-4">
+                <h4 className="font-medium text-gray-900">Reportes Institucionales</h4>
+                
+                {/* Reporte Semanal */}
+                <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 text-sm">Reporte Semanal</p>
+                        <p className="text-xs text-gray-600">Formato institucional completo</p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => generateReport('reporte-semanal', 'excel')}
+                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        📊 Excel
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-semanal', 'pdf')}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        📄 PDF
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-semanal', 'word')}
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        📝 Word
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reporte Mensual */}
+                <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg mr-3">
+                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 text-sm">Reporte Mensual</p>
+                        <p className="text-xs text-gray-600">Formato institucional completo</p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => generateReport('reporte-mensual', 'excel')}
+                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        📊 Excel
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-mensual', 'pdf')}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        📄 PDF
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-mensual', 'word')}
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        📝 Word
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reporte Anual */}
+                <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-orange-100 rounded-lg mr-3">
+                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 text-sm">Reporte Anual</p>
+                        <p className="text-xs text-gray-600">Formato institucional completo</p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => generateReport('reporte-anual', 'excel')}
+                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        📊 Excel
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-anual', 'pdf')}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        📄 PDF
+                      </button>
+                      <button
+                        onClick={() => generateReport('reporte-anual', 'word')}
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        📝 Word
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Reportes de Asistencia */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
@@ -600,6 +796,12 @@ export default function ReportesPage() {
                     >
                       📄 PDF
                     </button>
+                    <button
+                      onClick={() => generateReport('asistencia-diaria', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
                   </div>
                 </div>
               </div>
@@ -629,6 +831,12 @@ export default function ReportesPage() {
                       className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
                     >
                       📄 PDF
+                    </button>
+                    <button
+                      onClick={() => generateReport('asistencia-mensual', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
                     </button>
                   </div>
                 </div>
@@ -660,6 +868,12 @@ export default function ReportesPage() {
                     >
                       📄 PDF
                     </button>
+                    <button
+                      onClick={() => generateReport('asistencia-estudiante', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
                   </div>
                 </div>
               </div>
@@ -675,65 +889,113 @@ export default function ReportesPage() {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              <button
-                onClick={() => generateReport('retiros-diarios')}
-                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="p-2 bg-red-100 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
+              <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-red-100 rounded-lg mr-3">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Retiros Diarios</p>
+                      <p className="text-sm text-gray-600">Reporte de retiros por día</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Retiros Diarios</p>
-                    <p className="text-sm text-gray-600">Reporte de retiros por día</p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport('retiros-diarios', 'excel')}
+                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                    >
+                      📊 Excel
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-diarios', 'pdf')}
+                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-diarios', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
+              </div>
 
-              <button
-                onClick={() => generateReport('retiros-apoderado')}
-                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="p-2 bg-red-100 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+              <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-red-100 rounded-lg mr-3">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Por Apoderado</p>
+                      <p className="text-sm text-gray-600">Retiros realizados por apoderado</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Por Apoderado</p>
-                    <p className="text-sm text-gray-600">Retiros realizados por apoderado</p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport('retiros-apoderado', 'excel')}
+                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                    >
+                      📊 Excel
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-apoderado', 'pdf')}
+                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-apoderado', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
+              </div>
 
-              <button
-                onClick={() => generateReport('retiros-tardios')}
-                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center">
-                  <div className="p-2 bg-red-100 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+              <div className="w-full border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-red-100 rounded-lg mr-3">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Retiros Tardíos</p>
+                      <p className="text-sm text-gray-600">Estudiantes retirados fuera de horario</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Retiros Tardíos</p>
-                    <p className="text-sm text-gray-600">Estudiantes retirados fuera de horario</p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => generateReport('retiros-tardios', 'excel')}
+                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                    >
+                      📊 Excel
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-tardios', 'pdf')}
+                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      onClick={() => generateReport('retiros-tardios', 'word')}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    >
+                      📝 Word
+                    </button>
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
+              </div>
             </div>
           </div>
         </div>
