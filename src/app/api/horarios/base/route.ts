@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+
+const prisma = new PrismaClient()
+
+// Función para formatear tiempo desde la BD sin conversiones de zona horaria
+function formatTimeFromDB(dateTime: Date): string {
+  // Extraer directamente del ISO string la parte de tiempo
+  const isoString = dateTime.toISOString()
+  // El formato ISO es: YYYY-MM-DDTHH:MM:SS.sssZ
+  // Extraemos HH:MM directamente
+  const match = isoString.match(/T(\d{2}):(\d{2})/)
+  if (match) {
+    const timeString = `${match[1]}:${match[2]}`
+    console.log(`🕐 formatTimeFromDB: ${isoString} → ${timeString}`)
+    return timeString
+  }
+  
+  // Fallback si no encuentra el patrón
+  const fallback = isoString.substring(11, 16)
+  console.log(`🕐 formatTimeFromDB (fallback): ${isoString} → ${fallback}`)
+  return fallback
+}
 
 interface JWTPayload {
   userId: number
@@ -90,24 +111,39 @@ export async function GET(request: NextRequest) {
 
     const diasSemana = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-    const horariosTransformados = horariosBase.map(horario => ({
-      id: horario.idHorarioClase.toString(),
-      idGradoSeccion: horario.idGradoSeccion,
-      grado: horario.gradoSeccion.grado.nombre,
-      seccion: horario.gradoSeccion.seccion.nombre,
-      diaSemana: diasSemana[horario.diaSemana],
-      diaNumero: horario.diaSemana,
-      horaInicio: horario.horaInicio.toISOString().slice(11, 16), // HH:MM
-      horaFin: horario.horaFin.toISOString().slice(11, 16), // HH:MM
-      aula: horario.aula || '',
-      docente: horario.docente ? 
-        `${horario.docente.usuario.nombre} ${horario.docente.usuario.apellido}` : 
-        'Sin asignar',
-      tipoActividad: horario.tipoActividad,
-      toleranciaMin: horario.toleranciaMin,
-      activo: horario.activo,
-      createdAt: horario.createdAt.toISOString()
-    }))
+    const horariosTransformados = horariosBase.map(horario => {
+      console.log(`📊 Procesando horario ${horario.idHorarioClase}:`, {
+        grado: horario.gradoSeccion.grado.nombre,
+        seccion: horario.gradoSeccion.seccion.nombre,
+        diaSemana: horario.diaSemana,
+        horaInicioRaw: horario.horaInicio,
+        horaFinRaw: horario.horaFin,
+        horaInicioISO: horario.horaInicio.toISOString(),
+        horaFinISO: horario.horaFin.toISOString()
+      })
+      
+      const horaInicioFormateada = formatTimeFromDB(horario.horaInicio)
+      const horaFinFormateada = formatTimeFromDB(horario.horaFin)
+      
+      return {
+        id: horario.idHorarioClase.toString(),
+        idGradoSeccion: horario.idGradoSeccion,
+        grado: horario.gradoSeccion.grado.nombre,
+        seccion: horario.gradoSeccion.seccion.nombre,
+        diaSemana: diasSemana[horario.diaSemana],
+        diaNumero: horario.diaSemana,
+        horaInicio: horaInicioFormateada, // HH:MM
+        horaFin: horaFinFormateada, // HH:MM
+        aula: horario.aula || '',
+        docente: horario.docente ? 
+          `${horario.docente.usuario.nombre} ${horario.docente.usuario.apellido}` : 
+          'Sin asignar',
+        tipoActividad: horario.tipoActividad,
+        toleranciaMin: horario.toleranciaMin,
+        activo: horario.activo,
+        createdAt: horario.createdAt.toISOString()
+      }
+    })
 
     return NextResponse.json({
       success: true,
@@ -251,13 +287,42 @@ export async function POST(request: NextRequest) {
 
       console.log(`➕ Creando horario para ${diasSemana[dia]}...`)
       
+      // Buscar docente asignado a este grado-sección
+      let docenteAsignado = null
+      try {
+        const docenteAula = await prisma.docenteAula.findFirst({
+          where: {
+            idGradoSeccion: parseInt(idGradoSeccion)
+          },
+          include: {
+            docente: {
+              include: {
+                usuario: true
+              }
+            }
+          }
+        })
+        
+        if (docenteAula) {
+          docenteAsignado = docenteAula.docente.idDocente
+          console.log(`👨‍🏫 Docente encontrado para grado-sección ${idGradoSeccion}:`, {
+            id: docenteAsignado,
+            nombre: `${docenteAula.docente.usuario.nombre} ${docenteAula.docente.usuario.apellido}`
+          })
+        } else {
+          console.log(`⚠️ No hay docente asignado para grado-sección ${idGradoSeccion}`)
+        }
+      } catch (error) {
+        console.error('Error buscando docente asignado:', error)
+      }
+      
       const dataToCreate = {
         idGradoSeccion: parseInt(idGradoSeccion),
         diaSemana: dia,
         horaInicio: new Date(`1970-01-01T${horaInicio}:00.000Z`),
         horaFin: new Date(`1970-01-01T${horaFin}:00.000Z`),
         aula: aula || null,
-        idDocente: idDocente ? parseInt(idDocente) : null,
+        idDocente: docenteAsignado || (idDocente ? parseInt(idDocente) : null),
         toleranciaMin: parseInt(toleranciaMin),
         tipoActividad: 'CLASE_REGULAR' as any,
         activo: true

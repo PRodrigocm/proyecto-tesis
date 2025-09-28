@@ -3,11 +3,16 @@
 import { useState } from 'react'
 import { useHorariosSemanales } from '@/hooks/useHorariosSemanales'
 import { useExcepcionesHorario } from '@/hooks/useExcepcionesHorario'
+import { useExcepciones } from '@/hooks/useExcepciones'
 import CreateHorarioClasesModal from '@/components/admin/CreateHorarioClasesModal'
+import CreateExcepcionModal from '@/components/admin/CreateExcepcionModal'
+import EditHorarioClasesModal from '@/components/admin/EditHorarioClasesModal'
 
 export default function HorarioClasesPage() {
   const [activeTab, setActiveTab] = useState<'horarios' | 'excepciones'>('horarios')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateExcepcionModal, setShowCreateExcepcionModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const { 
     horarios, 
     loading: loadingHorarios, 
@@ -18,10 +23,28 @@ export default function HorarioClasesPage() {
   
   const { 
     excepciones, 
-    loading: loadingExcepciones, 
-    tiposExcepcion,
+    loading: loadingExcepciones,
     stats: statsExcepciones 
   } = useExcepcionesHorario()
+
+  // Hook para excepciones reales
+  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}') : {}
+  const ieId = user.idIe || user.institucionId || user.ieId || 1
+  const { 
+    excepciones: excepcionesReales, 
+    loading: loadingExcepcionesReales 
+  } = useExcepciones(ieId)
+
+  // Tipos de excepción para filtros
+  const tiposExcepcion = [
+    { value: 'FERIADO', label: '🎉 Feriado', description: 'Días festivos nacionales o locales' },
+    { value: 'SUSPENSION_CLASES', label: '⚠️ Suspensión de Clases', description: 'Emergencias, clima, etc.' },
+    { value: 'VACACIONES', label: '🏖️ Vacaciones', description: 'Períodos vacacionales' },
+    { value: 'HORARIO_ESPECIAL', label: '⏰ Horario Especial', description: 'Ceremonias, eventos especiales' },
+    { value: 'CAPACITACION', label: '📚 Capacitación', description: 'Formación docente' },
+    { value: 'DIA_NO_LABORABLE', label: '📅 Día No Laborable', description: 'Días especiales sin clases' },
+    { value: 'OTRO', label: '📝 Otro', description: 'Otras excepciones' }
+  ]
 
   const tabs = [
     {
@@ -89,6 +112,79 @@ export default function HorarioClasesPage() {
     }
   }
 
+  const handleCreateExcepcion = async (data: any) => {
+    try {
+      console.log('🚫 === CREANDO EXCEPCIÓN ===')
+      console.log('📋 Datos recibidos:', data)
+      
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('❌ No hay token de autenticación')
+        alert('No hay sesión activa. Por favor, inicia sesión.')
+        return false
+      }
+      
+      // Agregar ieId del usuario
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const ieId = user.idIe || user.institucionId || user.ieId || 1
+      
+      // Crear una sola excepción (con período para vacaciones)
+      const response = await fetch('/api/excepciones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...data,
+          ieId: ieId
+        })
+      })
+      
+      console.log('📡 Response status:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Excepción creada exitosamente:', result)
+        
+        if (data.tipoExcepcion === 'VACACIONES' && data.fechaInicio && data.fechaFin) {
+          const fechaInicio = new Date(data.fechaInicio)
+          const fechaFin = new Date(data.fechaFin)
+          const duracionDias = Math.ceil((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          alert(`✅ Período de vacaciones creado: ${duracionDias} días (${data.fechaInicio} al ${data.fechaFin})`)
+        } else {
+          alert(`✅ ${result.message}`)
+        }
+        
+        return true
+      } else {
+        const error = await response.json()
+        console.error('❌ Error de la API:', error)
+        alert(`❌ Error: ${error.error}`)
+        return false
+      }
+    } catch (error) {
+      console.error('💥 Error creating excepción:', error)
+      alert(`💥 Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      return false
+    }
+  }
+
+  const handleEditHorario = async (data: any) => {
+    try {
+      console.log('✏️ === EDITANDO HORARIO ===')
+      console.log('📋 Datos recibidos:', data)
+      
+      // La funcionalidad de edición ya está implementada en el modal EditHorarioClasesModal
+      // que usa la API PUT /api/horarios/clases
+      return true
+    } catch (error) {
+      console.error('💥 Error editing horario:', error)
+      return false
+    }
+  }
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -109,8 +205,17 @@ export default function HorarioClasesPage() {
             >
               + Nuevo Horario
             </button>
-            <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+            <button 
+              onClick={() => setShowCreateExcepcionModal(true)}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+            >
               + Nueva Excepción
+            </button>
+            <button 
+              onClick={() => setShowEditModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              ✏️ Editar Horarios
             </button>
           </div>
         </div>
@@ -280,63 +385,119 @@ export default function HorarioClasesPage() {
                 </div>
               </div>
 
-              {loadingExcepciones ? (
+              {loadingExcepcionesReales ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 </div>
+              ) : excepcionesReales.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 mb-4">
+                    <span className="text-4xl">📅</span>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hay excepciones registradas
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Agrega feriados, vacaciones o suspensiones de clases
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {excepciones
+                  {excepcionesReales
                     .filter(exc => exc.tipoHorario === 'CLASE' || exc.tipoHorario === 'AMBOS')
-                    .map((excepcion) => (
-                    <div key={excepcion.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg ${
-                            excepcion.tipoExcepcion === 'SUSPENSION_CLASES' ? 'bg-red-100' :
-                            excepcion.tipoExcepcion === 'FERIADO' ? 'bg-green-100' :
-                            'bg-yellow-100'
-                          }`}>
-                            <span className="text-lg">
-                              {excepcion.tipoExcepcion === 'SUSPENSION_CLASES' ? '🚫' :
-                               excepcion.tipoExcepcion === 'FERIADO' ? '🎉' : '⚠️'}
-                            </span>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              {excepcion.motivo || 'Sin motivo especificado'}
-                            </h4>
-                            <p className="text-sm text-gray-600">
-                              {new Date(excepcion.fecha).toLocaleDateString('es-ES', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                            {excepcion.descripcion && (
-                              <p className="text-sm text-gray-500 mt-1">
-                                {excepcion.descripcion}
-                              </p>
-                            )}
+                    .map((excepcion) => {
+                      const tipoInfo = tiposExcepcion.find(t => t.value === excepcion.tipoExcepcion)
+                      const esVacaciones = excepcion.tipoExcepcion === 'VACACIONES'
+                      
+                      return (
+                        <div key={excepcion.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-lg ${
+                                excepcion.tipoExcepcion === 'SUSPENSION_CLASES' ? 'bg-red-100' :
+                                excepcion.tipoExcepcion === 'FERIADO' ? 'bg-green-100' :
+                                excepcion.tipoExcepcion === 'VACACIONES' ? 'bg-blue-100' :
+                                excepcion.tipoExcepcion === 'HORARIO_ESPECIAL' ? 'bg-purple-100' :
+                                'bg-yellow-100'
+                              }`}>
+                                <span className="text-lg">
+                                  {excepcion.tipoExcepcion === 'SUSPENSION_CLASES' ? '🚫' :
+                                   excepcion.tipoExcepcion === 'FERIADO' ? '🎉' :
+                                   excepcion.tipoExcepcion === 'VACACIONES' ? '🏖️' :
+                                   excepcion.tipoExcepcion === 'HORARIO_ESPECIAL' ? '⏰' :
+                                   excepcion.tipoExcepcion === 'CAPACITACION' ? '📚' :
+                                   excepcion.tipoExcepcion === 'DIA_NO_LABORABLE' ? '📅' : '📝'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {excepcion.motivo || 'Sin motivo especificado'}
+                                </h4>
+                                
+                                {/* Mostrar fecha o período según el tipo */}
+                                {esVacaciones && excepcion.fechaFin ? (
+                                  <div className="text-sm text-gray-600">
+                                    <span className="font-medium">Período:</span> {' '}
+                                    {new Date(excepcion.fecha).toLocaleDateString('es-ES', {
+                                      day: 'numeric',
+                                      month: 'short'
+                                    })} - {new Date(excepcion.fechaFin).toLocaleDateString('es-ES', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                    <span className="ml-2 text-blue-600">
+                                      ({Math.ceil((new Date(excepcion.fechaFin).getTime() - new Date(excepcion.fecha).getTime()) / (1000 * 60 * 60 * 24)) + 1} días)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-600">
+                                    {new Date(excepcion.fecha).toLocaleDateString('es-ES', {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric'
+                                    })}
+                                  </p>
+                                )}
+                                
+                                {excepcion.descripcion && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {excepcion.descripcion}
+                                  </p>
+                                )}
+                                
+                                {/* Mostrar tipo de excepción */}
+                                <div className="flex items-center mt-2 space-x-2">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    excepcion.tipoExcepcion === 'SUSPENSION_CLASES' ? 'bg-red-100 text-red-800' :
+                                    excepcion.tipoExcepcion === 'FERIADO' ? 'bg-green-100 text-green-800' :
+                                    excepcion.tipoExcepcion === 'VACACIONES' ? 'bg-blue-100 text-blue-800' :
+                                    excepcion.tipoExcepcion === 'HORARIO_ESPECIAL' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {tipoInfo?.label || excepcion.tipoExcepcion}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                excepcion.tipoHorario === 'CLASE' ? 'bg-blue-100 text-blue-800' :
+                                excepcion.tipoHorario === 'AMBOS' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {excepcion.tipoHorario === 'CLASE' ? 'Solo Clases' :
+                                 excepcion.tipoHorario === 'AMBOS' ? 'Clases y Talleres' : excepcion.tipoHorario}
+                              </span>
+                              <button className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                                Editar
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            excepcion.tipoHorario === 'CLASE' ? 'bg-blue-100 text-blue-800' :
-                            excepcion.tipoHorario === 'AMBOS' ? 'bg-purple-100 text-purple-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {excepcion.tipoHorario === 'CLASE' ? 'Solo Clases' :
-                             excepcion.tipoHorario === 'AMBOS' ? 'Clases y Talleres' : excepcion.tipoHorario}
-                          </span>
-                          <button className="text-indigo-600 hover:text-indigo-900 text-sm">
-                            Editar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      )
+                    })}
                   
                   {excepciones.filter(exc => exc.tipoHorario === 'CLASE' || exc.tipoHorario === 'AMBOS').length === 0 && (
                     <div className="text-center py-8">
@@ -356,11 +517,23 @@ export default function HorarioClasesPage() {
         </div>
       </div>
 
-      {/* Modal para crear horario */}
+      {/* Modales */}
       <CreateHorarioClasesModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSave={handleCreateHorario}
+      />
+
+      <CreateExcepcionModal
+        isOpen={showCreateExcepcionModal}
+        onClose={() => setShowCreateExcepcionModal(false)}
+        onSave={handleCreateExcepcion}
+      />
+
+      <EditHorarioClasesModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleEditHorario}
       />
     </div>
   )

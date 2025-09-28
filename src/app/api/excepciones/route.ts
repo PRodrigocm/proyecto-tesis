@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import jwt from 'jsonwebtoken'
+
+interface JWTPayload {
+  userId: number
+  email: string
+  rol: string
+  ieId?: number
+}
+
+function verifyToken(token: string): JWTPayload | null {
+  try {
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET no está configurado')
+      return null
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as JWTPayload
+    return decoded
+  } catch (error) {
+    console.error('Error verificando token:', error)
+    return null
+  }
+}
 
 // GET - Obtener todas las excepciones y feriados
 export async function GET(request: NextRequest) {
@@ -55,6 +77,7 @@ export async function GET(request: NextRequest) {
     const excepcionesTransformadas = excepciones.map(excepcion => ({
       id: excepcion.idExcepcion.toString(),
       fecha: excepcion.fecha.toISOString().split('T')[0], // YYYY-MM-DD
+      // fechaFin: excepcion.fechaFin?.toISOString().split('T')[0] || null, // TODO: Descomentar después de migración
       tipoExcepcion: excepcion.tipoExcepcion,
       tipoHorario: excepcion.tipoHorario,
       motivo: excepcion.motivo || '',
@@ -98,6 +121,8 @@ export async function POST(request: NextRequest) {
     const {
       ieId,
       fecha,
+      fechaInicio,
+      fechaFin,
       tipoExcepcion,
       tipoHorario = 'AMBOS',
       motivo,
@@ -106,10 +131,19 @@ export async function POST(request: NextRequest) {
       horaFinAlt
     } = body
 
-    if (!ieId || !fecha || !tipoExcepcion || !motivo) {
-      return NextResponse.json({
-        error: 'IE ID, fecha, tipo de excepción y motivo son requeridos'
-      }, { status: 400 })
+    // Validaciones según el tipo de excepción
+    if (tipoExcepcion === 'VACACIONES') {
+      if (!ieId || !fechaInicio || !fechaFin || !tipoExcepcion || !motivo) {
+        return NextResponse.json({
+          error: 'Para vacaciones: IE ID, fecha inicio, fecha fin, tipo de excepción y motivo son requeridos'
+        }, { status: 400 })
+      }
+    } else {
+      if (!ieId || !fecha || !tipoExcepcion || !motivo) {
+        return NextResponse.json({
+          error: 'IE ID, fecha, tipo de excepción y motivo son requeridos'
+        }, { status: 400 })
+      }
     }
 
     // Verificar que la IE existe
@@ -123,34 +157,46 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Verificar si ya existe una excepción para esta fecha
-    const excepcionExistente = await prisma.excepcionHorario.findFirst({
-      where: {
-        idIe: parseInt(ieId),
-        fecha: new Date(fecha),
-        activo: true
-      }
-    })
+    // Verificar si ya existe una excepción para esta fecha (solo para no-vacaciones)
+    if (tipoExcepcion !== 'VACACIONES') {
+      const excepcionExistente = await prisma.excepcionHorario.findFirst({
+        where: {
+          idIe: parseInt(ieId),
+          fecha: new Date(fecha),
+          activo: true
+        }
+      })
 
-    if (excepcionExistente) {
-      return NextResponse.json({
-        error: 'Ya existe una excepción para esta fecha'
-      }, { status: 409 })
+      if (excepcionExistente) {
+        return NextResponse.json({
+          error: 'Ya existe una excepción para esta fecha'
+        }, { status: 409 })
+      }
     }
 
     // Crear la excepción
+    const dataToCreate: any = {
+      idIe: parseInt(ieId),
+      tipoExcepcion: tipoExcepcion,
+      tipoHorario: tipoHorario,
+      motivo: motivo,
+      descripcion: descripcion || null,
+      horaInicioAlt: horaInicioAlt ? new Date(`1970-01-01T${horaInicioAlt}:00.000Z`) : null,
+      horaFinAlt: horaFinAlt ? new Date(`1970-01-01T${horaFinAlt}:00.000Z`) : null,
+      activo: true
+    }
+
+    // Para vacaciones, usar fechaInicio (fechaFin se agregará después de migración)
+    if (tipoExcepcion === 'VACACIONES') {
+      dataToCreate.fecha = new Date(fechaInicio)
+      // dataToCreate.fechaFin = new Date(fechaFin) // TODO: Descomentar después de migración
+    } else {
+      dataToCreate.fecha = new Date(fecha)
+      // dataToCreate.fechaFin = null // TODO: Descomentar después de migración
+    }
+
     const nuevaExcepcion = await prisma.excepcionHorario.create({
-      data: {
-        idIe: parseInt(ieId),
-        fecha: new Date(fecha),
-        tipoExcepcion: tipoExcepcion,
-        tipoHorario: tipoHorario,
-        motivo: motivo,
-        descripcion: descripcion || null,
-        horaInicioAlt: horaInicioAlt ? new Date(`1970-01-01T${horaInicioAlt}:00.000Z`) : null,
-        horaFinAlt: horaFinAlt ? new Date(`1970-01-01T${horaFinAlt}:00.000Z`) : null,
-        activo: true
-      },
+      data: dataToCreate,
       include: {
         ie: {
           select: {

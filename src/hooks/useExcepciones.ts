@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 interface Excepcion {
   id: string
   fecha: string // YYYY-MM-DD
+  fechaFin?: string // YYYY-MM-DD (para períodos como vacaciones)
   tipoExcepcion: 'FERIADO' | 'SUSPENSION_CLASES' | 'VACACIONES' | 'HORARIO_ESPECIAL' | 'CAPACITACION' | 'DIA_NO_LABORABLE' | 'OTRO'
   tipoHorario: 'CLASE' | 'TALLER' | 'AMBOS'
   motivo: string

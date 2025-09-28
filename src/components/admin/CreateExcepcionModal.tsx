@@ -29,6 +29,8 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
   
   const [formData, setFormData] = useState({
     fecha: '',
+    fechaInicio: '',
+    fechaFin: '',
     tipoExcepcion: 'FERIADO',
     tipoHorario: 'AMBOS',
     motivo: '',
@@ -47,19 +49,46 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.fecha || !formData.tipoExcepcion || !formData.motivo) {
-      alert('Por favor completa todos los campos requeridos')
-      return
-    }
-
-    // Validar que la fecha no sea pasada
-    const fechaSeleccionada = new Date(formData.fecha)
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
     
-    if (fechaSeleccionada < hoy) {
-      alert('No puedes crear excepciones para fechas pasadas')
-      return
+    // Validaciones según el tipo de excepción
+    if (esVacaciones) {
+      if (!formData.fechaInicio || !formData.fechaFin || !formData.tipoExcepcion || !formData.motivo) {
+        alert('Por favor completa todos los campos requeridos (fecha inicio, fecha fin, motivo)')
+        return
+      }
+      
+      // Validar que fecha inicio sea menor o igual que fecha fin
+      const fechaInicio = new Date(formData.fechaInicio)
+      const fechaFin = new Date(formData.fechaFin)
+      
+      if (fechaInicio > fechaFin) {
+        alert('La fecha de inicio debe ser menor o igual que la fecha de fin')
+        return
+      }
+      
+      // Validar que las fechas no sean pasadas
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      
+      if (fechaInicio < hoy) {
+        alert('No puedes crear excepciones para fechas pasadas')
+        return
+      }
+    } else {
+      if (!formData.fecha || !formData.tipoExcepcion || !formData.motivo) {
+        alert('Por favor completa todos los campos requeridos')
+        return
+      }
+
+      // Validar que la fecha no sea pasada
+      const fechaSeleccionada = new Date(formData.fecha)
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      
+      if (fechaSeleccionada < hoy) {
+        alert('No puedes crear excepciones para fechas pasadas')
+        return
+      }
     }
 
     // Validar horario alternativo si se especifica
@@ -88,6 +117,8 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
   const resetForm = () => {
     setFormData({
       fecha: '',
+      fechaInicio: '',
+      fechaFin: '',
       tipoExcepcion: 'FERIADO',
       tipoHorario: 'AMBOS',
       motivo: '',
@@ -99,6 +130,7 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
 
   const tipoSeleccionado = tiposExcepcion.find(t => t.value === formData.tipoExcepcion)
   const esHorarioEspecial = formData.tipoExcepcion === 'HORARIO_ESPECIAL'
+  const esVacaciones = formData.tipoExcepcion === 'VACACIONES'
 
   if (!isOpen) return null
 
@@ -130,19 +162,50 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha *
-              </label>
-              <input
-                type="date"
-                name="fecha"
-                value={formData.fecha}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                required
-              />
-            </div>
+            {esVacaciones ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha de Inicio *
+                  </label>
+                  <input
+                    type="date"
+                    name="fechaInicio"
+                    value={formData.fechaInicio}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha de Fin *
+                  </label>
+                  <input
+                    type="date"
+                    name="fechaFin"
+                    value={formData.fechaFin}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha *
+                </label>
+                <input
+                  type="date"
+                  name="fecha"
+                  value={formData.fecha}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  required
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -256,7 +319,19 @@ export default function CreateExcepcionModal({ isOpen, onClose, onSave }: Create
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <h4 className="text-sm font-medium text-green-800 mb-2">✅ Resumen de la Excepción:</h4>
             <ul className="text-sm text-green-700 space-y-1">
-              <li>• <strong>Fecha:</strong> {formData.fecha || 'No seleccionada'}</li>
+              {esVacaciones ? (
+                <>
+                  <li>• <strong>Fecha Inicio:</strong> {formData.fechaInicio || 'No seleccionada'}</li>
+                  <li>• <strong>Fecha Fin:</strong> {formData.fechaFin || 'No seleccionada'}</li>
+                  {formData.fechaInicio && formData.fechaFin && (
+                    <li>• <strong>Duración:</strong> {
+                      Math.ceil((new Date(formData.fechaFin).getTime() - new Date(formData.fechaInicio).getTime()) / (1000 * 60 * 60 * 24)) + 1
+                    } días</li>
+                  )}
+                </>
+              ) : (
+                <li>• <strong>Fecha:</strong> {formData.fecha || 'No seleccionada'}</li>
+              )}
               <li>• <strong>Tipo:</strong> {tipoSeleccionado?.label || 'No seleccionado'}</li>
               <li>• <strong>Alcance:</strong> {tiposHorario.find(t => t.value === formData.tipoHorario)?.label}</li>
               <li>• <strong>Motivo:</strong> {formData.motivo || 'No especificado'}</li>

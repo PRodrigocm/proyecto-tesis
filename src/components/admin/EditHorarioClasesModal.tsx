@@ -29,12 +29,33 @@ interface HorarioDetalle {
   tipoActividad: 'CLASE_REGULAR' | 'RECUPERACION'
 }
 
+interface Docente {
+  idDocente: number
+  nombre: string
+  apellido: string
+  especialidad: string
+}
+
+interface Aula {
+  idAula?: number
+  nombre: string
+  capacidad?: number
+  tipo?: string
+  ubicacion?: string
+  equipamiento?: string
+  recomendada?: boolean
+}
+
 export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: EditHorarioClasesModalProps) {
   const [loading, setLoading] = useState(false)
   const [gradosSecciones, setGradosSecciones] = useState<GradoSeccion[]>([])
   const [loadingGrados, setLoadingGrados] = useState(false)
   const [selectedGradoSeccion, setSelectedGradoSeccion] = useState('')
   const [horarios, setHorarios] = useState<HorarioDetalle[]>([])
+  const [docentes, setDocentes] = useState<Docente[]>([])
+  const [aulas, setAulas] = useState<Aula[]>([])
+  const [loadingDocentes, setLoadingDocentes] = useState(false)
+  const [loadingAulas, setLoadingAulas] = useState(false)
 
   const diasSemana = [
     { value: 1, label: 'Lunes' },
@@ -54,6 +75,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
   useEffect(() => {
     if (isOpen) {
       loadGradosSecciones()
+      loadDocentes()
+      loadAulas()
     }
   }, [isOpen])
 
@@ -73,6 +96,48 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
       console.error('Error loading grados y secciones:', error)
     } finally {
       setLoadingGrados(false)
+    }
+  }
+
+  const loadDocentes = async () => {
+    setLoadingDocentes(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/docentes', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setDocentes(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading docentes:', error)
+    } finally {
+      setLoadingDocentes(false)
+    }
+  }
+
+  const loadAulas = async (gradoSeccionId?: string) => {
+    setLoadingAulas(true)
+    try {
+      const token = localStorage.getItem('token')
+      const url = gradoSeccionId 
+        ? `/api/aulas?gradoSeccionId=${gradoSeccionId}`
+        : '/api/aulas'
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAulas(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading aulas:', error)
+    } finally {
+      setLoadingAulas(false)
     }
   }
 
@@ -103,30 +168,100 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     }
   }
 
-  const handleGradoSeccionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleGradoSeccionChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target
     setSelectedGradoSeccion(value)
     
     if (value) {
+      // Cargar horarios existentes
       loadExistingHorarios(value)
+      
+      // Cargar aulas específicas para este grado-sección
+      loadAulas(value)
+      
+      // Obtener información del grado-sección para determinar el aula y docente automáticos
+      const gradoSeccionSeleccionado = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === value)
+      if (gradoSeccionSeleccionado) {
+        const aulaAutomatica = `Aula ${gradoSeccionSeleccionado.grado.nombre}° ${gradoSeccionSeleccionado.seccion.nombre}`
+        
+        // Buscar el docente asignado a este grado-sección
+        let docenteAutomatico = ''
+        try {
+          const token = localStorage.getItem('token')
+          const response = await fetch(`/api/docentes/asignacion?gradoSeccionId=${value}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data.docente) {
+              docenteAutomatico = `${data.docente.nombre} ${data.docente.apellido}`
+              console.log(`✅ Docente automático encontrado: ${docenteAutomatico}`)
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ No se pudo cargar el docente automático:', error)
+        }
+        
+        // Actualizar todos los horarios existentes con el aula y docente automáticos
+        setHorarios(prev => prev.map(horario => ({
+          ...horario,
+          aula: aulaAutomatica,
+          docente: docenteAutomatico
+        })))
+        
+        console.log(`✅ Aula automática asignada: ${aulaAutomatica}`)
+        if (docenteAutomatico) {
+          console.log(`✅ Docente automático asignado: ${docenteAutomatico}`)
+        }
+      }
     } else {
       setHorarios([])
+      loadAulas() // Cargar aulas generales
     }
   }
 
-  const handleHorarioChange = (index: number, field: keyof HorarioDetalle, value: string) => {
+  const handleHorarioChange = (index: number, field: keyof HorarioDetalle, value: string | number) => {
     setHorarios(prev => prev.map((horario, i) => 
       i === index ? { ...horario, [field]: value } : horario
     ))
   }
 
-  const agregarHorarioRecuperacion = () => {
+  const agregarHorarioRecuperacion = async () => {
+    // Determinar el aula y docente automáticos basados en el grado-sección seleccionado
+    let aulaAutomatica = ''
+    let docenteAutomatico = ''
+    
+    if (selectedGradoSeccion) {
+      const gradoSeccionSeleccionado = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === selectedGradoSeccion)
+      if (gradoSeccionSeleccionado) {
+        aulaAutomatica = `Aula ${gradoSeccionSeleccionado.grado.nombre}° ${gradoSeccionSeleccionado.seccion.nombre}`
+        
+        // Buscar el docente asignado a este grado-sección
+        try {
+          const token = localStorage.getItem('token')
+          const response = await fetch(`/api/docentes/asignacion?gradoSeccionId=${selectedGradoSeccion}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data.docente) {
+              docenteAutomatico = `${data.docente.nombre} ${data.docente.apellido}`
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ No se pudo cargar el docente automático para recuperación:', error)
+        }
+      }
+    }
+
     const nuevoHorario: HorarioDetalle = {
       diaSemana: 6,
       horaInicio: '09:00',
       horaFin: '12:00',
-      docente: '',
-      aula: '',
+      docente: docenteAutomatico, // Usar docente automático
+      aula: aulaAutomatica, // Usar aula automática
       tipoActividad: 'RECUPERACION'
     }
     setHorarios(prev => [...prev, nuevoHorario])
@@ -150,17 +285,44 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
 
     setLoading(true)
     try {
-      const success = await onSave({
-        idGradoSeccion: selectedGradoSeccion,
-        horarios: horarios
+      console.log('💾 Guardando horarios...', { idGradoSeccion: selectedGradoSeccion, horarios })
+
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/horarios/clases', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          idGradoSeccion: selectedGradoSeccion,
+          horarios: horarios
+        })
       })
 
-      if (success) {
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        console.log('✅ Horarios guardados exitosamente:', data)
+        alert(`✅ Horarios actualizados exitosamente para ${data.data.gradoSeccion}`)
+        
+        // Llamar onSave si existe (para compatibilidad)
+        if (onSave) {
+          await onSave({
+            idGradoSeccion: selectedGradoSeccion,
+            horarios: horarios
+          })
+        }
+        
         resetForm()
         onClose()
+      } else {
+        console.error('❌ Error al guardar horarios:', data)
+        alert(`❌ Error al guardar horarios: ${data.error || 'Error desconocido'}`)
       }
     } catch (error) {
-      console.error('Error updating horarios:', error)
+      console.error('❌ Error updating horarios:', error)
+      alert('❌ Error al conectar con el servidor. Intenta nuevamente.')
     } finally {
       setLoading(false)
     }
@@ -170,6 +332,7 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     setSelectedGradoSeccion('')
     setHorarios([])
   }
+
 
   if (!isOpen) return null
 
@@ -204,8 +367,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
               disabled={loadingGrados}
             >
               <option value="">Seleccionar grado y sección...</option>
-              {gradosSecciones.map((gs) => (
-                <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
+              {gradosSecciones.map((gs, gsIndex) => (
+                <option key={`grado-seccion-${gs.idGradoSeccion || gsIndex}`} value={gs.idGradoSeccion}>
                   {gs.grado.nombre}° {gs.seccion.nombre}
                 </option>
               ))}
@@ -241,7 +404,7 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
 
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {horarios.map((horario, index) => (
-                <div key={index} className={`p-4 border rounded-lg ${
+                <div key={`horario-${index}-${horario.diaSemana}-${horario.tipoActividad}`} className={`p-4 border rounded-lg ${
                   horario.tipoActividad === 'RECUPERACION' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
                 }`}>
                   <div className="flex items-center justify-between mb-3">
@@ -270,7 +433,7 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
                       >
                         {diasSemana.map(dia => (
-                          <option key={dia.value} value={dia.value}>
+                          <option key={`dia-${dia.value}`} value={dia.value}>
                             {dia.label}
                           </option>
                         ))}
@@ -286,8 +449,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                         onChange={(e) => handleHorarioChange(index, 'horaInicio', e.target.value)}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
                       >
-                        {horasComunes.map(hora => (
-                          <option key={hora} value={hora}>{hora}</option>
+                        {horasComunes.map((hora, horaIndex) => (
+                          <option key={`hora-inicio-${hora}-${horaIndex}`} value={hora}>{hora}</option>
                         ))}
                       </select>
                     </div>
@@ -301,8 +464,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                         onChange={(e) => handleHorarioChange(index, 'horaFin', e.target.value)}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
                       >
-                        {horasComunes.map(hora => (
-                          <option key={hora} value={hora}>{hora}</option>
+                        {horasComunes.map((hora, horaIndex) => (
+                          <option key={`hora-fin-${hora}-${horaIndex}`} value={hora}>{hora}</option>
                         ))}
                       </select>
                     </div>
@@ -311,26 +474,55 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Aula
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={horario.aula}
                         onChange={(e) => handleHorarioChange(index, 'aula', e.target.value)}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
-                        placeholder="Aula"
-                      />
+                        disabled={loadingAulas}
+                      >
+                        <option value="">Seleccionar aula...</option>
+                        {/* Aulas recomendadas primero */}
+                        {aulas.filter(aula => aula.recomendada).map((aula, aulaIndex) => (
+                          <option key={`aula-recomendada-${aula.nombre || aulaIndex}`} value={aula.nombre}>
+                            ⭐ {aula.nombre} ({aula.tipo})
+                          </option>
+                        ))}
+                        {/* Separador si hay aulas recomendadas */}
+                        {aulas.some(aula => aula.recomendada) && aulas.some(aula => !aula.recomendada) && (
+                          <option disabled>──── Otras aulas ────</option>
+                        )}
+                        {/* Otras aulas */}
+                        {aulas.filter(aula => !aula.recomendada).map((aula, aulaIndex) => (
+                          <option key={`aula-${aula.nombre || aulaIndex}`} value={aula.nombre}>
+                            {aula.nombre} ({aula.tipo})
+                          </option>
+                        ))}
+                      </select>
+                      {loadingAulas && (
+                        <p className="text-xs text-gray-500 mt-1">Cargando aulas...</p>
+                      )}
                     </div>
 
                     <div className="md:col-span-2">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Docente
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={horario.docente}
                         onChange={(e) => handleHorarioChange(index, 'docente', e.target.value)}
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
-                        placeholder="Nombre del docente"
-                      />
+                        disabled={loadingDocentes}
+                      >
+                        <option value="">Seleccionar docente...</option>
+                        {docentes.map((docente, docenteIndex) => (
+                          <option key={`docente-${docente.idDocente || docenteIndex}`} value={`${docente.nombre} ${docente.apellido}`}>
+                            {docente.nombre} {docente.apellido} - {docente.especialidad}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingDocentes && (
+                        <p className="text-xs text-gray-500 mt-1">Cargando docentes...</p>
+                      )}
                     </div>
                   </div>
                 </div>

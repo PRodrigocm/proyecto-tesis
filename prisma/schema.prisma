@@ -272,6 +272,7 @@ model ExcepcionHorario {
   idExcepcion      Int                @id @default(autoincrement()) @map("id_excepcion")
   idIe             Int                @map("id_ie")
   fecha            DateTime           @db.Date
+  fechaFin         DateTime?          @map("fecha_fin") @db.Date
   tipoExcepcion    TipoExcepcionEnum  @map("tipo_excepcion")
   tipoHorario      TipoHorarioEnum    @map("tipo_horario")
   idHorarioClase   Int?               @map("id_horario_clase")
@@ -314,6 +315,7 @@ enum TipoHorarioEnum {
   
   @@map("tipo_horario")
 }
+
 
 enum TipoActividadEnum {
   CLASE_REGULAR     // Clases regulares de lunes a viernes

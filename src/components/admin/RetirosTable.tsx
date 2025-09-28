@@ -1,12 +1,41 @@
+import { useState } from 'react'
 import { Retiro } from '@/hooks/useRetiros'
+import ViewRetiroModal from './ViewRetiroModal'
+import EditRetiroModal from './EditRetiroModal'
 
 interface RetirosTableProps {
   retiros: Retiro[]
-  onAutorizar: (retiroId: string, autorizado: boolean, observaciones?: string) => void
-  onCompletar: (retiroId: string) => void
+  onAutorizar: (retiroId: string, autorizado: boolean, observaciones?: string) => Promise<boolean>
+  onCompletar: (retiroId: string) => Promise<boolean>
+  onModificar: (retiroId: string, data: any) => Promise<boolean>
+  onEliminar: (retiroId: string) => Promise<boolean>
 }
 
-export default function RetirosTable({ retiros, onAutorizar, onCompletar }: RetirosTableProps) {
+export default function RetirosTable({ retiros, onAutorizar, onCompletar, onModificar, onEliminar }: RetirosTableProps) {
+  const [selectedRetiro, setSelectedRetiro] = useState<Retiro | null>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+
+  const handleViewRetiro = (retiro: Retiro) => {
+    setSelectedRetiro(retiro)
+    setShowViewModal(true)
+  }
+
+  const handleEditRetiro = (retiro: Retiro) => {
+    setSelectedRetiro(retiro)
+    setShowEditModal(true)
+  }
+
+  const handleCloseViewModal = () => {
+    setShowViewModal(false)
+    setSelectedRetiro(null)
+  }
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false)
+    setSelectedRetiro(null)
+  }
+
   if (retiros.length === 0) {
     return (
       <div className="text-center py-12">
@@ -47,7 +76,7 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar }: Reti
               Estudiante
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Apoderado
+              Persona que Recoge
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Hora Retiro
@@ -87,9 +116,9 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar }: Reti
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900">
-                  {retiro.apoderado.nombre} {retiro.apoderado.apellido}
+                  {retiro.personaRecoge || 'Sin especificar'}
                 </div>
-                <div className="text-sm text-gray-500">{retiro.apoderado.telefono}</div>
+                <div className="text-sm text-gray-500">{retiro.dniPersonaRecoge || ''}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900">
@@ -108,33 +137,74 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar }: Reti
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <div className="flex space-x-2">
-                  <button className="text-indigo-600 hover:text-indigo-900">
-                    Ver
-                  </button>
+                <div className="flex flex-col gap-2">
+                  {/* Acciones principales: Ver, Editar, Eliminar */}
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => handleViewRetiro(retiro)}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200"
+                      title="Ver detalles del retiro"
+                    >
+                      👁️ Ver
+                    </button>
+                    
+                    <button
+                      onClick={() => handleEditRetiro(retiro)}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200"
+                      title="Editar retiro"
+                    >
+                      ✏️ Editar
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Estás seguro de que quieres eliminar el retiro de ${retiro.estudiante.nombre} ${retiro.estudiante.apellido}?`)) {
+                          onEliminar(retiro.id)
+                        }
+                      }}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200"
+                      title="Eliminar retiro"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+
+                  {/* Botones de autorización */}
                   {retiro.estado === 'PENDIENTE' && (
-                    <>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => onAutorizar(retiro.id, true)}
-                        className="text-green-600 hover:text-green-900"
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-md hover:bg-green-200"
+                        title="Autorizar retiro"
                       >
-                        Autorizar
+                        ✅ Autorizar
                       </button>
                       <button
                         onClick={() => onAutorizar(retiro.id, false)}
-                        className="text-red-600 hover:text-red-900"
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200"
+                        title="Rechazar retiro"
                       >
-                        Rechazar
+                        ❌ Rechazar
                       </button>
-                    </>
+                    </div>
                   )}
+                  
+                  {/* Botón de completar */}
                   {retiro.estado === 'AUTORIZADO' && (
                     <button
                       onClick={() => onCompletar(retiro.id)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200"
+                      title="Marcar como completado"
                     >
-                      Completar
+                      ✅ Completar
                     </button>
+                  )}
+                  
+                  {/* Mostrar quién autorizó */}
+                  {retiro.autorizadoPor && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Autorizado por: {retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}
+                    </div>
                   )}
                 </div>
               </td>
@@ -142,6 +212,21 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar }: Reti
           ))}
         </tbody>
       </table>
+      
+      {/* Modal de visualización */}
+      <ViewRetiroModal
+        isOpen={showViewModal}
+        onClose={handleCloseViewModal}
+        retiro={selectedRetiro}
+      />
+      
+      {/* Modal de edición */}
+      <EditRetiroModal
+        isOpen={showEditModal}
+        onClose={handleCloseEditModal}
+        retiro={selectedRetiro}
+        onSave={onModificar}
+      />
     </div>
   )
 }

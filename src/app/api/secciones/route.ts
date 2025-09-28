@@ -5,36 +5,79 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const gradoId = url.searchParams.get('gradoId')
+    const ieId = url.searchParams.get('ieId')
 
-    if (!gradoId) {
-      return NextResponse.json(
-        { error: 'Grado ID is required' },
-        { status: 400 }
-      )
-    }
-
-    // Obtener secciones que están vinculadas al grado específico
-    const gradoSecciones = await prisma.gradoSeccion.findMany({
-      where: {
-        idGrado: parseInt(gradoId)
-      },
-      include: {
-        seccion: true,
-        grado: {
-          include: {
-            nivel: true
+    // Si se proporciona gradoId, filtrar por grado específico
+    if (gradoId) {
+      const gradoSecciones = await prisma.gradoSeccion.findMany({
+        where: {
+          idGrado: parseInt(gradoId)
+        },
+        include: {
+          seccion: true,
+          grado: {
+            include: {
+              nivel: true
+            }
+          }
+        },
+        orderBy: {
+          seccion: {
+            nombre: 'asc'
           }
         }
-      },
-      orderBy: {
-        seccion: {
-          nombre: 'asc'
+      })
+
+      const secciones = gradoSecciones.map(gs => gs.seccion)
+
+      return NextResponse.json({
+        data: secciones,
+        total: secciones.length
+      })
+    }
+
+    // Si se proporciona ieId, obtener todas las secciones de la institución
+    if (ieId) {
+      const gradoSecciones = await prisma.gradoSeccion.findMany({
+        where: {
+          grado: {
+            nivel: {
+              idIe: parseInt(ieId)
+            }
+          }
+        },
+        include: {
+          seccion: true
+        },
+        orderBy: {
+          seccion: {
+            nombre: 'asc'
+          }
         }
+      })
+
+      // Extraer secciones únicas
+      const seccionesMap = new Map()
+      gradoSecciones.forEach(gs => {
+        if (!seccionesMap.has(gs.seccion.idSeccion)) {
+          seccionesMap.set(gs.seccion.idSeccion, gs.seccion)
+        }
+      })
+      
+      const secciones = Array.from(seccionesMap.values())
+
+      return NextResponse.json({
+        data: secciones,
+        total: secciones.length
+      })
+    }
+
+    // Si no se proporciona ningún parámetro, obtener todas las secciones
+    const secciones = await prisma.seccion.findMany({
+      orderBy: {
+        nombre: 'asc'
       }
     })
-
-    // Extraer las secciones (ya están filtradas por el grado específico)
-    const secciones = gradoSecciones.map(gs => gs.seccion)
 
     return NextResponse.json({
       data: secciones,

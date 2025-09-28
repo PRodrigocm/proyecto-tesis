@@ -57,30 +57,12 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem('token')
       
-      if (!token) {
-        console.log('⚠️ No hay token, usando datos de ejemplo')
-        setStats({
-          totalUsuarios: 45,
-          totalEstudiantes: 180,
-          totalDocentes: 12,
-          totalApoderados: 95,
-          totalTalleres: 8,
-          asistenciasHoy: 156
-        })
-        return
-      }
-
-      console.log('🔐 Token encontrado, intentando cargar estadísticas reales...')
-      
       // Cargar estadísticas reales desde la API
       const response = await fetch('/api/dashboard/stats', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       })
-
-      console.log('📡 Response status:', response.status)
 
       if (response.ok) {
         const result = await response.json()
@@ -88,19 +70,7 @@ export default function AdminDashboard() {
         setStats(result.data)
       } else {
         console.error('❌ Error al cargar estadísticas:', response.status)
-        const errorText = await response.text()
-        console.error('❌ Error details:', errorText)
-        
-        // Si es error de autenticación, redirigir al login
-        if (response.status === 401) {
-          console.log('🔐 Token inválido, redirigiendo al login...')
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          router.push('/login')
-          return
-        }
-        
-        // Para otros errores, usar datos de ejemplo
+        // Fallback a datos de ejemplo si la API falla
         setStats({
           totalUsuarios: 45,
           totalEstudiantes: 180,

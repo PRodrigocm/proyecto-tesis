@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Función para formatear tiempo desde la BD sin conversiones de zona horaria
+function formatTimeFromDB(dateTime: Date): string {
+  // Extraer directamente del ISO string la parte de tiempo
+  const isoString = dateTime.toISOString()
+  // El formato ISO es: YYYY-MM-DDTHH:MM:SS.sssZ
+  // Extraemos HH:MM directamente
+  const match = isoString.match(/T(\d{2}):(\d{2})/)
+  if (match) {
+    const timeString = `${match[1]}:${match[2]}`
+    console.log(`🕐 formatTimeFromDB: ${isoString} → ${timeString}`)
+    return timeString
+  }
+  
+  // Fallback si no encuentra el patrón
+  const fallback = isoString.substring(11, 16)
+  console.log(`🕐 formatTimeFromDB (fallback): ${isoString} → ${fallback}`)
+  return fallback
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -72,8 +91,8 @@ export async function POST(request: NextRequest) {
               idDocente: docentePrincipal?.idDocente || null, // Docente del grado-sección
               materia: null, // En primaria no se usa materia específica
               diaSemana: parseInt(horario.diaSemana),
-              horaInicio: new Date(`1970-01-01T${horario.horaInicio}:00`),
-              horaFin: new Date(`1970-01-01T${horario.horaFin}:00`),
+              horaInicio: new Date(`1970-01-01T${horario.horaInicio}:00.000Z`),
+              horaFin: new Date(`1970-01-01T${horario.horaFin}:00.000Z`),
               aula: nombreAula, // Ej: "Aula 3° A"
               toleranciaMin: horario.toleranciaMin || 10,
               sesiones: horario.sesiones || 1,
@@ -92,8 +111,8 @@ export async function POST(request: NextRequest) {
               idDocente: docentePrincipal?.idDocente || null, // Docente del grado-sección
               materia: null, // En primaria no se usa materia específica
               diaSemana: parseInt(horario.diaSemana),
-              horaInicio: new Date(`1970-01-01T${horario.horaInicio}:00`),
-              horaFin: new Date(`1970-01-01T${horario.horaFin}:00`),
+              horaInicio: new Date(`1970-01-01T${horario.horaInicio}:00.000Z`),
+              horaFin: new Date(`1970-01-01T${horario.horaFin}:00.000Z`),
               aula: horario.aula || null,
               toleranciaMin: horario.toleranciaMin || 10,
               sesiones: horario.sesiones || 1,
@@ -185,8 +204,8 @@ export async function GET(request: NextRequest) {
       id: horario.idHorarioClase,
       diaSemana: horario.diaSemana,
       diaNombre: getDiaNombre(horario.diaSemana),
-      horaInicio: horario.horaInicio.toTimeString().slice(0, 5),
-      horaFin: horario.horaFin.toTimeString().slice(0, 5),
+      horaInicio: formatTimeFromDB(horario.horaInicio),
+      horaFin: formatTimeFromDB(horario.horaFin),
       materia: horario.materia,
       aula: horario.aula || '',
       tipoActividad: horario.tipoActividad,
