@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useHorariosSemanales } from '@/hooks/useHorariosSemanales'
 import { useExcepcionesHorario } from '@/hooks/useExcepcionesHorario'
 import { useExcepciones } from '@/hooks/useExcepciones'
 import CreateHorarioClasesModal from '@/components/admin/CreateHorarioClasesModal'
-import CreateExcepcionModal from '@/components/admin/CreateExcepcionModal'
 import EditHorarioClasesModal from '@/components/admin/EditHorarioClasesModal'
 
 export default function HorarioClasesPage() {
   const [activeTab, setActiveTab] = useState<'horarios' | 'excepciones'>('horarios')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showCreateExcepcionModal, setShowCreateExcepcionModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [gradosSecciones, setGradosSecciones] = useState<any[]>([])
+  const [loadingGradosSecciones, setLoadingGradosSecciones] = useState(false)
+  const [filtroGrado, setFiltroGrado] = useState('')
+  const [filtroSeccion, setFiltroSeccion] = useState('')
   const { 
     horarios, 
     loading: loadingHorarios, 
@@ -34,6 +36,31 @@ export default function HorarioClasesPage() {
     excepciones: excepcionesReales, 
     loading: loadingExcepcionesReales 
   } = useExcepciones(ieId)
+
+  // Cargar grados y secciones desde BD
+  const loadGradosSecciones = async () => {
+    setLoadingGradosSecciones(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/grados-secciones', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setGradosSecciones(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading grados y secciones:', error)
+    } finally {
+      setLoadingGradosSecciones(false)
+    }
+  }
+
+  // Cargar grados y secciones al montar el componente
+  useEffect(() => {
+    loadGradosSecciones()
+  }, [])
 
   // Tipos de excepción para filtros
   const tiposExcepcion = [
@@ -112,63 +139,6 @@ export default function HorarioClasesPage() {
     }
   }
 
-  const handleCreateExcepcion = async (data: any) => {
-    try {
-      console.log('🚫 === CREANDO EXCEPCIÓN ===')
-      console.log('📋 Datos recibidos:', data)
-      
-      const token = localStorage.getItem('token')
-      if (!token) {
-        console.error('❌ No hay token de autenticación')
-        alert('No hay sesión activa. Por favor, inicia sesión.')
-        return false
-      }
-      
-      // Agregar ieId del usuario
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
-      const ieId = user.idIe || user.institucionId || user.ieId || 1
-      
-      // Crear una sola excepción (con período para vacaciones)
-      const response = await fetch('/api/excepciones', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...data,
-          ieId: ieId
-        })
-      })
-      
-      console.log('📡 Response status:', response.status, response.statusText)
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('✅ Excepción creada exitosamente:', result)
-        
-        if (data.tipoExcepcion === 'VACACIONES' && data.fechaInicio && data.fechaFin) {
-          const fechaInicio = new Date(data.fechaInicio)
-          const fechaFin = new Date(data.fechaFin)
-          const duracionDias = Math.ceil((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          alert(`✅ Período de vacaciones creado: ${duracionDias} días (${data.fechaInicio} al ${data.fechaFin})`)
-        } else {
-          alert(`✅ ${result.message}`)
-        }
-        
-        return true
-      } else {
-        const error = await response.json()
-        console.error('❌ Error de la API:', error)
-        alert(`❌ Error: ${error.error}`)
-        return false
-      }
-    } catch (error) {
-      console.error('💥 Error creating excepción:', error)
-      alert(`💥 Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`)
-      return false
-    }
-  }
 
   const handleEditHorario = async (data: any) => {
     try {
@@ -204,12 +174,6 @@ export default function HorarioClasesPage() {
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
             >
               + Nuevo Horario
-            </button>
-            <button 
-              onClick={() => setShowCreateExcepcionModal(true)}
-              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
-            >
-              + Nueva Excepción
             </button>
             <button 
               onClick={() => setShowEditModal(true)}
@@ -305,16 +269,31 @@ export default function HorarioClasesPage() {
                   Horarios de Clases por Día
                 </h3>
                 <div className="flex space-x-2">
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                  <select 
+                    value={filtroGrado}
+                    onChange={(e) => setFiltroGrado(e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
+                    disabled={loadingGradosSecciones}
+                  >
                     <option value="">Todos los grados</option>
-                    <option value="1">1er Grado</option>
-                    <option value="2">2do Grado</option>
-                    <option value="3">3er Grado</option>
+                    {[...new Set(gradosSecciones.map(gs => gs.grado.nombre))].map((grado) => (
+                      <option key={grado} value={grado}>
+                        {grado}° Grado
+                      </option>
+                    ))}
                   </select>
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                  <select 
+                    value={filtroSeccion}
+                    onChange={(e) => setFiltroSeccion(e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
+                    disabled={loadingGradosSecciones}
+                  >
                     <option value="">Todas las secciones</option>
-                    <option value="A">Sección A</option>
-                    <option value="B">Sección B</option>
+                    {[...new Set(gradosSecciones.map(gs => gs.seccion.nombre))].map((seccion) => (
+                      <option key={seccion} value={seccion}>
+                        Sección {seccion}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -325,14 +304,19 @@ export default function HorarioClasesPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-                  {diasSemana.slice(0, 5).map((dia) => (
+                  {diasSemana.map((dia) => (
                     <div key={dia.value} className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-medium text-gray-900 mb-3 text-center">
                         {dia.label}
                       </h4>
                       <div className="space-y-2">
                         {getHorariosPorDia(dia.value)
-                          .filter(detalle => detalle.tipoActividad === 'CLASE_REGULAR')
+                          .filter(detalle => {
+                            if (detalle.tipoActividad !== 'CLASE_REGULAR') return false
+                            if (filtroGrado && detalle.grado !== filtroGrado) return false
+                            if (filtroSeccion && detalle.seccion !== filtroSeccion) return false
+                            return true
+                          })
                           .map((detalle, index) => (
                           <div key={index} className="bg-white p-3 rounded border-l-4 border-blue-500">
                             <div className="text-sm font-medium text-gray-900">
@@ -349,7 +333,12 @@ export default function HorarioClasesPage() {
                           </div>
                         ))}
                         {getHorariosPorDia(dia.value)
-                          .filter(detalle => detalle.tipoActividad === 'CLASE_REGULAR').length === 0 && (
+                          .filter(detalle => {
+                            if (detalle.tipoActividad !== 'CLASE_REGULAR') return false
+                            if (filtroGrado && detalle.grado !== filtroGrado) return false
+                            if (filtroSeccion && detalle.seccion !== filtroSeccion) return false
+                            return true
+                          }).length === 0 && (
                           <div className="text-center text-gray-500 text-sm py-4">
                             Sin clases
                           </div>
@@ -369,7 +358,7 @@ export default function HorarioClasesPage() {
                   Excepciones y Suspensiones de Clases
                 </h3>
                 <div className="flex space-x-2">
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black">
                     <option value="">Todos los tipos</option>
                     {tiposExcepcion.map(tipo => (
                       <option key={tipo.value} value={tipo.value}>
@@ -379,7 +368,7 @@ export default function HorarioClasesPage() {
                   </select>
                   <input
                     type="date"
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
                     placeholder="Fecha"
                   />
                 </div>
@@ -524,11 +513,6 @@ export default function HorarioClasesPage() {
         onSave={handleCreateHorario}
       />
 
-      <CreateExcepcionModal
-        isOpen={showCreateExcepcionModal}
-        onClose={() => setShowCreateExcepcionModal(false)}
-        onSave={handleCreateExcepcion}
-      />
 
       <EditHorarioClasesModal
         isOpen={showEditModal}

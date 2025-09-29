@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import QuickLoginButton from './QuickLoginButton'
 
 interface CreateHorarioClasesModalProps {
   isOpen: boolean
@@ -339,12 +338,7 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
           </div>
 
           {/* Botones */}
-          <div className="flex justify-between items-center pt-4 border-t">
-            <QuickLoginButton onLoginSuccess={() => {
-              console.log('🔄 Login exitoso, recargando grados...')
-              loadGradosSecciones()
-            }} />
-            
+          <div className="flex justify-end items-center pt-4 border-t">
             <div className="flex space-x-3">
               <button
                 type="button"

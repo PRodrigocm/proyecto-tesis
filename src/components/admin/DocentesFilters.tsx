@@ -57,8 +57,8 @@ export default function DocentesFiltersComponent({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="">Todos</option>
-            {grados.map((grado) => (
-              <option key={grado} value={grado}>
+            {[...new Set(grados)].map((grado, index) => (
+              <option key={`grado-${grado}-${index}`} value={grado}>
                 {grado}°
               </option>
             ))}
@@ -75,8 +75,8 @@ export default function DocentesFiltersComponent({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="">Todas</option>
-            {secciones.map((seccion) => (
-              <option key={seccion} value={seccion}>
+            {[...new Set(secciones)].map((seccion, index) => (
+              <option key={`seccion-${seccion}-${index}`} value={seccion}>
                 {seccion}
               </option>
             ))}

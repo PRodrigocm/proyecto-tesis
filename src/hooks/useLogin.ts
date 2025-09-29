@@ -158,15 +158,19 @@ export const useLogin = () => {
         switch (data.data.user.rol) {
           case 'ADMINISTRATIVO':
             console.log('🚀 Redirecting to admin dashboard...')
-            router.push('/admin')
+            router.push('/admin/dashboard')
             break
           case 'DOCENTE':
             console.log('🚀 Redirecting to docente dashboard...')
-            router.push('/docente')
+            router.push('/docente/dashboard')
+            break
+          case 'AUXILIAR':
+            console.log('🚀 Redirecting to auxiliar dashboard...')
+            router.push('/auxiliar/dashboard')
             break
           case 'APODERADO':
             console.log('🚀 Redirecting to apoderado dashboard...')
-            router.push('/apoderado')
+            router.push('/apoderado/dashboard')
             break
           default:
             console.log('🚀 Redirecting to default dashboard...')

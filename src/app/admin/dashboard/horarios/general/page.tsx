@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { useHorariosSemanales } from '@/hooks/useHorariosSemanales'
 import { useExcepcionesHorario } from '@/hooks/useExcepcionesHorario'
 import CreateHorarioGeneralModal from '@/components/admin/CreateHorarioGeneralModal'
+import CreateExcepcionModal from '@/components/admin/CreateExcepcionModal'
 
 export default function HorarioGeneralPage() {
-  const [activeTab, setActiveTab] = useState<'vista' | 'excepciones' | 'retiros'>('vista')
+  const [activeTab, setActiveTab] = useState<'vista' | 'excepciones'>('vista')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateExcepcionModal, setShowCreateExcepcionModal] = useState(false)
   const { 
     horarios, 
     loading: loadingHorarios, 
@@ -24,21 +26,6 @@ export default function HorarioGeneralPage() {
     stats: statsExcepciones 
   } = useExcepcionesHorario()
 
-  // Datos simulados de retiros para mostrar la funcionalidad
-  const retiros = [
-    {
-      id: '1',
-      estudiante: 'Ana García Pérez',
-      grado: '3°',
-      seccion: 'A',
-      apoderado: 'María Pérez',
-      motivo: 'Cita médica',
-      fecha: '2024-09-26',
-      horaRetiro: '10:30',
-      estado: 'APROBADO',
-      observaciones: 'Cita con pediatra'
-    }
-  ]
 
   const tabs = [
     {
@@ -53,12 +40,6 @@ export default function HorarioGeneralPage() {
       icon: '⚠️',
       description: 'Suspensiones que afectan tanto clases como talleres'
     },
-    {
-      id: 'retiros',
-      name: 'Gestión de Retiros',
-      icon: '🚪',
-      description: 'Administra retiros de estudiantes durante el horario escolar'
-    }
   ]
 
   const handleCreateHorario = async (data: any) => {
@@ -68,6 +49,64 @@ export default function HorarioGeneralPage() {
       return true
     } catch (error) {
       console.error('Error creating horario general:', error)
+      return false
+    }
+  }
+
+  const handleCreateExcepcion = async (data: any) => {
+    try {
+      console.log('🚫 === CREANDO EXCEPCIÓN ===')
+      console.log('📋 Datos recibidos:', data)
+      
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('❌ No hay token de autenticación')
+        alert('No hay sesión activa. Por favor, inicia sesión.')
+        return false
+      }
+      
+      // Agregar ieId del usuario
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const ieId = user.idIe || user.institucionId || user.ieId || 1
+      
+      // Crear una sola excepción (con período para vacaciones)
+      const response = await fetch('/api/excepciones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...data,
+          ieId: ieId
+        })
+      })
+      
+      console.log('📡 Response status:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Excepción creada exitosamente:', result)
+        
+        if (data.tipoExcepcion === 'VACACIONES' && data.fechaInicio && data.fechaFin) {
+          const fechaInicio = new Date(data.fechaInicio)
+          const fechaFin = new Date(data.fechaFin)
+          const duracionDias = Math.ceil((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          alert(`✅ Período de vacaciones creado: ${duracionDias} días (${data.fechaInicio} al ${data.fechaFin})`)
+        } else {
+          alert(`✅ ${result.message}`)
+        }
+        
+        return true
+      } else {
+        const error = await response.json()
+        console.error('❌ Error de la API:', error)
+        alert(`❌ Error: ${error.error}`)
+        return false
+      }
+    } catch (error) {
+      console.error('💥 Error creating excepción:', error)
+      alert(`💥 Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`)
       return false
     }
   }
@@ -90,7 +129,7 @@ export default function HorarioGeneralPage() {
               📅 Horario General
             </h1>
             <p className="text-gray-600 mt-1">
-              Administra horarios completos, suspensiones globales y gestión de retiros
+              Administra horarios completos y suspensiones globales
             </p>
           </div>
           <div className="flex space-x-3">
@@ -100,8 +139,11 @@ export default function HorarioGeneralPage() {
             >
               + Nuevo Horario
             </button>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-              + Nuevo Retiro
+            <button 
+              onClick={() => setShowCreateExcepcionModal(true)}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              + Nueva Excepción
             </button>
             <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
               + Suspensión Global
@@ -111,7 +153,7 @@ export default function HorarioGeneralPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -154,19 +196,6 @@ export default function HorarioGeneralPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <span className="text-2xl">🚪</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Retiros Hoy</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {retiros.filter(r => r.fecha === new Date().toISOString().split('T')[0]).length}
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
@@ -256,32 +285,6 @@ export default function HorarioGeneralPage() {
             </div>
           )}
 
-          {activeTab === 'retiros' && (
-            <div className="space-y-4">
-              {retiros.map((retiro) => (
-                <div key={retiro.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <span className="text-lg">🚪</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {retiro.estudiante}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {retiro.grado} {retiro.seccion} • {retiro.motivo}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                      {retiro.estado}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -290,6 +293,13 @@ export default function HorarioGeneralPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSave={handleCreateHorario}
+      />
+
+      {/* Modal para crear excepción */}
+      <CreateExcepcionModal
+        isOpen={showCreateExcepcionModal}
+        onClose={() => setShowCreateExcepcionModal(false)}
+        onSave={handleCreateExcepcion}
       />
     </div>
   )

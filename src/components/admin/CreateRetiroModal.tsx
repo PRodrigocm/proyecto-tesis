@@ -265,8 +265,8 @@ export default function CreateRetiroModal({ isOpen, onClose, onSubmit }: CreateR
                 <option value="">
                   {loadingGradosSecciones ? 'Cargando grados y secciones...' : 'Todos los grados y secciones'}
                 </option>
-                {gradoSeccionCombinaciones.map((combinacion) => (
-                  <option key={combinacion} value={combinacion}>{combinacion}</option>
+                {[...new Set(gradoSeccionCombinaciones)].map((combinacion, index) => (
+                  <option key={`grado-seccion-${combinacion}-${index}`} value={combinacion}>{combinacion}</option>
                 ))}
               </select>
               {loadingGradosSecciones && (
@@ -357,8 +357,8 @@ export default function CreateRetiroModal({ isOpen, onClose, onSubmit }: CreateR
                 required
               >
                 <option value="">Seleccionar motivo</option>
-                {motivosComunes.map((motivo) => (
-                  <option key={motivo} value={motivo}>{motivo}</option>
+                {motivosComunes.map((motivo, index) => (
+                  <option key={`motivo-${motivo}-${index}`} value={motivo}>{motivo}</option>
                 ))}
               </select>
             </div>

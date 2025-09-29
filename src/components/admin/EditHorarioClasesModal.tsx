@@ -482,21 +482,27 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                       >
                         <option value="">Seleccionar aula...</option>
                         {/* Aulas recomendadas primero */}
-                        {aulas.filter(aula => aula.recomendada).map((aula, aulaIndex) => (
-                          <option key={`aula-recomendada-${aula.nombre || aulaIndex}`} value={aula.nombre}>
-                            ⭐ {aula.nombre} ({aula.tipo})
-                          </option>
-                        ))}
+                        {aulas.filter(aula => aula.recomendada).map((aula, aulaIndex) => {
+                          const originalIndex = aulas.findIndex(a => a === aula)
+                          return (
+                            <option key={`aula-recomendada-${originalIndex}-${aula.nombre}`} value={aula.nombre}>
+                              ⭐ {aula.nombre} ({aula.tipo})
+                            </option>
+                          )
+                        })}
                         {/* Separador si hay aulas recomendadas */}
                         {aulas.some(aula => aula.recomendada) && aulas.some(aula => !aula.recomendada) && (
                           <option disabled>──── Otras aulas ────</option>
                         )}
                         {/* Otras aulas */}
-                        {aulas.filter(aula => !aula.recomendada).map((aula, aulaIndex) => (
-                          <option key={`aula-${aula.nombre || aulaIndex}`} value={aula.nombre}>
-                            {aula.nombre} ({aula.tipo})
-                          </option>
-                        ))}
+                        {aulas.filter(aula => !aula.recomendada).map((aula, aulaIndex) => {
+                          const originalIndex = aulas.findIndex(a => a === aula)
+                          return (
+                            <option key={`aula-${originalIndex}-${aula.nombre}`} value={aula.nombre}>
+                              {aula.nombre} ({aula.tipo})
+                            </option>
+                          )
+                        })}
                       </select>
                       {loadingAulas && (
                         <p className="text-xs text-gray-500 mt-1">Cargando aulas...</p>

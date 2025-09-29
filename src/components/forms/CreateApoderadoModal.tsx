@@ -33,8 +33,6 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
     apellido: '',
     email: '',
     telefono: '',
-    direccion: '',
-    fechaNacimiento: '',
     ocupacion: '',
     password: ''
   })
@@ -105,7 +103,6 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           ...formData,
           ieId,
           rol: 'APODERADO',
-          fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
           apoderado: {
             ocupacion: formData.ocupacion
           },
@@ -128,8 +125,6 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           apellido: '',
           email: '',
           telefono: '',
-          direccion: '',
-          fechaNacimiento: '',
           ocupacion: '',
           password: ''
         })
@@ -267,16 +262,6 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
               />
             </div>
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                name="fechaNacimiento"
-                value={formData.fechaNacimiento}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
 
             <div>
               <label className="block text-base font-semibold text-gray-800 mb-2">Ocupación</label>
@@ -290,16 +275,6 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-base font-semibold text-gray-800 mb-2">Dirección</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
 
             {/* Sección de hijos múltiples */}
             <div className="md:col-span-2">

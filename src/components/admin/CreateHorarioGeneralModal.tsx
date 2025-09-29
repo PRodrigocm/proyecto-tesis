@@ -8,17 +8,6 @@ interface CreateHorarioGeneralModalProps {
   onSave: (data: any) => Promise<boolean>
 }
 
-interface GradoSeccion {
-  idGradoSeccion: number
-  grado: {
-    idGrado: number
-    nombre: string
-  }
-  seccion: {
-    idSeccion: number
-    nombre: string
-  }
-}
 
 interface HorarioGeneralDetalle {
   diaSemana: number
@@ -30,20 +19,15 @@ interface HorarioGeneralDetalle {
 
 export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: CreateHorarioGeneralModalProps) {
   const [loading, setLoading] = useState(false)
-  const [gradosSecciones, setGradosSecciones] = useState<GradoSeccion[]>([])
-  const [loadingGrados, setLoadingGrados] = useState(false)
   
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     fechaInicio: '',
     fechaFin: '',
-    idGradoSeccion: '',
     incluirFinDeSemana: false
   })
 
-  // Estado para controlar si aplicar a todas las aulas
-  const [aplicarTodasAulas, setAplicarTodasAulas] = useState(false)
 
   const [horarios, setHorarios] = useState<HorarioGeneralDetalle[]>([])
 
@@ -72,7 +56,6 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
 
   useEffect(() => {
     if (isOpen) {
-      loadGradosSecciones()
       inicializarHorarios()
     }
   }, [isOpen])
@@ -102,24 +85,6 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
     setHorarios(horariosIniciales)
   }
 
-  const loadGradosSecciones = async () => {
-    setLoadingGrados(true)
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/grados-secciones', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setGradosSecciones(data.data || [])
-      }
-    } catch (error) {
-      console.error('Error loading grados y secciones:', error)
-    } finally {
-      setLoadingGrados(false)
-    }
-  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -153,7 +118,7 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.nombre || !formData.idGradoSeccion || !formData.fechaInicio || !formData.fechaFin) {
+    if (!formData.nombre || !formData.fechaInicio || !formData.fechaFin) {
       alert('Por favor completa todos los campos requeridos')
       return
     }
@@ -176,17 +141,14 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
         body: JSON.stringify({
           nombre: formData.nombre,
           descripcion: formData.descripcion,
-          idGradoSeccion: parseInt(formData.idGradoSeccion),
           fechaInicio: formData.fechaInicio,
           fechaFin: formData.fechaFin,
-          aplicarTodasAulas: aplicarTodasAulas,
+          aplicarTodasAulas: true, // Siempre aplicar a todas las aulas
           horarios: horarios.map(h => ({
             diaSemana: h.diaSemana,
             horaInicio: h.horaInicio,
             horaFin: h.horaFin,
-            // En primaria no se maneja materia específica
-            aula: aplicarTodasAulas ? null : (h.aula || ''),
-            // El docente se obtiene automáticamente del grado-sección
+            aula: h.aula || '',
             tipoActividad: h.tipoActividad,
             toleranciaMin: 10,
             sesiones: 1,
@@ -221,10 +183,8 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
       descripcion: '',
       fechaInicio: '',
       fechaFin: '',
-      idGradoSeccion: '',
       incluirFinDeSemana: false
     })
-    setAplicarTodasAulas(false)
     setHorarios([])
   }
 
@@ -266,34 +226,11 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
                 value={formData.nombre}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
-                placeholder="Ej: Horario Completo 2024 - 3° A"
+                placeholder="Ej: Horario General 2024 - Todo el Colegio"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Grado y Sección *
-              </label>
-              <select
-                name="idGradoSeccion"
-                value={formData.idGradoSeccion}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
-                required
-                disabled={loadingGrados}
-              >
-                <option value="">Seleccionar grado y sección...</option>
-                {gradosSecciones.map((gs) => (
-                  <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
-                    {gs.grado.nombre}° {gs.seccion.nombre}
-                  </option>
-                ))}
-              </select>
-              {loadingGrados && (
-                <p className="text-sm text-gray-500 mt-1">Cargando grados y secciones...</p>
-              )}
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -352,31 +289,6 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
             </label>
           </div>
 
-          {/* Aplicar a todas las aulas */}
-          <div className="border-t pt-4 mt-4">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                checked={aplicarTodasAulas}
-                onChange={(e) => setAplicarTodasAulas(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm font-medium text-gray-900">
-                🏫 Crear horario para el aula del grado-sección
-              </label>
-            </div>
-            
-            {aplicarTodasAulas && (
-              <div className="ml-6 p-3 bg-indigo-50 rounded-lg">
-                <p className="text-sm text-indigo-700 mb-2">
-                  ✅ El horario se creará automáticamente para el aula del grado-sección (ej: "Aula 3° A")
-                </p>
-                <p className="text-xs text-indigo-600">
-                  💡 El docente del grado-sección se asignará automáticamente a todas las aulas
-                </p>
-              </div>
-            )}
-          </div>
 
           {/* Horarios */}
           <div>
@@ -480,21 +392,20 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
 
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Aula/Lugar {aplicarTodasAulas && '(Se aplicará a todas las aulas)'}
+                          Aula/Lugar
                         </label>
                         <input
                           type="text"
                           value={horario.aula}
                           onChange={(e) => handleHorarioChange(index, 'aula', e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
-                          placeholder={aplicarTodasAulas ? "Se aplicará a todas las aulas automáticamente" : "Aula, Lab, Cancha..."}
-                          disabled={aplicarTodasAulas}
+                          placeholder="Aula, Lab, Cancha, Patio..."
                         />
                       </div>
 
                       {/* En primaria no se maneja materia específica - un docente enseña todo */}
 
-                      {/* El docente se asigna automáticamente según el grado-sección */}
+                      {/* El docente se asigna automáticamente según disponibilidad */}
                     </div>
                   </div>
                 )
@@ -504,10 +415,10 @@ export default function CreateHorarioGeneralModal({ isOpen, onClose, onSave }: C
 
           {/* Información adicional */}
           <div className="bg-indigo-50 p-4 rounded-lg">
-            <h5 className="font-medium text-indigo-900 mb-2">ℹ️ Horario General para Grado-Sección</h5>
+            <h5 className="font-medium text-indigo-900 mb-2">ℹ️ Horario General para Todo el Colegio</h5>
             <div className="text-sm text-indigo-700 space-y-1">
-              <p>• <strong>Docente:</strong> Se asigna automáticamente el docente del grado-sección seleccionado</p>
-              <p>• <strong>Aulas:</strong> {aplicarTodasAulas ? 'Se crea para el aula del grado-sección (ej: "Aula 3° A")' : 'Se aplica al aula específica configurada'}</p>
+              <p>• <strong>Docente:</strong> Se asigna automáticamente según disponibilidad</p>
+              <p>• <strong>Aulas:</strong> Se aplica a todas las aulas del colegio</p>
               <p>• <strong>Clases regulares:</strong> Lunes a viernes (horario académico normal)</p>
               <p>• <strong>Reforzamiento/Recuperación:</strong> Fines de semana (apoyo académico)</p>
               <p>• <strong>Cobertura anual:</strong> Desde fecha inicio hasta fecha fin</p>

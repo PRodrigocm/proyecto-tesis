@@ -1,0 +1,310 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+
+export default function DocenteDashboard() {
+  const [stats, setStats] = useState({
+    clasesHoy: 0,
+    estudiantesTotal: 0,
+    asistenciaPromedio: 0,
+    justificacionesPendientes: 0,
+    retirosPendientes: 0
+  })
+
+  const [proximasClases, setProximasClases] = useState([
+    {
+      id: 1,
+      materia: 'Matemáticas',
+      grado: '5to A',
+      hora: '08:00 - 09:30',
+      aula: 'Aula 201',
+      estudiantes: 28
+    },
+    {
+      id: 2,
+      materia: 'Física',
+      grado: '4to B',
+      hora: '10:00 - 11:30',
+      aula: 'Lab. Física',
+      estudiantes: 25
+    },
+    {
+      id: 3,
+      materia: 'Matemáticas',
+      grado: '3ro C',
+      hora: '14:00 - 15:30',
+      aula: 'Aula 105',
+      estudiantes: 30
+    }
+  ])
+
+  const [actividadReciente, setActividadReciente] = useState([
+    {
+      id: 1,
+      tipo: 'asistencia',
+      descripcion: 'Asistencia registrada para 5to A - Matemáticas',
+      tiempo: 'Hace 15 minutos',
+      icono: '✅'
+    },
+    {
+      id: 2,
+      tipo: 'justificacion',
+      descripcion: 'Nueva justificación recibida de Juan Pérez',
+      tiempo: 'Hace 1 hora',
+      icono: '📋'
+    },
+    {
+      id: 3,
+      tipo: 'retiro',
+      descripcion: 'Retiro autorizado para María González',
+      tiempo: 'Hace 2 horas',
+      icono: '🚪'
+    }
+  ])
+
+  useEffect(() => {
+    // Simular carga de datos
+    setStats({
+      clasesHoy: 4,
+      estudiantesTotal: 125,
+      asistenciaPromedio: 92.5,
+      justificacionesPendientes: 3,
+      retirosPendientes: 1
+    })
+  }, [])
+
+  const StatCard = ({ title, value, subtitle, icon, color }: any) => (
+    <div className="bg-white overflow-hidden shadow rounded-lg">
+      <div className="p-5">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <div className={`w-8 h-8 ${color} rounded-md flex items-center justify-center`}>
+              {icon}
+            </div>
+          </div>
+          <div className="ml-5 w-0 flex-1">
+            <dl>
+              <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
+              <dd className="text-lg font-medium text-gray-900">{value}</dd>
+              {subtitle && <dd className="text-sm text-gray-500">{subtitle}</dd>}
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard Docente</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Bienvenido de vuelta. Aquí tienes un resumen de tu día.
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5 mb-8">
+        <StatCard
+          title="Clases Hoy"
+          value={stats.clasesHoy}
+          icon={
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          }
+          color="bg-blue-500"
+        />
+        
+        <StatCard
+          title="Estudiantes Total"
+          value={stats.estudiantesTotal}
+          icon={
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+            </svg>
+          }
+          color="bg-green-500"
+        />
+        
+        <StatCard
+          title="Asistencia Promedio"
+          value={`${stats.asistenciaPromedio}%`}
+          icon={
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          }
+          color="bg-yellow-500"
+        />
+        
+        <StatCard
+          title="Justificaciones"
+          value={stats.justificacionesPendientes}
+          subtitle="Pendientes"
+          icon={
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }
+          color="bg-purple-500"
+        />
+        
+        <StatCard
+          title="Retiros"
+          value={stats.retirosPendientes}
+          subtitle="Pendientes"
+          icon={
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          }
+          color="bg-red-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Próximas Clases */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Próximas Clases</h3>
+            <p className="text-sm text-gray-600">Tus clases programadas para hoy</p>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {proximasClases.map((clase) => (
+              <div key={clase.id} className="px-6 py-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-900">{clase.materia}</p>
+                        <p className="text-sm text-gray-500">{clase.grado} • {clase.aula}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">{clase.hora}</p>
+                    <p className="text-sm text-gray-500">{clase.estudiantes} estudiantes</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-6 py-3 bg-gray-50 text-right">
+            <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">
+              Ver todos los horarios →
+            </button>
+          </div>
+        </div>
+
+        {/* Actividad Reciente */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Actividad Reciente</h3>
+            <p className="text-sm text-gray-600">Últimas acciones realizadas</p>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {actividadReciente.map((actividad) => (
+              <div key={actividad.id} className="px-6 py-4 hover:bg-gray-50">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm">
+                      {actividad.icono}
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm text-gray-900">{actividad.descripcion}</p>
+                    <p className="text-xs text-gray-500 mt-1">{actividad.tiempo}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-6 py-3 bg-gray-50 text-right">
+            <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">
+              Ver toda la actividad →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Acciones Rápidas */}
+      <div className="mt-8">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Acciones Rápidas</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">Tomar Asistencia</p>
+                <p className="text-xs text-gray-500">Registrar asistencia de clase</p>
+              </div>
+            </div>
+          </button>
+
+          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">Revisar Justificaciones</p>
+                <p className="text-xs text-gray-500">Aprobar o rechazar justificaciones</p>
+              </div>
+            </div>
+          </button>
+
+          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">Autorizar Retiro</p>
+                <p className="text-xs text-gray-500">Gestionar retiros de estudiantes</p>
+              </div>
+            </div>
+          </button>
+
+          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">Ver Reportes</p>
+                <p className="text-xs text-gray-500">Generar reportes de clase</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -14,7 +14,9 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
     "seed:test-users": "tsx prisma/seed-test-users.ts",
-    "cleanup:test-users": "tsx prisma/cleanup-test-users.ts"
+    "cleanup:test-users": "tsx prisma/cleanup-test-users.ts",
+    "check:docente-aula": "tsx scripts/check-docente-aula.ts",
+    "create:docente-user": "tsx scripts/create-docente-user.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -28,6 +30,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
+    "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
