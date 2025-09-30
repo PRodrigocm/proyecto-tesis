@@ -209,12 +209,33 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Validar y parsear fecha
+    const fechaRetiro = fecha ? new Date(fecha) : new Date()
+    if (isNaN(fechaRetiro.getTime())) {
+      return NextResponse.json(
+        { error: 'Fecha inválida proporcionada' },
+        { status: 400 }
+      )
+    }
+
+    // Validar y parsear hora
+    if (!horaRetiro || !/^\d{2}:\d{2}$/.test(horaRetiro)) {
+      return NextResponse.json(
+        { error: 'Hora inválida. Formato requerido: HH:MM' },
+        { status: 400 }
+      )
+    }
+
+    const [horas, minutos] = horaRetiro.split(':').map(Number)
+    const horaRetiroDate = new Date()
+    horaRetiroDate.setHours(horas, minutos, 0, 0)
+
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteId),
         idGradoSeccion: idGradoSeccion ? parseInt(idGradoSeccion) : null,
-        fecha: new Date(fecha),
-        hora: new Date(`1970-01-01T${horaRetiro}:00`),
+        fecha: fechaRetiro,
+        hora: horaRetiroDate,
         idTipoRetiro: tipoRetiro.idTipoRetiro,
         origen: origen || null,
         medioContacto: medioContacto || null,

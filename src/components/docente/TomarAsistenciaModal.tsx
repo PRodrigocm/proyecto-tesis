@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
+import CamaraIPHelper from '../camara-ip/CamaraIPHelper'
 
 interface Estudiante {
   id: number
@@ -31,22 +32,22 @@ export default function TomarAsistenciaModal({
   fechaSeleccionada,
   onSave
 }: TomarAsistenciaModalProps) {
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [loading, setLoading] = useState(false)
 
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string>('')
   const [codigoManual, setCodigoManual] = useState<string>('')
   const [camaras, setCamaras] = useState<CameraDevice[]>([])
   const [camaraSeleccionada, setCamaraSeleccionada] = useState<string>('')
+  const [usarCamaraIP, setUsarCamaraIP] = useState<boolean>(false)
   const [camaraIP, setCamaraIP] = useState<string>('')
   const [ipValida, setIpValida] = useState<boolean>(false)
-  const [usarCamaraIP, setUsarCamaraIP] = useState<boolean>(false)
   const [mostrarAyudaIP, setMostrarAyudaIP] = useState<boolean>(false)
-  const [scannerActive, setScannerActive] = useState(false)
+  const [scannerActive, setScannerActive] = useState<boolean>(false)
   const [modoEscaneo, setModoEscaneo] = useState<'camara' | 'manual'>('camara')
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [permisosCamara, setPermisosCamara] = useState<'granted' | 'denied' | 'pending'>('pending')
   const [error, setError] = useState<string>('')
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
 
   // Validar URL de cámara IP
   const validarIP = (url: string) => {
@@ -57,14 +58,9 @@ export default function TomarAsistenciaModal({
 
     try {
       const urlObj = new URL(url)
-      // Verificar que sea HTTP o HTTPS
-      if (!['http:', 'https:'].includes(urlObj.protocol)) {
-        setIpValida(false)
-        return false
-      }
       
-      // Verificar que tenga un hostname válido
-      if (!urlObj.hostname) {
+      // Verificar protocolo
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
         setIpValida(false)
         return false
       }
@@ -77,17 +73,16 @@ export default function TomarAsistenciaModal({
         setIpValida(true)
         return true
       }
-
-      // Permitir otras IPs válidas
-      setIpValida(true)
-      return true
+      
+      setIpValida(false)
+      return false
     } catch {
       setIpValida(false)
       return false
     }
   }
 
-  // Cargar estudiantes de la clase seleccionada
+
   const cargarEstudiantes = async () => {
     if (!claseSeleccionada || !fechaSeleccionada) return
     
@@ -217,48 +212,72 @@ export default function TomarAsistenciaModal({
     try {
       console.log('🔍 Detectando cámaras disponibles...')
       setError('')
+      setPermisosCamara('pending')
       
       // Verificar soporte del navegador
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Tu navegador no soporta acceso a cámara')
       }
       
-      // Solicitar permisos de cámara siempre que estemos en modo cámara
-      if (modoEscaneo === 'camara') {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-          stream.getTracks().forEach(track => track.stop())
-          console.log('✅ Permisos de cámara obtenidos')
-          setPermisosCamara('granted')
-        } catch (permissionError) {
-          console.error('❌ Error de permisos:', permissionError)
-          setPermisosCamara('denied')
-          setError('Se requieren permisos de cámara para escanear códigos QR. Puedes usar el modo manual como alternativa.')
-          return // No lanzar error, solo mostrar mensaje
-        }
-      }
-      
-      // Obtener lista de dispositivos
+      // Primero verificar si hay dispositivos disponibles SIN solicitar permisos
+      console.log('🔍 Verificando dispositivos disponibles...')
       let devices: any[] = []
       try {
-        devices = await Html5Qrcode.getCameras()
-        console.log('📷 Dispositivos encontrados:', devices)
+        console.log('🔍 Obteniendo lista de dispositivos...')
+        
+        // Intentar múltiples métodos para obtener cámaras
+        let html5Devices: any[] = []
+        let mediaDevices: any[] = []
+        
+        // Método 1: Html5Qrcode.getCameras()
+        try {
+          html5Devices = await Html5Qrcode.getCameras()
+          console.log('📷 Html5Qrcode devices:', html5Devices)
+        } catch (html5Error) {
+          console.log('⚠️ Html5Qrcode.getCameras() falló:', html5Error)
+        }
+        
+        // Método 2: navigator.mediaDevices.enumerateDevices()
+        try {
+          const allDevices = await navigator.mediaDevices.enumerateDevices()
+          mediaDevices = allDevices.filter(device => device.kind === 'videoinput')
+          console.log('📷 MediaDevices devices:', mediaDevices)
+        } catch (mediaError) {
+          console.log('⚠️ enumerateDevices() falló:', mediaError)
+        }
+        
+        // Combinar y usar la mejor fuente disponible
+        if (html5Devices.length > 0) {
+          devices = html5Devices
+          console.log('✅ Usando dispositivos de Html5Qrcode')
+        } else if (mediaDevices.length > 0) {
+          devices = mediaDevices.map(device => ({
+            id: device.deviceId,
+            label: device.label || `Cámara ${device.deviceId.slice(-4)}`
+          }))
+          console.log('✅ Usando dispositivos de MediaDevices')
+        } else {
+          console.log('⚠️ No se encontraron dispositivos por ningún método')
+        }
+        
+        console.log('📷 Dispositivos finales encontrados:', devices.length, devices)
       } catch (cameraError) {
         console.error('❌ Error al obtener cámaras:', cameraError)
         throw new Error('No se pudieron detectar las cámaras disponibles')
       }
       
       if (devices.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles')
+        throw new Error('No se encontraron cámaras disponibles en este dispositivo. Puedes usar el modo manual o conectar tu teléfono como cámara IP.')
       }
       
       const camarasFormateadas = devices.map((device, index) => {
         let label = device.label || `Cámara ${index + 1}`
         
+        // Mejorar etiquetas de cámaras
         if (label.toLowerCase().includes('back') || 
             label.toLowerCase().includes('rear') || 
             label.toLowerCase().includes('environment')) {
-          label = `📱 ${label} (Trasera)`
+          label = `📱 ${label} (Trasera - Recomendada)`
         } else if (label.toLowerCase().includes('front') || 
                    label.toLowerCase().includes('user') || 
                    label.toLowerCase().includes('selfie')) {
@@ -266,6 +285,8 @@ export default function TomarAsistenciaModal({
         } else if (label.toLowerCase().includes('usb') || 
                    label.toLowerCase().includes('webcam')) {
           label = `💻 ${label} (USB/Webcam)`
+        } else {
+          label = `📷 ${label}`
         }
         
         return {
@@ -287,11 +308,49 @@ export default function TomarAsistenciaModal({
         
         const camaraDefault = camaraTrasera || camarasFormateadas[0]
         setCamaraSeleccionada(camaraDefault.id)
-        console.log('🎯 Cámara seleccionada:', camaraDefault.label)
+        console.log('🎯 Cámara seleccionada por defecto:', camaraDefault.label)
       }
       
-      setPermisosCamara('granted')
-      console.log('✅ Cámaras detectadas exitosamente')
+      console.log('✅ Cámaras detectadas exitosamente:', camarasFormateadas.length, 'cámaras')
+      
+      // AHORA solicitar permisos ya que sabemos que hay cámaras disponibles
+      console.log('🔐 Solicitando permisos de cámara...')
+      try {
+        // Intentar primero con configuración básica
+        let stream
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'environment' // Preferir cámara trasera
+            } 
+          })
+        } catch (envError) {
+          console.log('⚠️ Cámara trasera no disponible, intentando con cualquier cámara...')
+          // Si falla con facingMode, intentar sin restricciones
+          stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        }
+        
+        // Detener el stream inmediatamente, solo necesitamos los permisos
+        stream.getTracks().forEach(track => track.stop())
+        console.log('✅ Permisos de cámara obtenidos')
+        setPermisosCamara('granted')
+      } catch (permissionError: any) {
+        console.error('❌ Error de permisos:', permissionError)
+        setPermisosCamara('denied')
+        
+        let errorMessage = 'Se requieren permisos de cámara para escanear códigos QR.'
+        
+        if (permissionError.name === 'NotAllowedError') {
+          errorMessage = 'Permisos de cámara denegados. Haz clic en el ícono de cámara en la barra de direcciones para permitir el acceso.'
+        } else if (permissionError.name === 'NotReadableError') {
+          errorMessage = 'La cámara está siendo usada por otra aplicación. Cierra otras apps que usen la cámara.'
+        } else {
+          errorMessage = `Error de cámara: ${permissionError.message || permissionError.name || 'Error desconocido'}`
+        }
+        
+        setError(errorMessage)
+        // No hacer return aquí, las cámaras están detectadas pero sin permisos
+      }
       
     } catch (error) {
       console.error('❌ Error al detectar cámaras:', error)
@@ -302,6 +361,50 @@ export default function TomarAsistenciaModal({
       setCamaraSeleccionada('')
     }
   }
+
+  // Función directa para pedir cámara (como el ejemplo)
+  async function pedirCamara() {
+    try {
+      console.log('🔐 Pidiendo acceso a la cámara...')
+      setError('')
+      setPermisosCamara('pending')
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true // 👈 solo pedimos video
+      })
+
+      console.log("Cámara activada ✅")
+      setPermisosCamara('granted')
+
+      // Detener el stream inmediatamente, solo necesitamos los permisos
+      stream.getTracks().forEach(track => track.stop())
+
+    } catch (err: any) {
+      console.error("No se pudo acceder a la cámara ❌", err)
+      setPermisosCamara('denied')
+      
+      let errorMessage = 'Se requieren permisos de cámara para escanear códigos QR.'
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = '❌ Permisos de cámara denegados. Haz clic en el ícono de candado 🔒 en la barra de direcciones para permitir el acceso.'
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = '⚠️ No se encontraron cámaras en este dispositivo. Puedes usar una cámara IP externa o conectar una cámara USB.'
+        // Permitir continuar con cámara IP aunque no haya cámara local
+        setPermisosCamara('granted')
+        setError('')
+        return
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = '📷 La cámara está siendo usada por otra aplicación. Cierra otras apps que usen la cámara e intenta nuevamente.'
+      } else {
+        errorMessage = `❌ Error de cámara: ${err.message || err.name || 'Error desconocido'}`
+      }
+      
+      setError(errorMessage)
+    }
+  }
+
+  // Alias para mantener compatibilidad
+  const solicitarPermisosCamara = pedirCamara
 
   // Inicializar escáner QR con cámara IP
   const iniciarEscanerIP = async () => {
@@ -333,36 +436,148 @@ export default function TomarAsistenciaModal({
       // Limpiar contenido anterior
       qrReaderElement.innerHTML = ''
 
-      // Crear elemento de video para cámara IP
-      const videoElement = document.createElement('video')
-      videoElement.crossOrigin = 'anonymous'
-      videoElement.autoplay = true
-      videoElement.muted = true
-      videoElement.playsInline = true
-      videoElement.style.width = '100%'
-      videoElement.style.height = '300px'
-      videoElement.style.objectFit = 'cover'
-      videoElement.style.backgroundColor = '#000'
-
-      // Agregar video al contenedor
-      qrReaderElement.appendChild(videoElement)
-
-      // Configurar fuente de video
-      videoElement.src = camaraIP
-
-      // Esperar a que el video se cargue
-      videoElement.onloadeddata = () => {
-        console.log('✅ Video de cámara IP cargado exitosamente')
-        setScannerActive(true)
-        
-        // Aquí podrías agregar detección de QR usando canvas + jsQR
-        // Por ahora, mostrar el video de la cámara IP
+      // Corregir URL automáticamente si es necesario
+      let urlCorregida = camaraIP.trim()
+      
+      // Detectar y corregir URLs según la app
+      if (urlCorregida.includes(':4747')) {
+        // DroidCam - usar imagen estática en lugar de video por problemas de CORS
+        if (urlCorregida.includes('/video')) {
+          urlCorregida = urlCorregida.replace('/video', '/shot.jpg')
+        } else if (!urlCorregida.includes('/shot.jpg') && !urlCorregida.includes('/mjpegfeed')) {
+          urlCorregida = urlCorregida + '/shot.jpg'
+        }
+        console.log('🔧 URL corregida para DroidCam (imagen estática):', urlCorregida)
+      } else if (urlCorregida.includes(':8080/video')) {
+        // IP Webcam - cambiar a videofeed
+        urlCorregida = urlCorregida.replace('/video', '/videofeed')
+        console.log('🔧 URL corregida para IP Webcam:', urlCorregida)
       }
 
-      videoElement.onerror = (error) => {
-        console.error('❌ Error al cargar video de cámara IP:', error)
-        setError('No se pudo conectar a la cámara IP. Verifica la URL y que la cámara esté disponible.')
-        setScannerActive(false)
+      // Determinar si usar video o imagen según la URL
+      const usarImagen = urlCorregida.includes(':4747') || urlCorregida.includes('/shot.jpg')
+      
+      if (usarImagen) {
+        // Crear elemento de imagen para DroidCam (evita problemas de CORS)
+        const imgElement = document.createElement('img')
+        imgElement.style.width = '100%'
+        imgElement.style.height = '300px'
+        imgElement.style.objectFit = 'cover'
+        imgElement.style.backgroundColor = '#000'
+        imgElement.crossOrigin = 'anonymous'
+        
+        // Agregar imagen al contenedor
+        qrReaderElement.appendChild(imgElement)
+        
+        // Función para actualizar la imagen
+        const actualizarImagen = () => {
+          const timestamp = new Date().getTime()
+          imgElement.src = `${urlCorregida}?t=${timestamp}`
+        }
+        
+        // Configurar eventos de la imagen
+        imgElement.onload = () => {
+          console.log('✅ Imagen de cámara IP cargada exitosamente')
+          setScannerActive(true)
+          
+          // Actualizar imagen cada 500ms para simular video
+          const intervalId = setInterval(actualizarImagen, 500)
+          
+          // Guardar el interval para limpiarlo después
+          qrReaderElement.setAttribute('data-interval', intervalId.toString())
+        }
+        
+        imgElement.onerror = () => {
+          console.error('❌ Error al cargar imagen de cámara IP')
+          console.error('URL intentada:', imgElement.src)
+          
+          setError('No se pudo conectar a la cámara IP. Verifica que:\n• DroidCam esté funcionando en tu teléfono\n• Ambos dispositivos estén en la misma WiFi\n• La URL sea correcta')
+          setScannerActive(false)
+        }
+        
+        // Cargar imagen inicial
+        actualizarImagen()
+        
+      } else {
+        // Crear elemento de video para IP Webcam y otras apps
+        const videoElement = document.createElement('video')
+        videoElement.crossOrigin = 'anonymous'
+        videoElement.autoplay = true
+        videoElement.muted = true
+        videoElement.playsInline = true
+        videoElement.style.width = '100%'
+        videoElement.style.height = '300px'
+        videoElement.style.objectFit = 'cover'
+        videoElement.style.backgroundColor = '#000'
+
+        // Agregar video al contenedor
+        qrReaderElement.appendChild(videoElement)
+
+        // Configurar fuente de video
+        videoElement.src = urlCorregida
+
+        // Esperar a que el video se cargue
+        videoElement.onloadeddata = () => {
+          console.log('✅ Video de cámara IP cargado exitosamente')
+          setScannerActive(true)
+          
+          // Aquí podrías agregar detección de QR usando canvas + jsQR
+          // Por ahora, mostrar el video de la cámara IP
+        }
+
+        videoElement.onerror = (event: Event | string) => {
+        console.error('❌ Error al cargar video de cámara IP')
+        console.error('Estado de la red:', videoElement.networkState)
+        console.error('Estado de preparación:', videoElement.readyState)
+        console.error('URL intentada:', videoElement.src)
+        
+        // Intentar URLs alternativas automáticamente
+        const urlActual = videoElement.src
+        let urlAlternativa = ''
+        
+        if (urlActual.includes(':4747/mjpegfeed')) {
+          // Si falló mjpegfeed, intentar con /video
+          urlAlternativa = urlActual.replace('/mjpegfeed?640x480', '/video')
+          console.log('🔄 Intentando URL alternativa para DroidCam:', urlAlternativa)
+        } else if (urlActual.includes(':4747/video')) {
+          // Si falló /video, intentar sin path (solo IP:puerto)
+          urlAlternativa = urlActual.replace('/video', '')
+          console.log('🔄 Intentando URL base para DroidCam:', urlAlternativa)
+        } else if (urlActual.includes(':8080/videofeed')) {
+          // Si falló videofeed, intentar con /video
+          urlAlternativa = urlActual.replace('/videofeed', '/video')
+          console.log('🔄 Intentando URL alternativa para IP Webcam:', urlAlternativa)
+        } else if (urlActual.includes(':8080/video')) {
+          // Si falló /video, intentar con /shot.jpg para imagen estática
+          urlAlternativa = urlActual.replace('/video', '/shot.jpg')
+          console.log('🔄 Intentando imagen estática para IP Webcam:', urlAlternativa)
+        }
+        
+        if (urlAlternativa && urlAlternativa !== urlActual) {
+          console.log('🔄 Probando URL alternativa automáticamente...')
+          videoElement.src = urlAlternativa
+          return // No mostrar error aún, intentar la alternativa
+        }
+        
+        // Si ya se intentaron las alternativas o no hay más opciones
+        let errorMessage = 'No se pudo conectar a la cámara IP. '
+        
+        if (videoElement.networkState === 3) { // NETWORK_NO_SOURCE
+          errorMessage += 'URL no válida o cámara no disponible.'
+        } else if (videoElement.networkState === 2) { // NETWORK_LOADING
+          errorMessage += 'Cargando... Verifica tu conexión WiFi.'
+        } else {
+          errorMessage += 'Verifica que:\n• Teléfono y PC estén en la misma WiFi\n• La app de cámara esté funcionando\n• La URL sea correcta'
+        }
+        
+        errorMessage += '\n\n💡 URLs sugeridas:\n'
+        errorMessage += '• DroidCam: http://IP:4747/mjpegfeed?640x480\n'
+        errorMessage += '• IP Webcam: http://IP:8080/videofeed\n'
+        errorMessage += '• Imagen estática: http://IP:8080/shot.jpg'
+        
+          setError(errorMessage)
+          setScannerActive(false)
+        }
       }
 
       // Mostrar mensaje de conexión
@@ -388,11 +603,12 @@ export default function TomarAsistenciaModal({
     }
   }
 
+
   // Inicializar escáner QR con mejor manejo de errores
   const iniciarEscaner = async () => {
     if (!camaraSeleccionada) {
       console.error('❌ No hay cámara seleccionada')
-      setError('No hay cámara seleccionada')
+      setError('No hay cámara seleccionada. Selecciona una cámara de la lista.')
       return
     }
 
@@ -416,6 +632,14 @@ export default function TomarAsistenciaModal({
         }
       }
 
+      // Verificar que la cámara seleccionada aún existe
+      const camaraExiste = camaras.find(cam => cam.id === camaraSeleccionada)
+      if (!camaraExiste) {
+        console.log('⚠️ Cámara seleccionada no existe, redetectando...')
+        await detectarCamaras()
+        return
+      }
+
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
 
@@ -434,6 +658,8 @@ export default function TomarAsistenciaModal({
         aspectRatio: 1.0
       }
 
+      console.log('🚀 Intentando iniciar cámara con ID:', camaraSeleccionada)
+      
       // Intentar iniciar con la cámara seleccionada
       await scanner.start(
         camaraSeleccionada,
@@ -448,28 +674,45 @@ export default function TomarAsistenciaModal({
       )
 
       setScannerActive(true)
-      console.log('✅ Escáner iniciado exitosamente')
+      console.log('✅ Escáner iniciado exitosamente con cámara:', camaraExiste.label)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error al iniciar escáner:', error)
       let errorMessage = 'Error al iniciar la cámara'
+      let shouldRetryDetection = false
       
-      if (error instanceof Error) {
-        if (error.message.includes('NotFoundError') || error.message.includes('Requested device not found')) {
-          errorMessage = 'La cámara seleccionada no está disponible. Intenta con otra cámara.'
-          // Intentar detectar cámaras nuevamente
-          detectarCamaras()
-        } else if (error.message.includes('NotAllowedError')) {
-          errorMessage = 'Permisos de cámara denegados. Por favor, permite el acceso a la cámara.'
-        } else if (error.message.includes('NotReadableError')) {
-          errorMessage = 'La cámara está siendo usada por otra aplicación.'
+      if (error instanceof Error || typeof error === 'object') {
+        const errorName = error.name || ''
+        const errorMsg = error.message || error.toString()
+        
+        console.log('🔍 Tipo de error:', errorName, '- Mensaje:', errorMsg)
+        
+        if (errorName === 'NotFoundError' || errorMsg.includes('NotFoundError') || errorMsg.includes('Requested device not found')) {
+          errorMessage = 'La cámara seleccionada no está disponible. Redetectando cámaras...'
+          shouldRetryDetection = true
+        } else if (errorName === 'NotAllowedError' || errorMsg.includes('NotAllowedError')) {
+          errorMessage = 'Permisos de cámara denegados. Haz clic en el ícono de cámara en la barra de direcciones para permitir el acceso.'
+          setPermisosCamara('denied')
+        } else if (errorName === 'NotReadableError' || errorMsg.includes('NotReadableError')) {
+          errorMessage = 'La cámara está siendo usada por otra aplicación. Cierra otras apps que usen la cámara.'
+        } else if (errorName === 'OverconstrainedError' || errorMsg.includes('OverconstrainedError')) {
+          errorMessage = 'La cámara no soporta la configuración solicitada. Probando con otra cámara...'
+          shouldRetryDetection = true
         } else {
-          errorMessage = error.message
+          errorMessage = `Error de cámara: ${errorMsg}`
         }
       }
       
       setError(errorMessage)
       setScannerActive(false)
+      
+      // Si es un error de dispositivo no encontrado, intentar redetectar
+      if (shouldRetryDetection) {
+        console.log('🔄 Redetectando cámaras debido al error...')
+        setTimeout(() => {
+          detectarCamaras()
+        }, 1000)
+      }
     }
   }
 
@@ -510,22 +753,9 @@ export default function TomarAsistenciaModal({
   }, [isOpen, claseSeleccionada, fechaSeleccionada])
 
   useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        detenerEscaner()
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     if (modoEscaneo === 'camara') {
-      if (usarCamaraIP) {
-        // Para cámara IP, no necesitamos permisos de cámara local
-        setPermisosCamara('granted')
-      } else {
-        // Para cámara local, detectar cámaras y pedir permisos
-        detectarCamaras()
-      }
+      // Solicitar permisos inmediatamente al abrir el modal
+      solicitarPermisosCamara()
     }
   }, [usarCamaraIP, modoEscaneo])
 
@@ -572,8 +802,8 @@ export default function TomarAsistenciaModal({
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Tomar Asistencia</h2>
-            <p className="text-sm text-gray-700 font-medium">
+            <h2 className="text-xl font-bold text-black">Tomar Asistencia</h2>
+            <p className="text-sm text-black font-medium">
               Clase: {claseSeleccionada || 'Seleccionar clase'} | Fecha: {fechaSeleccionada}
             </p>
           </div>
@@ -625,10 +855,10 @@ export default function TomarAsistenciaModal({
                   <h3 className="text-sm font-medium text-red-800">Error de cámara</h3>
                   <p className="text-sm text-red-700 mt-1">{error}</p>
                   <button
-                    onClick={detectarCamaras}
+                    onClick={permisosCamara === 'denied' ? solicitarPermisosCamara : detectarCamaras}
                     className="mt-2 text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                   >
-                    Reintentar
+                    {permisosCamara === 'denied' ? '🔄 Solicitar permisos' : 'Reintentar'}
                   </button>
                 </div>
               </div>
@@ -644,7 +874,7 @@ export default function TomarAsistenciaModal({
                   
                   {/* Selector de tipo de cámara */}
                   <div className="mb-4">
-                    <div className="flex space-x-4 mb-3">
+                    <div className="grid grid-cols-1 gap-2 mb-3">
                       <label className="flex items-center">
                         <input
                           type="radio"
@@ -653,7 +883,7 @@ export default function TomarAsistenciaModal({
                           onChange={() => setUsarCamaraIP(false)}
                           className="mr-2"
                         />
-                        <span className="text-sm font-medium text-gray-800">Cámara Local</span>
+                        <span className="text-sm font-medium text-black">📷 Cámara Local</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -663,7 +893,7 @@ export default function TomarAsistenciaModal({
                           onChange={() => setUsarCamaraIP(true)}
                           className="mr-2"
                         />
-                        <span className="text-sm font-medium text-gray-800">📱 Cámara IP (Teléfono)</span>
+                        <span className="text-sm font-medium text-black">📱 Cámara IP (Teléfono)</span>
                       </label>
                     </div>
                   </div>
@@ -671,13 +901,13 @@ export default function TomarAsistenciaModal({
                   {/* Selector de cámara local */}
                   {!usarCamaraIP && camaras.length > 0 && (
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-800 mb-2">
+                      <label className="block text-sm font-medium text-black mb-2">
                         Seleccionar Cámara Local:
                       </label>
                       <select
                         value={camaraSeleccionada}
                         onChange={(e) => cambiarCamara(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
                       >
                         {camaras.map((camara) => (
                           <option key={camara.id} value={camara.id}>
@@ -691,10 +921,14 @@ export default function TomarAsistenciaModal({
                   {/* Configuración de cámara IP */}
                   {usarCamaraIP && (
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-800 mb-2">
-                        📱 Ingresa la IP de tu teléfono:
-                      </label>
-                      <div className="space-y-3">
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-black">
+                          🌐 Configuración de Cámara Externa:
+                        </label>
+                      </div>
+                      
+                      {/* Configuración de cámara externa */}
+                        <div className="space-y-3">
                         <div className="relative">
                           <input
                             type="text"
@@ -704,13 +938,13 @@ export default function TomarAsistenciaModal({
                               setCamaraIP(valor)
                               validarIP(valor)
                             }}
-                            placeholder="Ejemplo: http://192.168.1.100:8080/video"
-                            className={`w-full p-3 border-2 rounded-md focus:ring-2 text-sm text-gray-900 ${
+                            placeholder="Ejemplo: http://192.168.1.100:8080/videofeed o http://192.168.1.100:4747/shot.jpg"
+                            className={`w-full p-3 border-2 rounded-lg focus:ring-2 text-black bg-white shadow-sm transition-all duration-200 ${
                               camaraIP.trim() === '' 
-                                ? 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                                ? 'border-gray-300 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
                                 : ipValida 
-                                ? 'border-green-300 focus:ring-green-500 focus:border-green-500 bg-green-50'
-                                : 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                                ? 'border-green-500 focus:ring-green-500 focus:border-green-500 bg-green-50'
+                                : 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50'
                             }`}
                           />
                           {camaraIP.trim() !== '' && (
@@ -725,8 +959,8 @@ export default function TomarAsistenciaModal({
                         </div>
                         
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <h5 className="font-medium text-gray-800 mb-2">📋 Pasos rápidos:</h5>
-                          <div className="text-xs text-gray-800 space-y-1">
+                          <h5 className="font-medium text-black mb-2">📋 Pasos rápidos:</h5>
+                          <div className="text-xs text-black space-y-1">
                             <p><strong>1.</strong> Instala DroidCam o IP Webcam en tu teléfono</p>
                             <p><strong>2.</strong> Conecta teléfono y PC a la misma WiFi</p>
                             <p><strong>3.</strong> Abre la app y copia la IP que muestra</p>
@@ -735,31 +969,31 @@ export default function TomarAsistenciaModal({
                         </div>
 
                         <div className="space-y-2">
-                          <div className="text-xs text-gray-800">
+                          <div className="text-xs text-black">
                             <p><strong>🔗 Ejemplos comunes:</strong></p>
                             <div className="grid grid-cols-1 gap-1 mt-1">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setCamaraIP('http://192.168.1.100:8080/video')
-                                  validarIP('http://192.168.1.100:8080/video')
+                                  setCamaraIP('http://192.168.1.100:8080/videofeed')
+                                  validarIP('http://192.168.1.100:8080/videofeed')
                                 }}
                                 className="text-left text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium"
                               >
-                                📱 http://192.168.1.100:8080/video (IP Webcam)
+                                📱 http://192.168.1.100:8080/videofeed (IP Webcam)
                               </button>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setCamaraIP('http://192.168.1.100:4747/video')
-                                  validarIP('http://192.168.1.100:4747/video')
+                                  setCamaraIP('http://192.168.1.100:4747/shot.jpg')
+                                  validarIP('http://192.168.1.100:4747/shot.jpg')
                                 }}
                                 className="text-left text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium"
                               >
-                                🤖 http://192.168.1.100:4747/video (DroidCam)
+                                🤖 http://192.168.1.100:4747/shot.jpg (DroidCam - Imagen)
                               </button>
                             </div>
-                            <p className="mt-2 text-gray-700 italic font-medium">💡 Cambia "192.168.1.100" por la IP de tu teléfono</p>
+                            <p className="mt-2 text-black italic font-medium">💡 Cambia "192.168.1.100" por la IP de tu teléfono</p>
                           </div>
                           
                           <div className="flex justify-center">
@@ -775,6 +1009,7 @@ export default function TomarAsistenciaModal({
                       </div>
                     </div>
                   )}
+
 
                   {/* Área de escaneo */}
                   <div className="relative">
@@ -820,7 +1055,7 @@ export default function TomarAsistenciaModal({
                           <p className="text-red-700 font-medium mb-2">Permisos de cámara denegados</p>
                           <p className="text-red-600 text-sm mb-3">Se necesitan permisos para usar la cámara local</p>
                           <button
-                            onClick={detectarCamaras}
+                            onClick={solicitarPermisosCamara}
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
                           >
                             🔄 Solicitar permisos nuevamente
@@ -851,7 +1086,7 @@ export default function TomarAsistenciaModal({
                     className="space-y-4"
                   >
                     <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-2">
+                      <label className="block text-sm font-medium text-black mb-2">
                         Código del Estudiante:
                       </label>
                       <input
@@ -859,7 +1094,7 @@ export default function TomarAsistenciaModal({
                         value={codigoManual}
                         onChange={(e) => setCodigoManual(e.target.value)}
                         placeholder="Ej: EST001"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
                         autoFocus
                       />
                     </div>
@@ -925,10 +1160,10 @@ export default function TomarAsistenciaModal({
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="font-medium text-gray-800">
+                        <div className="font-medium text-black">
                           {estudiante.nombre}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-black">
                           {estudiante.codigo}
                         </div>
                       </div>
@@ -966,7 +1201,7 @@ export default function TomarAsistenciaModal({
           <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
             <button
               onClick={handleClose}
-              className="px-4 py-2 border border-gray-300 text-gray-800 font-medium rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 text-black font-medium rounded-md hover:bg-gray-50"
             >
               Cancelar
             </button>
@@ -1007,7 +1242,8 @@ export default function TomarAsistenciaModal({
                   <p>• Conectar teléfono y PC a la misma red WiFi</p>
                   <p>• Abrir DroidCam en el teléfono</p>
                   <p>• Copiar la IP que muestra (ej: 192.168.1.100:4747)</p>
-                  <p>• Usar: <code className="bg-gray-100 px-1 text-gray-900">http://192.168.1.100:4747/video</code></p>
+                  <p>• Usar: <code className="bg-gray-100 px-1 text-gray-900">http://192.168.1.100:4747/shot.jpg</code></p>
+                  <p className="text-xs text-orange-600">⚠️ Nota: Usamos imagen estática por problemas de CORS con video</p>
                 </div>
               </div>
 
@@ -1019,8 +1255,8 @@ export default function TomarAsistenciaModal({
                   <p><strong>2. Configurar:</strong></p>
                   <p>• Abrir IP Webcam</p>
                   <p>• Tocar "Iniciar servidor"</p>
-                  <p>• Usar URL: <code className="bg-gray-100 px-1 text-gray-900">http://IP:8080/video</code></p>
-                  <p>• Ejemplo: <code className="bg-gray-100 px-1 text-gray-900">http://192.168.1.100:8080/video</code></p>
+                  <p>• Usar URL: <code className="bg-gray-100 px-1 text-gray-900">http://IP:8080/videofeed</code></p>
+                  <p>• Ejemplo: <code className="bg-gray-100 px-1 text-gray-900">http://192.168.1.100:8080/videofeed</code></p>
                 </div>
               </div>
 
@@ -1055,9 +1291,9 @@ export default function TomarAsistenciaModal({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-bold text-blue-800 mb-2">🔗 Ejemplos de URLs:</h4>
                 <div className="space-y-1 text-sm font-mono text-gray-800">
-                  <p>• http://192.168.1.100:4747/video (DroidCam)</p>
-                  <p>• http://192.168.1.100:8080/video (IP Webcam)</p>
-                  <p>• http://10.0.0.50:8080/video (Red diferente)</p>
+                  <p>• http://192.168.1.100:4747/mjpegfeed?640x480 (DroidCam)</p>
+                  <p>• http://192.168.1.100:8080/videofeed (IP Webcam)</p>
+                  <p>• http://10.0.0.50:8080/shot.jpg (Imagen estática)</p>
                 </div>
               </div>
             </div>

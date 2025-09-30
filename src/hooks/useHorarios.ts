@@ -8,15 +8,16 @@ export interface Horario {
   horaInicio: string
   horaFin: string
   materia: string
-  docenteId: string
+  toleranciaMin: number
+  aula: string
+  tipoActividad: string
+  activo: boolean
   docente: {
+    id: string
     nombre: string
     apellido: string
     especialidad: string
-  }
-  aula: string
-  sesion: string
-  activo: boolean
+  } | null
 }
 
 export interface HorariosFilters {
@@ -47,26 +48,8 @@ export const useHorarios = () => {
     try {
       const token = localStorage.getItem('token')
       
-      // Obtener ieId del usuario
-      const userStr = localStorage.getItem('user')
-      if (!userStr) {
-        console.error('No user data found')
-        return
-      }
-      
-      const user = JSON.parse(userStr)
-      const ieId = user.idIe || user.institucionId || 1
-      
-      const params = new URLSearchParams()
-      params.append('ieId', ieId.toString())
-      
-      if (filters.grado) params.append('grado', filters.grado)
-      if (filters.seccion) params.append('seccion', filters.seccion)
-      if (filters.diaSemana) params.append('diaSemana', filters.diaSemana)
-      if (filters.sesion !== 'TODOS') params.append('sesion', filters.sesion)
-      if (filters.docente) params.append('docente', filters.docente)
-
-      const response = await fetch(`/api/horarios?${params}`, {
+      // Usar la API específica para docentes
+      const response = await fetch('/api/docentes/horarios', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -75,7 +58,7 @@ export const useHorarios = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('Horarios cargados exitosamente:', data)
-        setHorarios(data.data || [])
+        setHorarios(data.horarios || [])
       } else {
         const errorText = await response.text()
         console.error('Error loading horarios:', response.status, errorText)
@@ -92,18 +75,18 @@ export const useHorarios = () => {
     const matchesGrado = !filters.grado || horario.grado === filters.grado
     const matchesSeccion = !filters.seccion || horario.seccion === filters.seccion
     const matchesDia = !filters.diaSemana || horario.diaSemana === filters.diaSemana
-    const matchesSesion = filters.sesion === 'TODOS' || horario.sesion === filters.sesion
+    // Removemos el filtro de sesión ya que no existe en el nuevo modelo
     const matchesDocente = !filters.docente || 
-      (horario.docente.nombre && horario.docente.apellido && 
+      (horario.docente?.nombre && horario.docente?.apellido && 
        `${horario.docente.nombre} ${horario.docente.apellido}`.toLowerCase().includes(filters.docente.toLowerCase()))
 
-    return matchesGrado && matchesSeccion && matchesDia && matchesSesion && matchesDocente
+    return matchesGrado && matchesSeccion && matchesDia && matchesDocente
   })
 
   const grados = [...new Set(horarios.map(h => h.grado))].filter(Boolean).sort()
   const secciones = [...new Set(horarios.map(h => h.seccion))].filter(Boolean).sort()
   const docentes = [...new Set(horarios.map(h => 
-    h.docente.nombre && h.docente.apellido ? `${h.docente.nombre} ${h.docente.apellido}` : ''
+    h.docente?.nombre && h.docente?.apellido ? `${h.docente.nombre} ${h.docente.apellido}` : ''
   ))].filter(Boolean).sort()
 
   const crearHorario = async (data: {
@@ -198,10 +181,34 @@ export const useHorarios = () => {
     setFilters(prev => ({ ...prev, ...newFilters }))
   }
 
+  // Función para actualizar tolerancia
+  const actualizarTolerancia = async (id: string, toleranciaMin: number) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/docentes/horarios/${id}/tolerancia`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ toleranciaMin })
+      })
+
+      if (response.ok) {
+        loadHorarios()
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Error updating tolerancia:', error)
+      return false
+    }
+  }
+
   const stats = {
     total: filteredHorarios.length,
-    am: filteredHorarios.filter(h => h.sesion === 'AM').length,
-    pm: filteredHorarios.filter(h => h.sesion === 'PM').length,
+    activos: filteredHorarios.filter(h => h.activo).length,
+    inactivos: filteredHorarios.filter(h => !h.activo).length,
     grados: grados.length,
     docentes: docentes.length
   }
@@ -218,6 +225,7 @@ export const useHorarios = () => {
     crearHorario,
     actualizarHorario,
     eliminarHorario,
+    actualizarTolerancia,
     updateFilters
   }
 }

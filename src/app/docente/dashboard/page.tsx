@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function DocenteDashboard() {
+  const router = useRouter()
   const [stats, setStats] = useState({
     clasesHoy: 0,
     estudiantesTotal: 0,
@@ -256,7 +258,10 @@ export default function DocenteDashboard() {
             </div>
           </button>
 
-          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+          <button 
+            onClick={() => router.push('/docente/justificaciones')}
+            className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -272,7 +277,10 @@ export default function DocenteDashboard() {
             </div>
           </button>
 
-          <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+          <button 
+            onClick={() => router.push('/docente/retiros')}
+            className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -282,8 +290,8 @@ export default function DocenteDashboard() {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-900">Autorizar Retiro</p>
-                <p className="text-xs text-gray-500">Gestionar retiros de estudiantes</p>
+                <p className="text-sm font-medium text-gray-900">Gestionar Retiros</p>
+                <p className="text-xs text-gray-500">Solicitar y gestionar retiros</p>
               </div>
             </div>
           </button>
