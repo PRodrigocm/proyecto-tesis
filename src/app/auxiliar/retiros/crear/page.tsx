@@ -241,7 +241,7 @@ export default function CrearRetiro() {
                     value={searchEstudiante}
                     onChange={(e) => setSearchEstudiante(e.target.value)}
                     placeholder="Buscar por nombre, DNI o grado..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 mb-2"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black mb-2"
                   />
                   
                   <select
@@ -249,7 +249,7 @@ export default function CrearRetiro() {
                     value={formData.estudianteId}
                     onChange={(e) => handleEstudianteChange(e.target.value)}
                     required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   >
                     <option value="">Seleccionar estudiante...</option>
                     {filteredEstudiantes.map((estudiante) => (
@@ -284,7 +284,7 @@ export default function CrearRetiro() {
                     value={formData.tipoRetiroId}
                     onChange={handleInputChange}
                     required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   >
                     <option value="">Seleccionar tipo...</option>
                     {tiposRetiro.map((tipo) => (
@@ -305,7 +305,7 @@ export default function CrearRetiro() {
                     value={formData.fechaRetiro}
                     onChange={handleInputChange}
                     required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   />
                 </div>
 
@@ -319,7 +319,7 @@ export default function CrearRetiro() {
                     value={formData.horaRetiro}
                     onChange={handleInputChange}
                     required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   />
                 </div>
 
@@ -331,7 +331,7 @@ export default function CrearRetiro() {
                     name="apoderadoQueRetiraId"
                     value={formData.apoderadoQueRetiraId}
                     onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   >
                     <option value="">Seleccionar apoderado...</option>
                     {apoderados.map((apoderado) => (
@@ -368,7 +368,7 @@ export default function CrearRetiro() {
                     required
                     rows={3}
                     placeholder="Describa el motivo del retiro..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   />
                 </div>
 
@@ -382,7 +382,7 @@ export default function CrearRetiro() {
                     onChange={handleInputChange}
                     rows={2}
                     placeholder="Observaciones adicionales (opcional)..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   />
                 </div>
               </div>

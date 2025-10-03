@@ -192,7 +192,7 @@ export default function DocenteAsistencias() {
               id="fecha"
               value={fechaSeleccionada}
               onChange={(e) => setFechaSeleccionada(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black"
             />
           </div>
           <div>
@@ -203,7 +203,7 @@ export default function DocenteAsistencias() {
               id="clase"
               value={claseSeleccionada}
               onChange={(e) => setClaseSeleccionada(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black"
             >
               <option value="">Seleccionar clase</option>
               {clases.map((clase) => (
@@ -426,7 +426,7 @@ export default function DocenteAsistencias() {
                       <select
                         value={estudiante.estado}
                         onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-black"
                       >
                         {estadosAsistencia.map((estado) => (
                           <option key={estado.value} value={estado.value}>

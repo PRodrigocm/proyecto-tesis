@@ -327,7 +327,7 @@ export default function RetirosGestion() {
                     value={searchTerm}
                     onChange={(e) => handleSearch(e.target.value)}
                     placeholder="Nombre, DNI o motivo"
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                   />
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
                 </div>
@@ -340,7 +340,7 @@ export default function RetirosGestion() {
                 <select
                   value={selectedEstado}
                   onChange={(e) => handleEstadoChange(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                 >
                   <option value="">Todos los estados</option>
                   <option value="PENDIENTE">Pendiente</option>
@@ -358,7 +358,7 @@ export default function RetirosGestion() {
                   type="date"
                   value={selectedFecha}
                   onChange={(e) => handleFechaChange(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                 />
               </div>
 

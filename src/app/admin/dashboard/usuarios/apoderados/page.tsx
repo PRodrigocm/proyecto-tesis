@@ -63,7 +63,7 @@ export default function ApoderadosPage() {
               value={filters.searchTerm}
               onChange={(e) => updateFilters({ searchTerm: e.target.value })}
               placeholder="Nombre, email o DNI..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             />
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function ApoderadosPage() {
               id="estado"
               value={filters.filterEstado}
               onChange={(e) => updateFilters({ filterEstado: e.target.value as 'TODOS' | 'ACTIVO' | 'INACTIVO' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="TODOS">Todos</option>
               <option value="ACTIVO">Activos</option>
