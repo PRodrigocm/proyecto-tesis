@@ -1,0 +1,56 @@
+@startuml
+!theme plain
+title Secuencia: Aplicación Automática de Justificaciones
+
+participant "Sistema\n(Scheduler)" as S
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+participant "Notification\nService" as NS
+
+== Proceso Automático de Aplicación ==
+
+S -> BL: Ejecutar proceso de aplicación de justificaciones
+note right: Proceso programado cada hora
+BL -> P: Buscar justificaciones aprobadas pendientes de aplicar
+P -> DB: SELECT justificaciones WHERE estado = 'APROBADA' AND aplicada = false
+DB -> P: Lista de justificaciones aprobadas
+P -> BL: Justificaciones obtenidas
+
+loop Para cada justificación aprobada
+    BL -> P: Obtener asistencias relacionadas
+    P -> DB: SELECT asistencias WHERE estudiante_id = ? AND fecha BETWEEN ? AND ?
+    DB -> P: Asistencias del período justificado
+    P -> BL: Lista de asistencias
+    
+    BL -> P: Actualizar estado de asistencias
+    P -> DB: UPDATE asistencias SET estado = 'JUSTIFICADA', justificacion_id = ?
+    DB -> P: Asistencias actualizadas
+    P -> BL: Asistencias modificadas exitosamente
+    
+    BL -> P: Marcar justificación como aplicada
+    P -> DB: UPDATE justificaciones SET aplicada = true, fecha_aplicacion = NOW()
+    DB -> P: Justificación marcada como aplicada
+    P -> BL: Justificación procesada
+    
+    BL -> NS: Notificar aplicación al apoderado
+    NS -> NS: Enviar confirmación de aplicación
+    note right: "Su justificación ha sido aplicada\nautomáticamente a las asistencias"
+end
+
+== Manejo de Errores ==
+
+alt Error en aplicación
+    BL -> P: Registrar error en log
+    P -> DB: INSERT INTO logs_sistema (tipo = 'ERROR', mensaje, justificacion_id)
+    DB -> P: Error registrado
+    P -> BL: Log creado
+    BL -> NS: Notificar error a administradores
+    NS -> NS: Enviar alerta de error
+    note right: "Error al aplicar justificación ID: [ID]\nRequiere revisión manual"
+end
+
+BL -> S: Proceso completado
+S -> S: Programar siguiente ejecución
+
+@enduml

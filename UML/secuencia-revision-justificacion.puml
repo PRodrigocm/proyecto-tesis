@@ -1,0 +1,75 @@
+@startuml
+!theme plain
+title Secuencia: Revisión de Justificación por Docente/Auxiliar
+
+participant "Docente/Auxiliar" as DA
+participant "Frontend\n(Next.js)" as F
+participant "API Routes" as API
+participant "Auth Middleware" as Auth
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+participant "Notification\nService" as NS
+
+== Consulta de Justificaciones Pendientes ==
+
+DA -> F: Accede a justificaciones pendientes
+F -> API: GET /api/justificaciones/pendientes
+API -> Auth: Verificar rol DOCENTE/AUXILIAR
+Auth -> API: Autorizado
+API -> BL: Obtener justificaciones para revisar
+BL -> P: Consultar justificaciones pendientes
+P -> DB: SELECT justificaciones WHERE estado = 'PENDIENTE'
+DB -> P: Lista de justificaciones
+P -> BL: Justificaciones obtenidas
+BL -> API: Lista de justificaciones pendientes
+API -> F: Response con justificaciones
+F -> DA: Muestra justificaciones para revisar
+
+== Proceso de Revisión ==
+
+DA -> F: Selecciona justificación para revisar
+DA -> F: Revisa motivo, descripción y documentos
+DA -> F: Decide aprobar/rechazar justificación
+F -> API: PUT /api/justificaciones/{id}/revisar
+API -> Auth: Verificar permisos de revisión
+Auth -> API: Autorizado para revisar
+API -> BL: Procesar decisión de revisión
+
+alt Justificación Aprobada
+    BL -> P: Actualizar estado de justificación
+    P -> DB: UPDATE justificaciones SET estado = 'APROBADA', revisado_por = ?, fecha_revision = NOW()
+    DB -> P: Justificación actualizada
+    P -> BL: Estado actualizado exitosamente
+    BL -> P: Aplicar justificación a asistencias
+    P -> DB: UPDATE asistencias SET estado = 'JUSTIFICADA' WHERE id IN (...)
+    DB -> P: Asistencias actualizadas
+    P -> BL: Justificación aplicada
+    BL -> NS: Notificar aprobación al apoderado
+    NS -> NS: Enviar confirmación de aprobación
+    note right: "Su justificación ha sido aprobada\ny aplicada a las asistencias"
+else Justificación Rechazada
+    DA -> F: Especifica motivo de rechazo
+    BL -> P: Actualizar estado con rechazo
+    P -> DB: UPDATE justificaciones SET estado = 'RECHAZADA', motivo_rechazo = ?, revisado_por = ?
+    DB -> P: Justificación rechazada
+    P -> BL: Rechazo registrado
+    BL -> NS: Notificar rechazo al apoderado
+    NS -> NS: Enviar notificación de rechazo con motivo
+    note right: "Su justificación ha sido rechazada.\nMotivo: [Razón del rechazo]"
+else Requiere Documentación Adicional
+    DA -> F: Solicita documentos adicionales
+    BL -> P: Actualizar estado
+    P -> DB: UPDATE justificaciones SET estado = 'REQUIERE_DOCUMENTOS', observaciones = ?
+    DB -> P: Estado actualizado
+    P -> BL: Solicitud registrada
+    BL -> NS: Notificar al apoderado
+    NS -> NS: Enviar solicitud de documentos
+    note right: "Se requiere documentación adicional\npara su justificación"
+end
+
+BL -> API: Revisión procesada exitosamente
+API -> F: Response 200 con resultado
+F -> DA: Muestra confirmación de revisión
+
+@enduml

@@ -1,0 +1,82 @@
+@startuml
+!theme plain
+title Actividades: Gestión de Retiros de Estudiantes
+
+|Apoderado|
+start
+:Iniciar sesión;
+:Acceder al dashboard;
+:Seleccionar "Solicitar Retiro";
+:Completar formulario de retiro;
+note right: Datos requeridos:\n- Estudiante\n- Fecha y hora\n- Motivo\n- Tipo de retiro\n- Observaciones
+:Enviar solicitud;
+
+|Sistema|
+:Validar datos del formulario;
+:Verificar relación apoderado-estudiante;
+:Crear registro de retiro;
+:Cambiar estado a "SOLICITADO";
+
+if (¿Es apoderado titular?) then (No)
+  :Enviar notificación a apoderado titular;
+  
+  |Apoderado Titular|
+  :Recibir notificación por email/SMS;
+  :Acceder al sistema;
+  :Revisar solicitud de retiro;
+  
+  if (¿Aprobar retiro?) then (Sí)
+    :Aprobar retiro;
+    |Sistema|
+    :Cambiar estado a "APROBADO";
+    :Registrar fecha y usuario de aprobación;
+  else (No)
+    :Rechazar retiro;
+    :Especificar motivo de rechazo;
+    |Sistema|
+    :Cambiar estado a "RECHAZADO";
+    :Registrar motivo de rechazo;
+    :Notificar rechazo al solicitante;
+    stop
+  endif
+else (Sí)
+  |Sistema|
+  :Cambiar estado directamente a "APROBADO";
+endif
+
+:Notificar aprobación a auxiliares;
+
+|Auxiliar|
+:Recibir notificación de retiro aprobado;
+:Acceder al sistema de retiros;
+:Verificar retiro en lista de pendientes;
+
+partition "Proceso de Retiro" {
+  :Localizar al estudiante en la IE;
+  :Verificar identidad del apoderado que retira;
+  
+  if (¿Apoderado autorizado?) then (No)
+    :Solicitar documentación adicional;
+    :Verificar DNI y autorización;
+  endif
+  
+  :Cambiar estado a "EN_PROCESO";
+  :Registrar hora de inicio del retiro;
+  :Acompañar al estudiante a la salida;
+  :Completar proceso de retiro;
+  :Registrar salida del estudiante;
+  :Cambiar estado a "COMPLETADO";
+}
+
+|Sistema|
+:Registrar hora de completado;
+:Actualizar asistencia del estudiante;
+
+if (¿Notificaciones habilitadas?) then (Sí)
+  :Enviar notificación de salida a apoderados;
+endif
+
+:Generar registro en historial;
+stop
+
+@enduml

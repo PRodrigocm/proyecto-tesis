@@ -1,0 +1,55 @@
+@startuml
+!theme plain
+title Secuencia: Presentar Justificación de Inasistencia
+
+participant "Apoderado" as A
+participant "Frontend\n(Next.js)" as F
+participant "API Routes" as API
+participant "Auth Middleware" as Auth
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+participant "File Storage" as FS
+participant "Notification\nService" as NS
+
+== Proceso de Justificación ==
+
+A -> F: Completa formulario de justificación
+note right: Tipo, motivo, descripción
+A -> F: Adjunta documento de respaldo (PDF/imagen)
+F -> API: POST /api/apoderados/justificaciones/crear (multipart/form-data)
+API -> Auth: Verificar permisos
+Auth -> API: Autorizado
+API -> BL: Procesar justificación y documento
+BL -> BL: Validar formato y tamaño del archivo
+note right: Formatos permitidos: PDF, JPG, PNG\nTamaño máximo: 10MB
+
+alt Archivo válido
+    BL -> FS: Guardar archivo en almacenamiento
+    FS -> BL: Archivo guardado, ruta devuelta
+    BL -> P: Crear registro de justificación
+    P -> DB: INSERT INTO justificaciones (estudiante_id, tipo, motivo, descripcion, estado = 'PENDIENTE')
+    DB -> P: Justificación creada con ID
+    P -> BL: Registro de justificación exitoso
+    BL -> P: Asociar documento a justificación
+    P -> DB: INSERT INTO documentos_justificacion (justificacion_id, nombre_archivo, ruta_archivo)
+    DB -> P: Documento registrado
+    P -> BL: Documento asociado exitosamente
+    BL -> NS: Notificar a docentes/auxiliares para revisión
+    NS -> P: Obtener lista de revisores
+    P -> DB: SELECT usuarios WHERE rol IN ('DOCENTE', 'AUXILIAR')
+    DB -> P: Lista de revisores
+    P -> NS: Datos de revisores obtenidos
+    NS -> NS: Enviar notificaciones de nueva justificación
+    note right: "Nueva justificación pendiente de revisión\npara estudiante [Nombre]"
+    BL -> API: Justificación creada exitosamente
+    API -> F: Response 200 con confirmación
+    F -> A: Muestra mensaje de éxito
+else Archivo inválido
+    BL -> API: Error de validación de archivo
+    API -> F: Response 400 con error
+    F -> A: Muestra error de formato/tamaño
+    A -> F: Corrige archivo y reintenta
+end
+
+@enduml

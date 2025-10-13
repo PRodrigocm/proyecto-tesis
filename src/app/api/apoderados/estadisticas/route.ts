@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { getEstudiantesDelApoderado, getEstadosRetiroIds, inicializarEstadosRetiro } from '@/lib/retiros-utils'
 
 const prisma = new PrismaClient()
 
@@ -19,30 +20,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Obtener estudiantes del apoderado
-    const estudiantesApoderado = await prisma.estudianteApoderado.findMany({
-      where: {
-        idApoderado: decoded.userId
-      },
-      include: {
-        estudiante: true
-      }
-    })
+    // Inicializar estados de retiro si no existen
+    await inicializarEstadosRetiro()
 
-    const estudianteIds = estudiantesApoderado.map(ea => ea.estudiante.idEstudiante)
+    // Obtener estudiantes del apoderado
+    const estudianteIds = await getEstudiantesDelApoderado(decoded.userId)
     const totalEstudiantes = estudianteIds.length
 
-    // Obtener retiros pendientes
-    const retirosPendientes = await prisma.retiro.count({
-      where: {
-        idEstudiante: {
-          in: estudianteIds
-        },
-        estado: {
-          in: ['SOLICITADO', 'EN_REVISION']
+    // Si no hay estudiantes, retornar estadísticas vacías
+    let retirosPendientes = 0
+    if (estudianteIds.length > 0) {
+      // Obtener los IDs de estados pendientes
+      const estadosPendientesIds = await getEstadosRetiroIds(['SOLICITADO', 'EN_REVISION'])
+
+      // Obtener retiros pendientes
+      retirosPendientes = await prisma.retiro.count({
+        where: {
+          idEstudiante: {
+            in: estudianteIds
+          },
+          idEstadoRetiro: {
+            in: estadosPendientesIds
+          }
         }
-      }
-    })
+      })
+    }
 
     // Obtener justificaciones pendientes (simulado por ahora)
     // TODO: Implementar tabla de justificaciones

@@ -1,0 +1,154 @@
+@startuml
+!theme plain
+title Sistema de Gestión de Asistencias y Retiros - Diagrama de Despliegue
+
+node "Cliente Web" as ClienteWeb {
+  component [Navegador Web] as Browser
+  component [React/Next.js App] as ReactApp
+  
+  Browser --> ReactApp : "Ejecuta"
+}
+
+node "Servidor de Aplicación" as AppServer {
+  component [Next.js Server] as NextServer
+  component [API Routes] as APIRoutes
+  component [Middleware] as Middleware
+  component [Business Logic] as BusinessLogic
+  
+  NextServer --> APIRoutes : "Maneja"
+  APIRoutes --> Middleware : "Usa"
+  APIRoutes --> BusinessLogic : "Ejecuta"
+}
+
+node "Servidor de Base de Datos" as DBServer {
+  database [PostgreSQL] as PostgreDB
+  component [Prisma ORM] as PrismaORM
+  component [Connection Pool] as ConnPool
+  
+  PrismaORM --> PostgreDB : "Conecta"
+  ConnPool --> PostgreDB : "Gestiona conexiones"
+}
+
+node "Servidor de Archivos" as FileServer {
+  storage [File Storage] as FileStorage
+  component [Upload Handler] as UploadHandler
+  
+  UploadHandler --> FileStorage : "Gestiona"
+}
+
+node "Servidor de Notificaciones" as NotifServer {
+  component [Email Service] as EmailSvc
+  component [SMS Gateway] as SMSGateway
+  component [Notification Queue] as NotifQueue
+  
+  NotifQueue --> EmailSvc : "Procesa"
+  NotifQueue --> SMSGateway : "Procesa"
+}
+
+node "Red de Cámaras IP" as CameraNetwork {
+  device [Cámara IP 1] as Camera1
+  device [Cámara IP 2] as Camera2
+  device [Cámara IP 3] as Camera3
+  device [Switch de Red] as NetworkSwitch
+  
+  Camera1 --> NetworkSwitch : "RTSP/HTTP"
+  Camera2 --> NetworkSwitch : "RTSP/HTTP"
+  Camera3 --> NetworkSwitch : "RTSP/HTTP"
+}
+
+node "Servidor de Procesamiento de Video" as VideoServer {
+  component [Stream Processor] as StreamProc
+  component [Face Detection Engine] as FaceEngine
+  component [Recognition Service] as RecognitionSvc
+  component [Frame Buffer] as FrameBuffer
+  
+  StreamProc --> FaceEngine : "Procesa frames"
+  FaceEngine --> RecognitionSvc : "Detecta rostros"
+  StreamProc --> FrameBuffer : "Almacena temporalmente"
+}
+
+cloud "Servicios Externos" as ExternalServices {
+  component [Proveedor Email] as EmailProvider
+  component [Proveedor SMS] as SMSProvider
+  component [CDN] as CDN
+}
+
+' Conexiones de Red
+ClienteWeb --> AppServer : "HTTPS/WSS"
+AppServer --> DBServer : "TCP/5432"
+AppServer --> FileServer : "HTTP/HTTPS"
+AppServer --> NotifServer : "HTTP/Message Queue"
+AppServer --> VideoServer : "HTTP/WebSocket"
+
+VideoServer --> CameraNetwork : "RTSP/HTTP"
+NotifServer --> ExternalServices : "HTTPS/API"
+
+' Especificaciones de Despliegue
+note right of ClienteWeb : "Dispositivos cliente:\n- PCs\n- Tablets\n- Smartphones\n\nNavegadores soportados:\n- Chrome\n- Firefox\n- Safari\n- Edge"
+
+note right of AppServer : "Servidor de Aplicación:\n- Node.js 18+\n- Next.js 14\n- RAM: 8GB mín\n- CPU: 4 cores\n- Almacenamiento: 100GB\n\nPuerto: 3000\nProtocolo: HTTP/HTTPS"
+
+note right of DBServer : "Servidor de Base de Datos:\n- PostgreSQL 15+\n- RAM: 16GB mín\n- CPU: 8 cores\n- Almacenamiento: 500GB SSD\n\nPuerto: 5432\nBackup automático diario"
+
+note right of FileServer : "Servidor de Archivos:\n- Nginx/Apache\n- Almacenamiento: 1TB\n- Backup semanal\n\nTipos de archivo:\n- Documentos PDF\n- Imágenes JPG/PNG\n- Videos MP4"
+
+note right of NotifServer : "Servidor de Notificaciones:\n- Redis/RabbitMQ\n- Procesamiento asíncrono\n- Rate limiting\n\nCanales:\n- Email SMTP\n- SMS Gateway\n- Push notifications"
+
+note right of VideoServer : "Servidor de Video:\n- OpenCV\n- TensorFlow/PyTorch\n- GPU recomendada\n- RAM: 32GB\n- Procesamiento en tiempo real"
+
+note right of CameraNetwork : "Red de Cámaras:\n- IP fijas configuradas\n- Resolución: 1080p mín\n- FPS: 30\n- Visión nocturna\n- PoE recomendado\n\nProtocolos:\n- RTSP para streaming\n- HTTP para configuración"
+
+' Configuración de Red
+package "Configuración de Red" {
+  note as NetworkConfig
+    **Configuración de Red:**
+    
+    **Seguridad:**
+    - Firewall configurado
+    - VPN para acceso remoto
+    - SSL/TLS para todas las conexiones
+    - Autenticación JWT
+    
+    **Balanceador de Carga:**
+    - Nginx/HAProxy
+    - Distribución de tráfico
+    - Health checks
+    
+    **Monitoreo:**
+    - Prometheus/Grafana
+    - Logs centralizados
+    - Alertas automáticas
+    
+    **Backup y Recuperación:**
+    - Backup diario de BD
+    - Replicación de datos
+    - Plan de recuperación ante desastres
+  end note
+}
+
+' Especificaciones de Rendimiento
+package "Especificaciones de Rendimiento" {
+  note as PerformanceSpecs
+    **Requisitos de Rendimiento:**
+    
+    **Usuarios Concurrentes:**
+    - 500 usuarios simultáneos
+    - 2000 usuarios registrados
+    
+    **Tiempo de Respuesta:**
+    - < 2 segundos para consultas
+    - < 5 segundos para reportes
+    - < 1 segundo para autenticación
+    
+    **Disponibilidad:**
+    - 99.5% uptime
+    - Mantenimiento programado
+    
+    **Escalabilidad:**
+    - Horizontal scaling ready
+    - Microservicios preparados
+    - Container deployment (Docker)
+  end note
+}
+
+@enduml

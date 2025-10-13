@@ -1,0 +1,92 @@
+@startuml
+!theme plain
+title Sistema de Gestión de Asistencias y Retiros - Diagrama de Componentes
+
+!define RECTANGLE class
+
+package "Frontend - Next.js App" {
+  component [Páginas y Vistas] as PaginasComp
+  component [Dashboards] as DashboardComp
+  component [Formularios] as FormsComp
+  component [Modales] as ModalComp
+  component [Componentes UI] as UIComp
+  component [Layouts por Rol] as LayoutsComp
+}
+
+package "API Layer - Next.js API Routes" {
+  component [APIs de Negocio] as BusinessAPIs
+  component [APIs de Autenticación] as AuthAPI
+  component [APIs de Reportes] as ReportesAPI
+  component [Middlewares] as MiddlewareComp
+}
+
+package "Business Logic Layer" {
+  component [Servicios de Negocio] as BusinessServices
+  component [Servicios de Autenticación] as AuthService
+  component [Servicios de Notificación] as NotificationServices
+  component [Utilidades y Helpers] as UtilsComp
+}
+
+package "Data Access Layer" {
+  component [Prisma ORM] as PrismaORM
+  component [Modelos y Esquemas] as DBModels
+  component [Gestión de Conexiones] as ConnectionMgmt
+}
+
+package "External Services" {
+  component [Base de Datos] as PostgreSQL
+  component [Servicios de Comunicación] as CommServices
+  component [Almacenamiento] as FileStorage
+  component [Dispositivos QR] as QRDevices
+}
+
+' Frontend Dependencies
+PaginasComp --> BusinessAPIs
+DashboardComp --> BusinessAPIs
+FormsComp --> BusinessAPIs
+ModalComp --> BusinessAPIs
+LayoutsComp --> UIComp
+
+' API Layer Dependencies
+BusinessAPIs --> MiddlewareComp
+AuthAPI --> MiddlewareComp
+ReportesAPI --> MiddlewareComp
+
+' API to Services
+BusinessAPIs --> BusinessServices
+AuthAPI --> AuthService
+ReportesAPI --> BusinessServices
+
+' Services Dependencies
+BusinessServices --> UtilsComp
+AuthService --> UtilsComp
+NotificationServices --> UtilsComp
+
+' Services to Data Layer
+BusinessServices --> PrismaORM
+AuthService --> PrismaORM
+NotificationServices --> PrismaORM
+
+' Data Layer Dependencies
+PrismaORM --> DBModels
+PrismaORM --> ConnectionMgmt
+
+' External Dependencies
+PrismaORM --> PostgreSQL
+NotificationServices --> CommServices
+BusinessServices --> FileStorage
+BusinessServices --> QRDevices
+
+' Data Flow Annotations
+note right of BusinessAPIs : "APIs para asistencias,\nretiros, justificaciones"
+note right of AuthAPI : "Autenticación JWT\ny gestión de sesiones"
+note right of ReportesAPI : "Generación de reportes\ny estadísticas"
+note right of MiddlewareComp : "Validación, autorización\ny manejo de errores"
+
+note bottom of BusinessServices : "Lógica de negocio:\nasistencias, retiros,\njustificaciones"
+note bottom of UtilsComp : "JWT, QR, archivos,\nemail, SMS"
+
+note bottom of PrismaORM : "ORM para operaciones\nde base de datos"
+note bottom of PostgreSQL : "Base de datos principal\ndel sistema"
+
+@enduml

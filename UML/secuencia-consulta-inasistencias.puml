@@ -1,0 +1,35 @@
+@startuml
+!theme plain
+title Secuencia: Consulta de Inasistencias Pendientes
+
+participant "Apoderado" as A
+participant "Frontend\n(Next.js)" as F
+participant "API Routes" as API
+participant "Auth Middleware" as Auth
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+
+== Consulta de Inasistencias Pendientes ==
+
+A -> F: Accede a justificaciones
+F -> API: GET /api/apoderados/justificaciones/pendientes
+API -> Auth: Verificar autenticación
+Auth -> API: Usuario autenticado
+API -> BL: Obtener inasistencias sin justificar
+BL -> P: Consultar inasistencias del estudiante
+P -> DB: SELECT asistencias WHERE estado = 'INASISTENCIA' AND justificada = false
+DB -> P: Lista de inasistencias
+P -> BL: Inasistencias obtenidas
+BL -> API: Lista de inasistencias pendientes
+API -> F: Response con inasistencias
+F -> A: Muestra inasistencias sin justificar
+
+alt No hay inasistencias pendientes
+    F -> A: Muestra mensaje "No hay inasistencias pendientes"
+else Hay inasistencias pendientes
+    A -> F: Selecciona inasistencia para justificar
+    F -> A: Redirige a formulario de justificación
+end
+
+@enduml

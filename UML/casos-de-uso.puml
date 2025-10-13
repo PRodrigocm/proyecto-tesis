@@ -1,0 +1,139 @@
+@startuml
+
+left to right direction
+
+skinparam usecase {
+  BackgroundColor #F4F7F9
+  BorderColor #2B6CB0
+}
+
+actor "Docente" as Docente
+actor "Auxiliar\n(Personal IE)" as Auxiliar
+actor "Apoderado\n(Padres/Tutores)" as Apoderado
+actor "Administrador\n(Personal Admin)" as Admin
+
+rectangle "Sistema de Gestión de Asistencias y Retiros\n(Web responsivo Next.js, notificaciones en tiempo real)" {
+  
+  usecase UC_Login as "Autenticarse / Iniciar sesión\n(JWT, roles, permisos)"
+  usecase UC_GestionarSesiones as "Gestionar sesiones activas\n(seguridad, timeout)"
+  
+  usecase UC_RegistrarAsistenciaIE as "Registrar entrada/salida IE (QR)\n(tolerancias, estados automáticos)"
+  usecase UC_RegistrarAsistenciaAula as "Registrar asistencia en aula (QR)\n(por materia, horarios)"
+  usecase UC_RegistrarAsistenciaTaller as "Registrar asistencia talleres (QR)\n(extracurriculares)"
+  usecase UC_ValidarQR as "Validar código QR\n(idempotencia, seguridad)"
+  usecase UC_DeterminarEstado as "Determinar estado asistencia\n(PRESENTE/TARDANZA/AUSENTE)"
+  usecase UC_ConsultarAsistencias as "Consultar historial asistencias\n(filtros, rangos de fecha)"
+  
+  usecase UC_SolicitarRetiro as "Solicitar retiro estudiante\n(formulario, validaciones)"
+  usecase UC_AprobarRetiro as "Aprobar/Rechazar retiro\n(apoderado titular)"
+  usecase UC_EjecutarRetiro as "Ejecutar retiro presencial\n(verificación identidad)"
+  usecase UC_ConsultarRetiros as "Consultar estado retiros\n(historial, seguimiento)"
+  
+  usecase UC_JustificarInasistencia as "Justificar inasistencias\n(documentos, tipos)"
+  usecase UC_RevisarJustificaciones as "Revisar justificaciones\n(aprobar/rechazar)"
+  usecase UC_SubirDocumentos as "Subir documentos respaldo\n(PDF, imágenes)"
+  usecase UC_AplicarJustificaciones as "Aplicar justificaciones\n(actualizar asistencias)"
+  
+  usecase UC_ConfigurarNotificaciones as "Configurar preferencias notificación\n(email/SMS, tipos eventos)"
+  usecase UC_EncolarNotificaciones as "Encolar notificaciones\n(políticas anti-spam)"
+  usecase UC_NotificarEventos as "Notificar eventos tiempo real\n(entrada/salida/retiros)"
+  
+  usecase UC_GenerarReportes as "Generar reportes consolidados\n(asistencias, retiros, estadísticas)"
+  usecase UC_ExportarReportes as "Exportar reportes\n(PDF/Excel/CSV)"
+  usecase UC_EstadisticasApoderado as "Ver estadísticas estudiante\n(dashboard apoderado)"
+  
+  usecase UC_GestionarUsuarios as "Gestionar usuarios y roles\n(CRUD, permisos)"
+  usecase UC_GestionarHorarios as "Gestionar horarios clases\n(configuración IE)"
+  usecase UC_GestionarTalleres as "Gestionar talleres\n(inscripciones, horarios)"
+  usecase UC_GestionarCodigosQR as "Gestionar códigos QR\n(generar, renovar, validar)"
+  usecase UC_ConfigurarSistema as "Configurar parámetros sistema\n(tolerancias, calendarios)"
+  usecase UC_AuditoriaSeguridad as "Auditoría y logs sistema\n(trazabilidad, seguridad)"
+}
+
+Docente --> UC_Login
+Docente --> UC_RegistrarAsistenciaAula : "1..N / clase"
+Docente --> UC_RegistrarAsistenciaTaller : "1..N / taller"
+Docente --> UC_ConsultarAsistencias : "consulta estudiantes"
+Docente --> UC_RevisarJustificaciones : "según permisos"
+
+Auxiliar --> UC_Login
+Auxiliar --> UC_RegistrarAsistenciaIE : "entrada/salida diaria"
+Auxiliar --> UC_EjecutarRetiro : "retiros presenciales"
+Auxiliar --> UC_ConsultarRetiros : "gestión retiros"
+Auxiliar --> UC_ConsultarAsistencias : "supervisión general"
+Auxiliar --> UC_RevisarJustificaciones : "revisión documentos"
+
+Apoderado --> UC_Login
+Apoderado --> UC_SolicitarRetiro : "0..N / mes"
+Apoderado --> UC_AprobarRetiro : "si es titular"
+Apoderado --> UC_JustificarInasistencia : "según necesidad"
+Apoderado --> UC_ConsultarAsistencias : "1..N / semana"
+Apoderado --> UC_ConsultarRetiros : "seguimiento solicitudes"
+Apoderado --> UC_ConfigurarNotificaciones : "preferencias personales"
+Apoderado --> UC_EstadisticasApoderado : "dashboard personal"
+Apoderado --> UC_SubirDocumentos : "justificaciones"
+
+Admin --> UC_Login
+Admin --> UC_GestionarUsuarios
+Admin --> UC_GestionarHorarios
+Admin --> UC_GestionarTalleres
+Admin --> UC_GestionarCodigosQR
+Admin --> UC_ConfigurarSistema
+Admin --> UC_GenerarReportes
+Admin --> UC_ExportarReportes
+Admin --> UC_AuditoriaSeguridad
+Admin --> UC_GestionarSesiones
+
+UC_RegistrarAsistenciaIE ..> UC_ValidarQR : <<include>>
+UC_RegistrarAsistenciaAula ..> UC_ValidarQR : <<include>>
+UC_RegistrarAsistenciaTaller ..> UC_ValidarQR : <<include>>
+UC_RegistrarAsistenciaIE ..> UC_DeterminarEstado : <<include>>
+UC_RegistrarAsistenciaIE ..> UC_EncolarNotificaciones : <<include>>
+UC_SolicitarRetiro ..> UC_EncolarNotificaciones : <<include>>
+UC_EjecutarRetiro ..> UC_EncolarNotificaciones : <<include>>
+UC_AprobarRetiro ..> UC_EncolarNotificaciones : <<include>>
+UC_NotificarEventos ..> UC_EncolarNotificaciones : <<include>>
+UC_GenerarReportes ..> UC_ExportarReportes : <<include>>
+UC_RevisarJustificaciones ..> UC_AplicarJustificaciones : <<include>>
+UC_JustificarInasistencia ..> UC_SubirDocumentos : <<include>>
+
+UC_RegistrarAsistenciaIE ..> UC_EjecutarRetiro : <<extend>>
+UC_SolicitarRetiro ..> UC_AprobarRetiro : <<extend>>
+
+note right of UC_EncolarNotificaciones
+  Políticas de notificación:
+  - Anti-spam (ventana 2 min)
+  - Reintentos automáticos
+  - Fallback email/SMS
+  - Configuración por apoderado
+  - Auditoría de envíos
+end note
+
+note bottom of UC_ValidarQR
+  Validación QR:
+  - Verificación formato
+  - Idempotencia (evita duplicados)
+  - Validación temporal
+  - Seguridad anti-falsificación
+  - Log de intentos
+end note
+
+note left of UC_AuditoriaSeguridad
+  Auditoría completa:
+  - Todos los cambios registrados
+  - Trazabilidad por usuario
+  - Logs de acceso y operaciones
+  - Cumplimiento normativo
+  - Backup automático
+end note
+
+note top of UC_ConfigurarNotificaciones
+  Configuración granular:
+  - Por tipo de evento
+  - Por estudiante
+  - Canal preferido (email/SMS)
+  - Horarios de envío
+  - Políticas personalizadas
+end note
+
+@enduml

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { getEstudiantesDelApoderado, getEstadosRetiroIds, inicializarEstadosRetiro } from '@/lib/retiros-utils'
 
 const prisma = new PrismaClient()
 
@@ -19,17 +20,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Obtener estudiantes del apoderado
-    const estudiantesApoderado = await prisma.estudianteApoderado.findMany({
-      where: {
-        idApoderado: decoded.userId
-      },
-      include: {
-        estudiante: true
-      }
-    })
+    // Inicializar estados de retiro si no existen
+    await inicializarEstadosRetiro()
 
-    const estudianteIds = estudiantesApoderado.map(ea => ea.estudiante.idEstudiante)
+    // Obtener estudiantes del apoderado
+    const estudianteIds = await getEstudiantesDelApoderado(decoded.userId)
+
+    // Si no hay estudiantes asociados, retornar lista vacía
+    if (estudianteIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        retiros: []
+      })
+    }
+
+    // Obtener los IDs de estados pendientes
+    const estadosPendientesIds = await getEstadosRetiroIds(['SOLICITADO', 'EN_REVISION'])
 
     // Obtener retiros pendientes de aprobación
     const retirosPendientes = await prisma.retiro.findMany({
@@ -37,8 +43,8 @@ export async function GET(request: NextRequest) {
         idEstudiante: {
           in: estudianteIds
         },
-        estado: {
-          in: ['SOLICITADO', 'EN_REVISION']
+        idEstadoRetiro: {
+          in: estadosPendientesIds
         }
       },
       include: {
@@ -53,31 +59,32 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        solicitadoPorUsuario: true
+        estadoRetiro: true,
+        tipoRetiro: true
       },
       orderBy: {
-        fechaSolicitud: 'desc'
+        createdAt: 'desc'
       }
     })
 
     const retiros = retirosPendientes.map(retiro => ({
       id: retiro.idRetiro.toString(),
       fecha: retiro.fecha.toISOString().split('T')[0],
-      hora: retiro.hora,
-      motivo: retiro.motivo,
+      hora: retiro.hora.toISOString().split('T')[1].substring(0, 5), // Formato HH:MM
       observaciones: retiro.observaciones || '',
-      tipoRetiro: retiro.tipoRetiro,
-      estado: retiro.estado,
+      tipoRetiro: retiro.tipoRetiro?.nombre || 'No especificado',
+      estado: retiro.estadoRetiro?.nombre || 'Sin estado',
+      estadoCodigo: retiro.estadoRetiro?.codigo || '',
       estudiante: {
         id: retiro.estudiante.idEstudiante.toString(),
-        nombre: retiro.estudiante.usuario.nombre,
-        apellido: retiro.estudiante.usuario.apellido,
+        nombre: retiro.estudiante.usuario.nombre || '',
+        apellido: retiro.estudiante.usuario.apellido || '',
         dni: retiro.estudiante.usuario.dni,
-        grado: retiro.estudiante.gradoSeccion.grado.nombre,
-        seccion: retiro.estudiante.gradoSeccion.seccion.nombre
+        grado: retiro.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
+        seccion: retiro.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
       },
-      solicitadoPor: `${retiro.solicitadoPorUsuario.nombre} ${retiro.solicitadoPorUsuario.apellido}`,
-      fechaSolicitud: retiro.fechaSolicitud.toISOString()
+      fechaSolicitud: retiro.createdAt.toISOString(),
+      origen: retiro.origen || 'Sistema'
     }))
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { puedeGestionarEstudiante, inicializarEstadosRetiro, inicializarTiposRetiro } from '@/lib/retiros-utils'
 
 const prisma = new PrismaClient()
 
@@ -19,29 +20,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
+    // Inicializar datos básicos
+    await inicializarEstadosRetiro()
+    await inicializarTiposRetiro()
+
     const body = await request.json()
-    const { estudianteId, fecha, hora, motivo, observaciones, tipoRetiro } = body
+    const { estudianteId, fecha, hora, observaciones, tipoRetiroNombre } = body
 
     // Validaciones
-    if (!estudianteId || !fecha || !hora || !motivo || !tipoRetiro) {
+    if (!estudianteId || !fecha || !hora) {
       return NextResponse.json(
-        { error: 'Todos los campos requeridos deben ser proporcionados' },
+        { error: 'Estudiante, fecha y hora son campos requeridos' },
         { status: 400 }
       )
     }
 
     // Verificar que el estudiante pertenece al apoderado
-    const estudianteApoderado = await prisma.estudianteApoderado.findFirst({
-      where: {
-        idApoderado: decoded.userId,
-        idEstudiante: parseInt(estudianteId)
-      }
-    })
-
-    if (!estudianteApoderado) {
+    const puedeGestionar = await puedeGestionarEstudiante(decoded.userId, parseInt(estudianteId))
+    if (!puedeGestionar) {
       return NextResponse.json(
         { error: 'No tiene permisos para solicitar retiro de este estudiante' },
         { status: 403 }
+      )
+    }
+
+    // Obtener el estado "SOLICITADO"
+    const estadoSolicitado = await prisma.estadoRetiro.findFirst({
+      where: { codigo: 'SOLICITADO' }
+    })
+
+    if (!estadoSolicitado) {
+      return NextResponse.json(
+        { error: 'Error de configuración: estado SOLICITADO no encontrado' },
+        { status: 500 }
+      )
+    }
+
+    // Obtener el tipo de retiro si se especificó
+    let tipoRetiro = null
+    if (tipoRetiroNombre) {
+      tipoRetiro = await prisma.tipoRetiro.findFirst({
+        where: { nombre: tipoRetiroNombre }
+      })
+    }
+
+    // Obtener datos del estudiante para validaciones
+    const estudiante = await prisma.estudiante.findUnique({
+      where: { idEstudiante: parseInt(estudianteId) },
+      include: {
+        usuario: true,
+        gradoSeccion: {
+          include: {
+            grado: true,
+            seccion: true
+          }
+        }
+      }
+    })
+
+    if (!estudiante) {
+      return NextResponse.json(
+        { error: 'Estudiante no encontrado' },
+        { status: 404 }
       )
     }
 
@@ -50,8 +90,8 @@ export async function POST(request: NextRequest) {
       where: {
         idEstudiante: parseInt(estudianteId),
         fecha: new Date(fecha),
-        estado: {
-          in: ['SOLICITADO', 'EN_REVISION', 'APROBADO']
+        idEstadoRetiro: {
+          in: [estadoSolicitado.idEstadoRetiro] // Solo verificar estados activos
         }
       }
     })
@@ -67,27 +107,13 @@ export async function POST(request: NextRequest) {
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteId),
+        idIe: estudiante.idIe || 1, // Usar IE del estudiante o default
         fecha: new Date(fecha),
-        hora: hora,
-        motivo: motivo,
+        hora: new Date(`1970-01-01T${hora}:00.000Z`), // Convertir hora a Time
         observaciones: observaciones || null,
-        tipoRetiro: tipoRetiro,
-        estado: 'SOLICITADO',
-        idSolicitadoPor: decoded.userId,
-        fechaSolicitud: new Date()
-      },
-      include: {
-        estudiante: {
-          include: {
-            usuario: true,
-            gradoSeccion: {
-              include: {
-                grado: true,
-                seccion: true
-              }
-            }
-          }
-        }
+        idTipoRetiro: tipoRetiro?.idTipoRetiro || null,
+        idEstadoRetiro: estadoSolicitado.idEstadoRetiro,
+        origen: 'APODERADO'
       }
     })
 
@@ -97,10 +123,14 @@ export async function POST(request: NextRequest) {
       retiro: {
         id: nuevoRetiro.idRetiro.toString(),
         fecha: nuevoRetiro.fecha.toISOString().split('T')[0],
-        hora: nuevoRetiro.hora,
-        motivo: nuevoRetiro.motivo,
-        estudiante: `${nuevoRetiro.estudiante.usuario.apellido}, ${nuevoRetiro.estudiante.usuario.nombre}`,
-        grado: `${nuevoRetiro.estudiante.gradoSeccion.grado.nombre}° ${nuevoRetiro.estudiante.gradoSeccion.seccion.nombre}`
+        hora: nuevoRetiro.hora.toISOString().split('T')[1].substring(0, 5),
+        observaciones: nuevoRetiro.observaciones || '',
+        tipoRetiro: tipoRetiro?.nombre || 'No especificado',
+        estado: estadoSolicitado.nombre,
+        estudiante: `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
+        grado: estudiante.gradoSeccion ? 
+          `${estudiante.gradoSeccion.grado.nombre}° ${estudiante.gradoSeccion.seccion.nombre}` : 
+          'Sin grado asignado'
       }
     })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { getEstudiantesDelApoderado, inicializarEstadosRetiro } from '@/lib/retiros-utils'
 
 const prisma = new PrismaClient()
 
@@ -19,17 +20,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Obtener estudiantes del apoderado
-    const estudiantesApoderado = await prisma.estudianteApoderado.findMany({
-      where: {
-        idApoderado: decoded.userId
-      },
-      include: {
-        estudiante: true
-      }
-    })
+    // Inicializar estados de retiro si no existen
+    await inicializarEstadosRetiro()
 
-    const estudianteIds = estudiantesApoderado.map(ea => ea.estudiante.idEstudiante)
+    // Obtener estudiantes del apoderado
+    const estudianteIds = await getEstudiantesDelApoderado(decoded.userId)
+
+    // Si no hay estudiantes, retornar historial vacío
+    if (estudianteIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        historial: []
+      })
+    }
 
     // Obtener historial de retiros
     const retiros = await prisma.retiro.findMany({
@@ -50,10 +53,12 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        aprobadoPorUsuario: true
+        estadoRetiro: true,
+        tipoRetiro: true,
+        usuarioVerificador: true
       },
       orderBy: {
-        fechaSolicitud: 'desc'
+        createdAt: 'desc'
       }
     })
 
@@ -62,19 +67,22 @@ export async function GET(request: NextRequest) {
       id: `retiro_${retiro.idRetiro}`,
       tipo: 'RETIRO' as const,
       fecha: retiro.fecha.toISOString().split('T')[0],
+      hora: retiro.hora.toISOString().split('T')[1].substring(0, 5),
       estudiante: {
-        nombre: retiro.estudiante.usuario.nombre,
-        apellido: retiro.estudiante.usuario.apellido,
-        grado: retiro.estudiante.gradoSeccion.grado.nombre,
-        seccion: retiro.estudiante.gradoSeccion.seccion.nombre
+        nombre: retiro.estudiante.usuario.nombre || '',
+        apellido: retiro.estudiante.usuario.apellido || '',
+        grado: retiro.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
+        seccion: retiro.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
       },
-      estado: retiro.estado,
-      motivo: retiro.motivo,
-      descripcion: retiro.observaciones,
-      fechaCreacion: retiro.fechaSolicitud.toISOString(),
-      fechaAprobacion: retiro.fechaAprobacion?.toISOString(),
-      aprobadoPor: retiro.aprobadoPorUsuario ? 
-        `${retiro.aprobadoPorUsuario.nombre} ${retiro.aprobadoPorUsuario.apellido}` : 
+      estado: retiro.estadoRetiro?.nombre || 'Sin estado',
+      estadoCodigo: retiro.estadoRetiro?.codigo || '',
+      tipoRetiro: retiro.tipoRetiro?.nombre || 'No especificado',
+      descripcion: retiro.observaciones || '',
+      origen: retiro.origen || 'Sistema',
+      fechaCreacion: retiro.createdAt.toISOString(),
+      fechaActualizacion: retiro.updatedAt?.toISOString(),
+      verificadoPor: retiro.usuarioVerificador ? 
+        `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}` : 
         undefined
     }))
 

@@ -1,0 +1,128 @@
+@startuml
+!theme plain
+title Secuencia: Ejecución Física del Retiro
+
+participant "Apoderado\nAutorizado" as AP
+participant "Auxiliar" as AUX
+participant "Frontend\n(Next.js)" as F
+participant "API Routes" as API
+participant "Auth Middleware" as Auth
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+participant "Notification\nService" as NS
+participant "Email/SMS\nProvider" as ESP
+
+== Llegada del Apoderado ==
+
+AP -> AUX: Llega a la IE para retirar estudiante
+AUX -> AP: Solicita identificación y autorización
+AP -> AUX: Presenta DNI y menciona retiro programado
+
+== Verificación del Retiro ==
+
+AUX -> F: Accede al sistema de retiros
+F -> API: GET /api/auxiliares/retiros/aprobados
+API -> Auth: Verificar token JWT del auxiliar
+Auth -> API: Token válido, rol AUXILIAR
+API -> BL: Obtener retiros aprobados para hoy
+BL -> P: Consultar retiros aprobados
+P -> DB: SELECT retiros WHERE estado = 'APROBADO' AND fecha = TODAY()
+DB -> P: Lista de retiros aprobados
+P -> BL: Retiros obtenidos
+BL -> API: Lista de retiros del día
+API -> F: Response 200 con retiros
+F -> AUX: Muestra retiros aprobados
+
+AUX -> F: Busca retiro por estudiante o apoderado
+F -> AUX: Muestra detalles del retiro encontrado
+
+== Validación de Identidad ==
+
+AUX -> F: Verifica datos del apoderado
+note right: - DNI coincide\n- Nombre coincide\n- Está autorizado para retirar
+
+alt Apoderado autorizado
+    AUX -> F: Confirma identidad válida
+    F -> API: PUT /api/auxiliares/retiros/{id}/iniciar
+    API -> Auth: Verificar permisos
+    Auth -> API: Autorizado
+    API -> BL: Iniciar proceso de retiro
+    BL -> P: Actualizar estado del retiro
+    P -> DB: UPDATE retiros SET estado = 'EN_PROCESO', hora_inicio = NOW(), auxiliar_id = ?
+    DB -> P: Estado actualizado
+    P -> BL: Retiro en proceso
+    
+    == Localización del Estudiante ==
+    
+    AUX -> AUX: Localiza al estudiante en el aula
+    AUX -> AUX: Informa al docente sobre el retiro
+    AUX -> AUX: Acompaña al estudiante a la salida
+    
+    == Finalización del Retiro ==
+    
+    AUX -> F: Confirma retiro completado
+    F -> API: PUT /api/auxiliares/retiros/{id}/completar
+    API -> BL: Completar retiro
+    BL -> P: Finalizar retiro
+    P -> DB: UPDATE retiros SET estado = 'COMPLETADO', hora_completado = NOW()
+    DB -> P: Retiro completado
+    P -> BL: Retiro finalizado exitosamente
+    
+    == Registro de Salida Automático ==
+    
+    BL -> P: Actualizar asistencia del estudiante
+    P -> DB: UPDATE asistencias SET hora_salida = NOW(), tipo_salida = 'RETIRO' WHERE estudiante_id = ? AND fecha = TODAY()
+    DB -> P: Asistencia actualizada
+    P -> BL: Salida registrada
+    
+    == Notificaciones Finales ==
+    
+    BL -> NS: Enviar notificaciones de retiro completado
+    NS -> P: Obtener apoderados del estudiante
+    P -> DB: SELECT apoderados FROM estudiante_apoderado WHERE estudiante_id = ?
+    DB -> P: Lista de apoderados
+    P -> NS: Datos de apoderados
+    NS -> ESP: Enviar notificación de retiro
+    note right: "Su hijo [Nombre] ha sido retirado de la IE\nHora: [Hora] - Autorizado por: [Apoderado]\nAuxiliar responsable: [Auxiliar]"
+    ESP -> NS: Notificaciones enviadas
+    NS -> BL: Proceso completado
+    
+    BL -> API: Retiro ejecutado exitosamente
+    API -> F: Response 200 con confirmación
+    F -> AUX: Muestra confirmación de retiro
+    AUX -> AP: Entrega al estudiante y confirma retiro
+    
+else Apoderado no autorizado
+    AUX -> F: Rechaza por falta de autorización
+    F -> API: POST /api/auxiliares/retiros/{id}/rechazar-ejecucion
+    API -> BL: Registrar rechazo de ejecución
+    BL -> P: Actualizar con observaciones
+    P -> DB: UPDATE retiros SET observaciones = 'Apoderado no autorizado para retirar'
+    DB -> P: Observación registrada
+    P -> BL: Rechazo registrado
+    BL -> API: Rechazo procesado
+    API -> F: Response 200 con rechazo
+    F -> AUX: Confirma rechazo registrado
+    AUX -> AP: Explica que no está autorizado para retirar
+end
+
+alt Estudiante no encontrado
+    AUX -> F: Reporta que estudiante no está presente
+    F -> API: PUT /api/auxiliares/retiros/{id}/estudiante-ausente
+    API -> BL: Registrar ausencia del estudiante
+    BL -> P: Actualizar retiro con observación
+    P -> DB: UPDATE retiros SET estado = 'NO_EJECUTADO', observaciones = 'Estudiante no presente en la IE'
+    DB -> P: Estado actualizado
+    P -> BL: Situación registrada
+    BL -> NS: Notificar situación a apoderados
+    NS -> ESP: Enviar notificación de situación
+    ESP -> NS: Notificación enviada
+    NS -> BL: Proceso completado
+    BL -> API: Situación procesada
+    API -> F: Response 200 con situación
+    F -> AUX: Confirma registro de situación
+    AUX -> AP: Explica que estudiante no está presente
+end
+
+@enduml

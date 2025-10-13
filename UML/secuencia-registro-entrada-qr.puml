@@ -1,0 +1,105 @@
+@startuml
+!theme plain
+title Secuencia: Registro de Entrada con Código QR
+
+participant "Estudiante" as E
+participant "Auxiliar" as AUX
+participant "Escáner QR\n(Dispositivo)" as QR
+participant "Frontend\n(Next.js)" as F
+participant "API Routes" as API
+participant "Auth Middleware" as Auth
+participant "Business Logic" as BL
+participant "Prisma ORM" as P
+participant "PostgreSQL" as DB
+participant "Notification\nService" as NS
+participant "Email/SMS\nProvider" as ESP
+
+== Proceso de Registro de Entrada ==
+
+E -> E: Llega a la institución educativa
+E -> AUX: Presenta código QR del estudiante
+AUX -> QR: Escanea código QR del estudiante
+QR -> F: Envía código QR escaneado
+F -> API: POST /api/asistencias/registrar-entrada
+API -> Auth: Verificar token JWT del auxiliar
+Auth -> API: Token válido, rol AUXILIAR
+API -> BL: Procesar código QR
+
+== Validación del Código QR ==
+
+BL -> BL: Validar formato del código QR
+
+alt Código QR válido
+    BL -> P: Buscar estudiante por código QR
+    P -> DB: SELECT estudiante WHERE qr = ?
+    
+    alt Estudiante encontrado
+        DB -> P: Estudiante encontrado
+        P -> BL: Datos del estudiante obtenidos
+        BL -> P: Verificar si ya registró entrada hoy
+        P -> DB: SELECT asistencia WHERE estudiante_id = ? AND fecha = TODAY()
+        
+        alt No hay registro previo
+            DB -> P: No hay registro previo
+            P -> BL: Proceder con registro de entrada
+            BL -> BL: Calcular estado de asistencia (PRESENTE/TARDANZA)
+            note right: Basado en hora actual vs horario de entrada
+            BL -> P: Crear registro de asistencia
+            P -> DB: INSERT INTO asistencias (estudiante_id, fecha, hora_entrada, estado, fuente = 'QR_MANUAL')
+            DB -> P: Asistencia registrada con ID
+            P -> BL: Registro exitoso
+            
+            == Proceso de Notificación ==
+            
+            BL -> NS: Verificar configuración de notificaciones
+            NS -> P: Obtener config de notificaciones del estudiante
+            P -> DB: SELECT notif_config WHERE estudiante_id = ?
+            
+            alt Notificaciones habilitadas
+                DB -> P: Configuración encontrada (entrada_ie = true)
+                P -> NS: Notificaciones habilitadas para entrada
+                NS -> P: Obtener apoderados del estudiante
+                P -> DB: SELECT apoderados FROM estudiante_apoderado WHERE estudiante_id = ?
+                DB -> P: Lista de apoderados
+                P -> NS: Datos de apoderados
+                NS -> ESP: Enviar notificación de entrada
+                note right: "Su hijo [Nombre] ingresó a la IE a las [Hora]"
+                ESP -> NS: Notificación enviada
+                NS -> BL: Proceso de notificación completado
+            else Notificaciones deshabilitadas
+                DB -> P: Notificaciones deshabilitadas
+                P -> NS: No enviar notificaciones
+                NS -> BL: Proceso omitido
+            end
+            
+            BL -> API: Registro de entrada exitoso
+            API -> F: Response 200 con datos de asistencia
+            F -> AUX: Muestra confirmación en pantalla
+            AUX -> E: Confirma registro exitoso
+            
+        else Ya registró entrada
+            DB -> P: Ya existe registro de entrada
+            P -> BL: Entrada duplicada
+            BL -> API: Error - Ya registró entrada hoy
+            API -> F: Response 400 con error
+            F -> AUX: Muestra error "Ya registró entrada"
+            AUX -> E: Informa que ya registró entrada
+        end
+        
+    else Estudiante no encontrado
+        DB -> P: Estudiante no encontrado
+        P -> BL: Código QR no válido
+        BL -> API: Error - Código QR no registrado
+        API -> F: Response 404 con error
+        F -> AUX: Muestra error "Código no registrado"
+        AUX -> E: Solicita verificar código QR
+    end
+    
+else Código QR inválido
+    BL -> API: Error - Formato de código inválido
+    API -> F: Response 400 con error
+    F -> AUX: Muestra error "Código QR inválido"
+    AUX -> E: Solicita código QR correcto
+end
+
+@enduml

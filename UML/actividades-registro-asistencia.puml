@@ -1,0 +1,125 @@
+@startuml
+!theme plain
+title Actividades: Registro de Asistencia con Código QR
+
+|Estudiante|
+start
+:Llegar a la institución educativa;
+:Dirigirse al punto de control;
+:Presentar código QR al auxiliar;
+
+|Auxiliar|
+:Recibir código QR del estudiante;
+
+partition "Registro de Entrada" {
+  :Escanear código QR con dispositivo;
+  
+  |Sistema|
+  :Validar formato del código QR;
+  
+  if (¿Código válido?) then (No)
+    |Auxiliar|
+    :Informar error al estudiante;
+    :Solicitar código QR correcto;
+    stop
+  endif
+  
+  :Buscar estudiante en base de datos;
+  
+  if (¿Estudiante encontrado?) then (No)
+    |Auxiliar|
+    :Informar que código no está registrado;
+    :Derivar a administración;
+    stop
+  endif
+  
+  :Verificar si ya registró entrada hoy;
+  
+  if (¿Ya registró entrada?) then (Sí)
+    |Auxiliar|
+    :Informar que ya registró entrada;
+    :Mostrar hora de entrada anterior;
+    stop
+  endif
+  
+  :Obtener hora actual del sistema;
+  :Consultar horario de entrada del estudiante;
+  :Calcular estado de asistencia;
+  
+  if (¿Llegó a tiempo?) then (Sí)
+    :Marcar como "PRESENTE";
+  else (No)
+    if (¿Dentro de tolerancia?) then (Sí)
+      :Marcar como "TARDANZA";
+    else (No)
+      :Marcar como "TARDANZA" con observación;
+    endif
+  endif
+  
+  :Crear registro de asistencia;
+  :Guardar en base de datos;
+}
+
+|Auxiliar|
+:Mostrar confirmación en pantalla;
+:Informar estado al estudiante;
+
+|Sistema|
+partition "Notificaciones" {
+  :Verificar configuración de notificaciones;
+  
+  if (¿Notificaciones de entrada habilitadas?) then (Sí)
+    :Obtener datos de apoderados;
+    :Preparar mensaje de notificación;
+    
+    fork
+      :Enviar email si está configurado;
+    fork again
+      :Enviar SMS si está configurado;
+    end fork
+    
+    :Registrar envío de notificaciones;
+  endif
+}
+
+|Estudiante|
+:Recibir confirmación;
+:Ingresar a la institución;
+
+== Proceso de Salida ==
+
+|Estudiante|
+:Dirigirse al punto de salida;
+:Presentar código QR para salida;
+
+|Auxiliar|
+:Escanear código QR para salida;
+
+|Sistema|
+:Validar código QR;
+:Buscar registro de entrada del día;
+
+if (¿Tiene registro de entrada?) then (No)
+  |Auxiliar|
+  :Informar que no hay registro de entrada;
+  :Verificar situación manualmente;
+  stop
+endif
+
+:Registrar hora de salida;
+:Actualizar registro de asistencia;
+
+|Auxiliar|
+:Confirmar salida registrada;
+
+|Sistema|
+if (¿Notificaciones de salida habilitadas?) then (Sí)
+  :Enviar notificación de salida a apoderados;
+endif
+
+|Estudiante|
+:Salir de la institución;
+
+stop
+
+@enduml
