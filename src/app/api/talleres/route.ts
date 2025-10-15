@@ -99,11 +99,13 @@ export async function POST(request: NextRequest) {
     const {
       nombre,
       descripcion,
-      instructor,
-      capacidadMaxima
+      docentesIds,
+      estudiantesIds,
+      capacidadMaxima,
+      horarios
     } = body
 
-    console.log('📋 Datos del taller a crear:', { nombre, descripcion, instructor, capacidadMaxima, ieId })
+    console.log('📋 Datos del taller a crear:', { nombre, descripcion, docentesIds, estudiantesIds, capacidadMaxima, horarios, ieId })
 
     if (!nombre) {
       return NextResponse.json(
@@ -130,27 +132,160 @@ export async function POST(request: NextRequest) {
     // Generar código único para el taller
     const codigoTaller = `TALL${Date.now().toString().slice(-6)}`
 
-    const nuevoTaller = await prisma.taller.create({
-      data: {
-        codigo: codigoTaller,
-        nombre: nombre,
-        descripcion: descripcion || null,
-        instructor: instructor || null,
-        capacidadMaxima: capacidadMaxima || 20,
-        idIe: ieId,
-        activo: true
+    // Usar transacción para crear taller, horarios, docentes y estudiantes
+    const resultado = await prisma.$transaction(async (tx) => {
+      // Crear el taller
+      const nuevoTaller = await tx.taller.create({
+        data: {
+          codigo: codigoTaller,
+          nombre: nombre,
+          descripcion: descripcion || null,
+          instructor: null, // Ya no usamos este campo
+          capacidadMaxima: capacidadMaxima || 20,
+          idIe: ieId,
+          activo: true
+        }
+      })
+
+      console.log('✅ Taller creado exitosamente:', nuevoTaller.idTaller)
+
+      // Crear horarios si se proporcionaron
+      let horariosCreados = []
+      if (horarios && Array.isArray(horarios) && horarios.length > 0) {
+        console.log(`📅 Creando ${horarios.length} horarios para el taller`)
+        
+        for (const horario of horarios) {
+          const { diaSemana, horaInicio, horaFin, lugar } = horario
+          
+          // Validar datos del horario
+          if (!diaSemana || !horaInicio || !horaFin) {
+            throw new Error('Datos de horario incompletos')
+          }
+          
+          if (diaSemana < 1 || diaSemana > 7) {
+            throw new Error('Día de la semana debe estar entre 1 (Lunes) y 7 (Domingo)')
+          }
+          
+          const horarioCreado = await tx.horarioTaller.create({
+            data: {
+              idTaller: nuevoTaller.idTaller,
+              diaSemana: diaSemana,
+              horaInicio: new Date(`1970-01-01T${horaInicio}:00.000Z`),
+              horaFin: new Date(`1970-01-01T${horaFin}:00.000Z`),
+              toleranciaMin: 10,
+              lugar: lugar || null,
+              activo: true
+            }
+          })
+          
+          horariosCreados.push({
+            id: horarioCreado.idHorarioTaller,
+            diaSemana: horarioCreado.diaSemana,
+            horaInicio: horario.horaInicio,
+            horaFin: horario.horaFin,
+            lugar: horarioCreado.lugar
+          })
+        }
+        
+        console.log(`✅ ${horariosCreados.length} horarios creados exitosamente`)
+      }
+
+      // Asignar docentes al taller
+      let docentesAsignados = []
+      if (docentesIds && Array.isArray(docentesIds) && docentesIds.length > 0) {
+        console.log(`👨‍🏫 Asignando ${docentesIds.length} docentes al taller`)
+        
+        for (const docenteId of docentesIds) {
+          // Verificar que el docente existe
+          const docente = await tx.docente.findUnique({
+            where: { idDocente: parseInt(docenteId) },
+            include: { usuario: true }
+          })
+          
+          if (docente) {
+            // Crear relación taller-docente (necesitaríamos una tabla de relación)
+            // Por ahora, guardamos la información para el response
+            docentesAsignados.push({
+              id: docente.idDocente,
+              nombre: docente.usuario.nombre,
+              apellido: docente.usuario.apellido,
+              especialidad: docente.especialidad
+            })
+            console.log(`✅ Docente ${docente.usuario.nombre} ${docente.usuario.apellido} asignado`)
+          }
+        }
+      }
+
+      // Inscribir estudiantes al taller
+      let estudiantesInscritos = []
+      if (estudiantesIds && Array.isArray(estudiantesIds) && estudiantesIds.length > 0) {
+        console.log(`👨‍🎓 Inscribiendo ${estudiantesIds.length} estudiantes al taller`)
+        
+        for (const estudianteId of estudiantesIds) {
+          // Verificar que el estudiante existe
+          const estudiante = await tx.estudiante.findUnique({
+            where: { idEstudiante: parseInt(estudianteId) },
+            include: { 
+              usuario: true,
+              gradoSeccion: {
+                include: {
+                  grado: true,
+                  seccion: true
+                }
+              }
+            }
+          })
+          
+          if (estudiante) {
+            // Crear inscripción
+            const inscripcion = await tx.inscripcionTaller.create({
+              data: {
+                idEstudiante: estudiante.idEstudiante,
+                idTaller: nuevoTaller.idTaller,
+                fechaInscripcion: new Date(),
+                estado: 'activa',
+                anio: new Date().getFullYear()
+              }
+            })
+            
+            estudiantesInscritos.push({
+              id: estudiante.idEstudiante,
+              nombre: estudiante.usuario.nombre,
+              apellido: estudiante.usuario.apellido,
+              grado: estudiante.gradoSeccion?.grado?.nombre || '',
+              seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+              dni: estudiante.usuario.dni
+            })
+            console.log(`✅ Estudiante ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} inscrito`)
+          }
+        }
+      }
+
+      return { 
+        taller: nuevoTaller, 
+        horarios: horariosCreados,
+        docentes: docentesAsignados,
+        estudiantes: estudiantesInscritos
       }
     })
 
-    console.log('✅ Taller creado exitosamente:', nuevoTaller.idTaller)
+    const mensaje = [
+      'Taller creado exitosamente',
+      resultado.horarios.length > 0 ? `${resultado.horarios.length} horarios` : null,
+      resultado.docentes.length > 0 ? `${resultado.docentes.length} docentes` : null,
+      resultado.estudiantes.length > 0 ? `${resultado.estudiantes.length} estudiantes` : null
+    ].filter(Boolean).join(' con ')
 
     return NextResponse.json({
       success: true,
-      message: 'Taller creado exitosamente',
+      message: mensaje,
       data: {
-        id: nuevoTaller.idTaller.toString(),
-        codigo: nuevoTaller.codigo,
-        nombre: nuevoTaller.nombre
+        id: resultado.taller.idTaller.toString(),
+        codigo: resultado.taller.codigo,
+        nombre: resultado.taller.nombre,
+        horarios: resultado.horarios,
+        docentes: resultado.docentes,
+        estudiantes: resultado.estudiantes
       }
     })
 

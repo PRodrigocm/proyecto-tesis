@@ -2,6 +2,116 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 
+// Función para actualizar la asistencia cuando se crea un retiro
+async function actualizarAsistenciaPorRetiro(tx: any, params: {
+  estudianteId: number
+  ieId: number
+  fecha: Date
+  horaRetiro: Date
+  userId: number | null
+}) {
+  const { estudianteId, ieId, fecha, horaRetiro, userId } = params
+  
+  console.log('🔄 Actualizando asistencia por retiro:', { estudianteId, ieId, fecha: fecha.toISOString().split('T')[0] })
+  
+  // Determinar el estado de asistencia basado en la hora del retiro
+  const horaRetiroHours = horaRetiro.getHours()
+  const horaRetiroMinutes = horaRetiro.getMinutes()
+  const totalMinutos = horaRetiroHours * 60 + horaRetiroMinutes
+  
+  // Lógica para determinar el estado:
+  // - Si se retira antes de las 10:00 AM (600 minutos): TARDANZA (amarillo)
+  // - Si se retira después de las 10:00 AM: PRESENTE (verde) - asistió parte del día
+  // - Si se retira muy temprano (antes de las 8:30 AM): INASISTENCIA (rojo)
+  let codigoEstado: string
+  let observacionesAsistencia: string
+  
+  if (totalMinutos < 510) { // Antes de 8:30 AM
+    codigoEstado = 'INASISTENCIA'
+    observacionesAsistencia = `Retiro muy temprano (${horaRetiro.toTimeString().slice(0, 5)}) - No asistió`
+  } else if (totalMinutos < 600) { // Entre 8:30 AM y 10:00 AM
+    codigoEstado = 'TARDANZA'
+    observacionesAsistencia = `Retiro temprano (${horaRetiro.toTimeString().slice(0, 5)}) - Asistencia parcial`
+  } else { // Después de 10:00 AM
+    codigoEstado = 'PRESENTE'
+    observacionesAsistencia = `Retiro autorizado (${horaRetiro.toTimeString().slice(0, 5)}) - Asistió parcialmente`
+  }
+  
+  console.log(`📊 Estado determinado: ${codigoEstado} - ${observacionesAsistencia}`)
+  
+  // Buscar o crear el estado de asistencia
+  let estadoAsistencia = await tx.estadoAsistencia.findFirst({
+    where: { codigo: codigoEstado }
+  })
+  
+  if (!estadoAsistencia) {
+    // Crear estados básicos si no existen
+    const estadosBasicos = [
+      { codigo: 'PRESENTE', nombreEstado: 'Presente', requiereJustificacion: false, afectaAsistencia: true },
+      { codigo: 'TARDANZA', nombreEstado: 'Tardanza', requiereJustificacion: false, afectaAsistencia: true },
+      { codigo: 'INASISTENCIA', nombreEstado: 'Inasistencia', requiereJustificacion: true, afectaAsistencia: true }
+    ]
+    
+    for (const estado of estadosBasicos) {
+      await tx.estadoAsistencia.upsert({
+        where: { codigo: estado.codigo },
+        update: {},
+        create: estado
+      })
+    }
+    
+    estadoAsistencia = await tx.estadoAsistencia.findFirst({
+      where: { codigo: codigoEstado }
+    })
+  }
+  
+  // Buscar asistencia existente para ese día
+  const fechaSoloFecha = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate())
+  
+  const asistenciaExistente = await tx.asistencia.findFirst({
+    where: {
+      idEstudiante: estudianteId,
+      fecha: fechaSoloFecha,
+      sesion: 'AM' // Asumir sesión de mañana por defecto
+    }
+  })
+  
+  if (asistenciaExistente) {
+    // Actualizar asistencia existente
+    await tx.asistencia.update({
+      where: { idAsistencia: asistenciaExistente.idAsistencia },
+      data: {
+        idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
+        horaSalida: horaRetiro,
+        observaciones: observacionesAsistencia,
+        fuente: 'RETIRO_AUTOMATICO',
+        registradoPor: userId
+      }
+    })
+    
+    console.log('✅ Asistencia existente actualizada por retiro')
+  } else {
+    // Crear nueva asistencia
+    await tx.asistencia.create({
+      data: {
+        idEstudiante: estudianteId,
+        idIe: ieId,
+        fecha: fechaSoloFecha,
+        sesion: 'AM',
+        horaEntrada: null, // No se registró entrada
+        horaSalida: horaRetiro,
+        idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
+        observaciones: observacionesAsistencia,
+        fuente: 'RETIRO_AUTOMATICO',
+        registradoPor: userId
+      }
+    })
+    
+    console.log('✅ Nueva asistencia creada por retiro')
+  }
+}
+
+
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 GET /api/retiros - Iniciando consulta de retiros')
@@ -167,6 +277,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📝 POST /api/retiros - Creando nuevo retiro')
+    
+    // Obtener ieId y userId del token de usuario
+    const authHeader = request.headers.get('authorization')
+    let ieId = 1 // Default
+    let userId = null
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7)
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+        ieId = decoded.ieId || 1
+        userId = decoded.userId
+        console.log('✅ Token decodificado, ieId:', ieId, 'userId:', userId)
+      } catch (error) {
+        console.log('⚠️ Error decoding token, using defaults')
+      }
+    }
+    
     const body = await request.json()
     const {
       estudianteId,
@@ -180,8 +309,17 @@ export async function POST(request: NextRequest) {
       origen,
       medioContacto,
       apoderadoContactado,
-      apoderadoQueRetira
+      apoderadoQueRetira,
+      horaContacto,
+      verificadoPor,
+      esAdministrativo = false // Nuevo campo para identificar si viene del panel admin
     } = body
+    
+    console.log('📋 Datos del retiro:', {
+      estudianteId, idGradoSeccion, fecha, motivo, horaRetiro,
+      origen, medioContacto, apoderadoContactado, horaContacto,
+      verificadoPor, esAdministrativo
+    })
 
     // Buscar o crear tipo de retiro
     let tipoRetiro = await prisma.tipoRetiro.findFirst({
@@ -194,20 +332,33 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Buscar estado inicial
+    // Buscar estado según el origen del retiro
+    const codigoEstado = esAdministrativo ? 'APROBADO' : 'PENDIENTE'
     let estadoRetiro = await prisma.estadoRetiro.findFirst({
-      where: { codigo: 'PENDIENTE' }
+      where: { codigo: codigoEstado }
     })
 
     if (!estadoRetiro) {
-      estadoRetiro = await prisma.estadoRetiro.create({
-        data: { 
-          codigo: 'PENDIENTE',
-          nombre: 'Pendiente',
-          orden: 1
-        }
-      })
+      if (esAdministrativo) {
+        estadoRetiro = await prisma.estadoRetiro.create({
+          data: { 
+            codigo: 'APROBADO',
+            nombre: 'Aprobado',
+            orden: 2
+          }
+        })
+      } else {
+        estadoRetiro = await prisma.estadoRetiro.create({
+          data: { 
+            codigo: 'PENDIENTE',
+            nombre: 'Pendiente',
+            orden: 1
+          }
+        })
+      }
     }
+    
+    console.log(`🏷️ Estado del retiro: ${estadoRetiro.nombre} (${estadoRetiro.codigo})`)
 
     // Validar y parsear fecha
     const fechaRetiro = fecha ? new Date(fecha) : new Date()
@@ -230,27 +381,81 @@ export async function POST(request: NextRequest) {
     const horaRetiroDate = new Date()
     horaRetiroDate.setHours(horas, minutos, 0, 0)
 
-    const nuevoRetiro = await prisma.retiro.create({
-      data: {
-        idEstudiante: parseInt(estudianteId),
-        idGradoSeccion: idGradoSeccion ? parseInt(idGradoSeccion) : null,
-        fecha: fechaRetiro,
-        hora: horaRetiroDate,
-        idTipoRetiro: tipoRetiro.idTipoRetiro,
-        origen: origen || null,
-        medioContacto: medioContacto || null,
-        apoderadoContactado: apoderadoContactado ? parseInt(apoderadoContactado) : null,
-        apoderadoQueRetira: apoderadoQueRetira ? parseInt(apoderadoQueRetira) : null,
-        observaciones: observaciones ? `${observaciones}${personaRecoge ? ` | Persona que recoge: ${personaRecoge}` : ''}` : (personaRecoge ? `Persona que recoge: ${personaRecoge}` : undefined),
-        dniVerificado: dniPersonaRecoge,
-        idEstadoRetiro: estadoRetiro.idEstadoRetiro,
-        idIe: 1 // IE por defecto
+    // Obtener el grado-sección del estudiante si no se proporciona
+    let gradoSeccionId = idGradoSeccion ? parseInt(idGradoSeccion) : null
+    
+    if (!gradoSeccionId) {
+      const estudiante = await prisma.estudiante.findUnique({
+        where: { idEstudiante: parseInt(estudianteId) },
+        include: { gradoSeccion: true }
+      })
+      
+      if (estudiante?.gradoSeccion) {
+        gradoSeccionId = estudiante.gradoSeccion.idGradoSeccion
+        console.log(`🎯 Grado-sección obtenido del estudiante: ${gradoSeccionId}`)
       }
+    }
+    
+    // Preparar hora de contacto si se proporciona
+    let horaContactoDate = null
+    if (horaContacto) {
+      horaContactoDate = new Date(horaContacto)
+      if (isNaN(horaContactoDate.getTime())) {
+        horaContactoDate = new Date() // Usar hora actual si es inválida
+      }
+    }
+    
+    // Usar transacción para crear retiro y actualizar asistencia
+    const resultado = await prisma.$transaction(async (tx) => {
+      // Crear el retiro
+      const nuevoRetiro = await tx.retiro.create({
+        data: {
+          idEstudiante: parseInt(estudianteId),
+          idIe: ieId,
+          idGradoSeccion: gradoSeccionId,
+          fecha: fechaRetiro,
+          hora: horaRetiroDate,
+          idTipoRetiro: tipoRetiro.idTipoRetiro,
+          origen: origen || (esAdministrativo ? 'PANEL_ADMINISTRATIVO' : 'SOLICITUD_APODERADO'),
+          apoderadoContactado: apoderadoContactado ? parseInt(apoderadoContactado) : null,
+          horaContacto: horaContactoDate,
+          medioContacto: medioContacto || (esAdministrativo ? 'PRESENCIAL' : null),
+          apoderadoQueRetira: apoderadoQueRetira ? parseInt(apoderadoQueRetira) : null,
+          dniVerificado: dniPersonaRecoge,
+          verificadoPor: verificadoPor ? parseInt(verificadoPor) : (esAdministrativo && userId ? userId : null),
+          idEstadoRetiro: estadoRetiro.idEstadoRetiro,
+          observaciones: observaciones ? `${observaciones}${personaRecoge ? ` | Persona que recoge: ${personaRecoge}` : ''}` : (personaRecoge ? `Persona que recoge: ${personaRecoge}` : null)
+        }
+      })
+      
+      console.log(`✅ Retiro creado exitosamente con ID: ${nuevoRetiro.idRetiro}`)
+      
+      // Actualizar o crear asistencia del estudiante para ese día
+      await actualizarAsistenciaPorRetiro(tx, {
+        estudianteId: parseInt(estudianteId),
+        ieId: ieId,
+        fecha: fechaRetiro,
+        horaRetiro: horaRetiroDate,
+        userId: userId
+      })
+      
+      return nuevoRetiro
     })
+    
+    console.log(`✅ Retiro y asistencia procesados exitosamente`)
 
+    const mensaje = esAdministrativo 
+      ? 'Retiro aprobado y asistencia actualizada exitosamente'
+      : 'Retiro solicitado y asistencia actualizada exitosamente'
+    
     return NextResponse.json({
-      message: 'Retiro solicitado exitosamente',
-      id: nuevoRetiro.idRetiro
+      success: true,
+      message: mensaje,
+      data: {
+        id: resultado.idRetiro,
+        estado: estadoRetiro.nombre,
+        codigo: estadoRetiro.codigo
+      }
     })
 
   } catch (error) {

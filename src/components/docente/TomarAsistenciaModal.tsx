@@ -35,6 +35,8 @@ export default function TomarAsistenciaModal({
   const [loading, setLoading] = useState(false)
 
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string>('')
+  const [estudianteEscaneado, setEstudianteEscaneado] = useState<Estudiante | null>(null)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState<boolean>(false)
   const [codigoManual, setCodigoManual] = useState<string>('')
   const [camaras, setCamaras] = useState<CameraDevice[]>([])
   const [camaraSeleccionada, setCamaraSeleccionada] = useState<string>('')
@@ -199,9 +201,20 @@ export default function TomarAsistenciaModal({
           : est
       ))
       
+      // Mostrar confirmación visual
+      setEstudianteEscaneado({ ...estudiante, estado: nuevoEstado, horaLlegada: horaActual })
+      setMostrarConfirmacion(true)
+      
       reproducirSonidoConfirmacion()
-      alert(`${estudiante.nombre} registrado como ${nuevoEstado} a las ${horaActual}`)
+      
+      // Ocultar confirmación después de 3 segundos
+      setTimeout(() => {
+        setMostrarConfirmacion(false)
+        setEstudianteEscaneado(null)
+      }, 3000)
+      
     } else if (estudiante && estudiante.estado !== 'pendiente') {
+      alert(`${estudiante.nombre} ya fue registrado como ${estudiante.estado}`)
     } else {
       alert('Código no válido o estudiante no encontrado')
     }
@@ -643,11 +656,11 @@ export default function TomarAsistenciaModal({
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
 
-      // Configuración optimizada
+      // Configuración optimizada para pantalla completa
       const config = {
-        fps: 10,
+        fps: 15,
         qrbox: function(viewfinderWidth: number, viewfinderHeight: number) {
-          const minEdgePercentage = 0.7
+          const minEdgePercentage = 0.8
           const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
           const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage)
           return {
@@ -655,7 +668,12 @@ export default function TomarAsistenciaModal({
             height: qrboxSize
           }
         },
-        aspectRatio: 1.0
+        aspectRatio: 16/9, // Aspecto más amplio para pantalla completa
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'environment' // Preferir cámara trasera
+        }
       }
 
       console.log('🚀 Intentando iniciar cámara con ID:', camaraSeleccionada)
@@ -797,8 +815,8 @@ export default function TomarAsistenciaModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full h-full max-w-none max-h-none overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
@@ -815,7 +833,7 @@ export default function TomarAsistenciaModal({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 h-full">
           {/* Selector de modo */}
           <div className="mb-6">
             <div className="flex space-x-4">
@@ -865,9 +883,9 @@ export default function TomarAsistenciaModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Panel de escaneo */}
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+            {/* Panel de escaneo - Ocupa 2/3 del espacio */}
+            <div className="lg:col-span-2">
               {modoEscaneo === 'camara' ? (
                 <div>
                   <h3 className="text-lg font-medium mb-4">Escanear Código QR</h3>
@@ -1011,12 +1029,41 @@ export default function TomarAsistenciaModal({
                   )}
 
 
-                  {/* Área de escaneo */}
+                  {/* Área de escaneo - Pantalla completa */}
                   <div className="relative">
+                    {/* Overlay con información del estudiante */}
+                    {mostrarConfirmacion && estudianteEscaneado && (
+                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-lg shadow-lg p-4 border-2 border-green-500">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-bold text-green-800 text-lg">{estudianteEscaneado.nombre}</p>
+                            <p className="text-green-600 text-sm">
+                              {estudianteEscaneado.estado === 'presente' ? '✅ Presente' : '⏰ Tardanza'} - {estudianteEscaneado.horaLlegada}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Información del último estudiante escaneado */}
+                    {ultimoEscaneo && estudianteEscaneado && !mostrarConfirmacion && (
+                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 bg-blue-600 text-white rounded-lg shadow-lg p-3">
+                        <div className="text-center">
+                          <p className="font-semibold">{estudianteEscaneado.nombre}</p>
+                          <p className="text-xs opacity-90">Código: {ultimoEscaneo}</p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div 
                       id="qr-reader" 
                       className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden"
-                      style={{ minHeight: '300px' }}
+                      style={{ minHeight: '500px', height: '70vh' }}
                     />
                     
                     {!scannerActive && (
@@ -1110,8 +1157,8 @@ export default function TomarAsistenciaModal({
               )}
             </div>
 
-            {/* Lista de estudiantes */}
-            <div>
+            {/* Lista de estudiantes - Ocupa 1/3 del espacio */}
+            <div className="lg:col-span-1 max-h-[70vh] overflow-y-auto">
               <h3 className="text-lg font-medium mb-4">Lista de Estudiantes</h3>
               
               {loading && (

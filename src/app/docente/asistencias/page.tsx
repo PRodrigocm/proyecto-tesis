@@ -20,7 +20,11 @@ export default function DocenteAsistencias() {
     { value: 'presente', label: 'Presente', color: 'bg-green-100 text-green-800' },
     { value: 'tardanza', label: 'Tardanza', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'inasistencia', label: 'Inasistencia', color: 'bg-red-100 text-red-800' },
-    { value: 'justificada', label: 'Justificada', color: 'bg-blue-100 text-blue-800' }
+    { value: 'justificada', label: 'Justificada', color: 'bg-blue-100 text-blue-800' },
+    // Estados especiales para retiros
+    { value: 'retiro_temprano', label: 'Retiro Temprano', color: 'bg-red-100 text-red-800' },
+    { value: 'retiro_parcial', label: 'Retiro Parcial', color: 'bg-gray-100 text-gray-800' },
+    { value: 'retiro_tardio', label: 'Retiro Tardío', color: 'bg-yellow-100 text-yellow-800' }
   ]
 
   // Cargar datos de autenticación
@@ -126,11 +130,24 @@ export default function DocenteAsistencias() {
   }
 
   const handleEstadoChange = (estudianteId: number, nuevoEstado: string) => {
-    setEstudiantes(prev => prev.map(est => 
-      est.id === estudianteId 
-        ? { ...est, estado: nuevoEstado, horaLlegada: nuevoEstado === 'presente' || nuevoEstado === 'tardanza' ? new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null }
-        : est
-    ))
+    const horaActual = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    
+    setEstudiantes(prev => prev.map(est => {
+      if (est.id === estudianteId) {
+        // Si se está editando la asistencia, siempre actualizar la hora de llegada
+        const nuevaHoraLlegada = (nuevoEstado === 'presente' || nuevoEstado === 'tardanza') 
+          ? horaActual 
+          : null
+        
+        return { 
+          ...est, 
+          estado: nuevoEstado, 
+          horaLlegada: nuevaHoraLlegada,
+          editado: true // Marcar como editado
+        }
+      }
+      return est
+    }))
   }
 
   const handleGuardarAsistencia = () => {
@@ -146,9 +163,19 @@ export default function DocenteAsistencias() {
     alert('Asistencia por QR guardada correctamente')
   }
 
-  const getEstadoColor = (estado: string) => {
+  const getEstadoColor = (estado: string, estadoVisual?: string) => {
+    // Si hay un estado visual personalizado (para retiros), usarlo
+    if (estadoVisual) {
+      return estadoVisual
+    }
+    
     const estadoObj = estadosAsistencia.find(e => e.value === estado)
     return estadoObj?.color || 'bg-gray-100 text-gray-800'
+  }
+  
+  const getEstadoLabel = (estado: string) => {
+    const estadoObj = estadosAsistencia.find(e => e.value === estado)
+    return estadoObj?.label || 'Sin registrar'
   }
 
   const contarEstados = () => {
@@ -177,6 +204,46 @@ export default function DocenteAsistencias() {
           <p className="mt-2 text-sm text-gray-700">
             Registra y gestiona la asistencia de tus estudiantes
           </p>
+        </div>
+        
+        {/* Botones de acción en el header */}
+        <div className="mt-4 sm:mt-0 flex space-x-3">
+          <button
+            onClick={() => setShowTomarAsistenciaModal(true)}
+            disabled={!claseSeleccionada}
+            className={`inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              !claseSeleccionada 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+            }`}
+            title={!claseSeleccionada ? 'Selecciona una clase primero' : 'Tomar asistencia por QR'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h4" />
+            </svg>
+            Tomar Asistencia
+          </button>
+          <button
+            onClick={() => setModoEdicion(!modoEdicion)}
+            disabled={!claseSeleccionada || estudiantes.length === 0}
+            className={`inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              !claseSeleccionada || estudiantes.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : modoEdicion 
+                  ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
+                  : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+            }`}
+            title={!claseSeleccionada ? 'Selecciona una clase primero' : estudiantes.length === 0 ? 'Carga los estudiantes primero' : modoEdicion ? 'Cancelar edición' : 'Editar asistencias'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {modoEdicion ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              )}
+            </svg>
+            {modoEdicion ? 'Cancelar' : 'Editar'}
+          </button>
         </div>
       </div>
 
@@ -214,36 +281,13 @@ export default function DocenteAsistencias() {
             </select>
           </div>
           <div className="flex items-end">
-            <div className="w-full flex flex-col space-y-2">
-              <button 
-                onClick={loadEstudiantes}
-                disabled={!claseSeleccionada || !fechaSeleccionada}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Cargando...' : 'Cargar Asistencia'}
-              </button>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setShowTomarAsistenciaModal(true)}
-                  className="flex-1 inline-flex items-center justify-center rounded-md border border-transparent px-3 py-2 text-sm font-medium text-white shadow-sm bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h4" />
-                  </svg>
-                  Tomar Asistencia
-                </button>
-                <button
-                  onClick={() => setModoEdicion(!modoEdicion)}
-                  className={`flex-1 inline-flex items-center justify-center rounded-md border border-transparent px-3 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    modoEdicion 
-                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
-                      : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                  }`}
-                >
-                  {modoEdicion ? 'Cancelar' : 'Editar'}
-                </button>
-              </div>
-            </div>
+            <button 
+              onClick={loadEstudiantes}
+              disabled={!claseSeleccionada || !fechaSeleccionada}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Cargando...' : 'Cargar Asistencia'}
+            </button>
           </div>
         </div>
       </div>
@@ -359,12 +403,20 @@ export default function DocenteAsistencias() {
             <p className="text-sm text-gray-600">
               {fechaSeleccionada} - {claseSeleccionada ? clases.find(c => c.id.toString() === claseSeleccionada)?.nombre : 'Seleccionar clase'}
             </p>
+            {modoEdicion && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Modo edición activo - Las horas de llegada se actualizarán automáticamente
+              </p>
+            )}
           </div>
           {modoEdicion && (
             <button
               onClick={handleGuardarAsistencia}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
             >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               Guardar Asistencia
             </button>
           )}
@@ -384,7 +436,7 @@ export default function DocenteAsistencias() {
                   Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hora Llegada
+                  Horarios
                 </th>
                 {modoEdicion && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -414,12 +466,35 @@ export default function DocenteAsistencias() {
                     {estudiante.codigo}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado)}`}>
-                      {estadosAsistencia.find(e => e.value === estudiante.estado)?.label}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
+                        {getEstadoLabel(estudiante.estado)}
+                      </span>
+                      {estudiante.tieneRetiro && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          Retiro
+                        </span>
+                      )}
+                    </div>
+                    {estudiante.tieneRetiro && estudiante.retiro && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {estudiante.retiro.motivo} - {estudiante.retiro.hora}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {estudiante.horaLlegada || '-'}
+                    <div>
+                      {estudiante.horaLlegada && (
+                        <div className="text-green-600">Entrada: {estudiante.horaLlegada}</div>
+                      )}
+                      {estudiante.horaSalida && (
+                        <div className="text-orange-600">Salida: {estudiante.horaSalida}</div>
+                      )}
+                      {!estudiante.horaLlegada && !estudiante.horaSalida && '-'}
+                    </div>
                   </td>
                   {modoEdicion && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

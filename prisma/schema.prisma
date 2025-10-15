@@ -133,6 +133,7 @@ model Usuario {
   justificacionesRevisadas Justificacion[] @relation("JustificacionRevisadaPor")
   documentosSubidos        DocumentoJustificacion[] @relation("DocumentoSubidoPor")
   justificacionesAplicadas AsistenciaJustificacion[] @relation("JustificacionAplicadaPor")
+  notificaciones           Notificacion[]
   
   @@map("usuarios")
 }
@@ -666,6 +667,26 @@ model Retiro {
   @@index([idIe, fecha])
   @@index([idEstadoRetiro])
   @@map("retiros")
+}
+
+// ======================
+// Notificaciones
+// ======================
+model Notificacion {
+  idNotificacion  Int       @id @default(autoincrement()) @map("id_notificacion")
+  idUsuario       Int       @map("id_usuario")
+  titulo          String
+  mensaje         String    @db.Text
+  tipo            String    // INFO, ALERTA, JUSTIFICACION, RETIRO, ASISTENCIA, etc.
+  leida           Boolean   @default(false)
+  fechaEnvio      DateTime  @default(now()) @map("fecha_envio") @db.Timestamptz
+  fechaLectura    DateTime? @map("fecha_lectura") @db.Timestamptz
+  origen          String?   // Qué módulo la generó: Asistencia, Justificación, etc.
+  
+  usuario         Usuario   @relation(fields: [idUsuario], references: [idUsuario])
+
+  @@index([idUsuario, leida])
+  @@map("notificaciones")
 }
 
 // ======================

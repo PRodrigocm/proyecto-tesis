@@ -21,7 +21,8 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     grado: '',
     seccion: '',
     tipoAsignacion: '',
-    password: ''
+    password: '',
+    esDocenteTaller: false
   })
   
   const [grados, setGrados] = useState<any[]>([])
@@ -174,7 +175,8 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
           grado: '',
           seccion: '',
           tipoAsignacion: '',
-          password: ''
+          password: '',
+          esDocenteTaller: false
         })
       } else {
         const error = await response.json()
@@ -190,10 +192,24 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: type === 'checkbox' ? checked : value
     })
+    
+    // Si se marca como docente de taller, limpiar grado y sección
+    if (name === 'esDocenteTaller' && checked) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked,
+        grado: '',
+        seccion: ''
+      }))
+      setSecciones([])
+    }
   }
 
   if (!isOpen) return null
@@ -273,76 +289,116 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
               />
             </div>
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Grado</label>
-              <select
-                name="grado"
-                value={formData.grado}
-                onChange={handleGradoChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                disabled={loadingGrados}
-              >
-                <option value="">Seleccionar grado...</option>
-                {grados.map((grado) => (
-                  <option key={grado.idGrado} value={grado.idGrado}>
-                    {grado.nombre}
-                  </option>
-                ))}
-              </select>
-              {loadingGrados && (
-                <p className="text-sm text-gray-500 mt-1">Cargando grados...</p>
+            {/* Checkbox Docente de Taller */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <input
+                  type="checkbox"
+                  id="esDocenteTaller"
+                  name="esDocenteTaller"
+                  checked={formData.esDocenteTaller}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="esDocenteTaller" className="text-base font-medium text-gray-800">
+                  🎨 Docente de taller
+                </label>
+                <div className="text-sm text-gray-600">
+                  Marcar si este docente se encargará de talleres extracurriculares
+                </div>
+              </div>
+              {formData.esDocenteTaller && (
+                <p className="text-sm text-blue-600 mt-2">
+                  ℹ️ Los docentes de taller no requieren asignación de grado y sección específicos
+                </p>
               )}
             </div>
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Sección</label>
-              <select
-                name="seccion"
-                value={formData.seccion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                disabled={loadingSecciones || !formData.grado}
-              >
-                <option value="">Seleccionar sección...</option>
-                {secciones.map((seccion) => (
-                  <option key={seccion.idSeccion} value={seccion.idSeccion}>
-                    {seccion.nombre}
-                  </option>
-                ))}
-              </select>
-              {loadingSecciones && (
-                <p className="text-sm text-gray-500 mt-1">Cargando secciones...</p>
-              )}
-              {!formData.grado && (
-                <p className="text-sm text-gray-500 mt-1">Primero selecciona un grado</p>
-              )}
-            </div>
+            {/* Grado - Solo visible si NO es docente de taller */}
+            {!formData.esDocenteTaller && (
+              <div>
+                <label className="block text-base font-semibold text-gray-800 mb-2">Grado</label>
+                <select
+                  name="grado"
+                  value={formData.grado}
+                  onChange={handleGradoChange}
+                  className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                  disabled={loadingGrados}
+                >
+                  <option value="">Seleccionar grado...</option>
+                  {grados.map((grado) => (
+                    <option key={grado.idGrado} value={grado.idGrado}>
+                      {grado.nombre}
+                    </option>
+                  ))}
+                </select>
+                {loadingGrados && (
+                  <p className="text-sm text-gray-500 mt-1">Cargando grados...</p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Opcional: Grado al que será asignado el docente
+                </p>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Tipo de Asignación</label>
-              <select
-                name="tipoAsignacion"
-                value={formData.tipoAsignacion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                disabled={loadingTipos}
-              >
-                <option value="">Seleccionar tipo...</option>
-                {tiposAsignacion.map((tipo) => (
-                  <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>
-                    {tipo.nombre}
-                  </option>
-                ))}
-              </select>
-              {loadingTipos && (
-                <p className="text-sm text-gray-500 mt-1">Cargando tipos de asignación...</p>
-              )}
-              <p className="text-sm text-gray-500 mt-1">
-                Opcional: Define el rol del docente (Tutor, Profesor de materia, etc.)
-              </p>
-            </div>
+            {/* Sección - Solo visible si NO es docente de taller */}
+            {!formData.esDocenteTaller && (
+              <div>
+                <label className="block text-base font-semibold text-gray-800 mb-2">Sección</label>
+                <select
+                  name="seccion"
+                  value={formData.seccion}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                  disabled={loadingSecciones || !formData.grado}
+                >
+                  <option value="">Seleccionar sección...</option>
+                  {secciones.map((seccion) => (
+                    <option key={seccion.idSeccion} value={seccion.idSeccion}>
+                      {seccion.nombre}
+                    </option>
+                  ))}
+                </select>
+                {loadingSecciones && (
+                  <p className="text-sm text-gray-500 mt-1">Cargando secciones...</p>
+                )}
+                {!formData.grado && (
+                  <p className="text-sm text-gray-500 mt-1">Primero selecciona un grado</p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Opcional: Sección específica del grado seleccionado
+                </p>
+              </div>
+            )}
 
-            <div>
+            {/* Tipo de Asignación - Solo visible si NO es docente de taller */}
+            {!formData.esDocenteTaller && (
+              <div>
+                <label className="block text-base font-semibold text-gray-800 mb-2">Tipo de Asignación</label>
+                <select
+                  name="tipoAsignacion"
+                  value={formData.tipoAsignacion}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                  disabled={loadingTipos}
+                >
+                  <option value="">Seleccionar tipo...</option>
+                  {tiposAsignacion.map((tipo) => (
+                    <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>
+                      {tipo.nombre}
+                    </option>
+                  ))}
+                </select>
+                {loadingTipos && (
+                  <p className="text-sm text-gray-500 mt-1">Cargando tipos de asignación...</p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Opcional: Define el rol del docente (Tutor, Profesor de materia, etc.)
+                </p>
+              </div>
+            )}
+
+            <div className={formData.esDocenteTaller ? 'md:col-span-2' : ''}>
               <label className="block text-base font-semibold text-gray-800 mb-2">Especialidad *</label>
               <input
                 type="text"
@@ -351,8 +407,14 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 onChange={handleChange}
                 required
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Matemáticas, Comunicación, etc."
+                placeholder={formData.esDocenteTaller ? "Robótica, Arte, Música, Deportes, etc." : "Matemáticas, Comunicación, etc."}
               />
+              <p className="text-sm text-gray-500 mt-1">
+                {formData.esDocenteTaller 
+                  ? "Especialidad o área del taller que impartirá" 
+                  : "Materia o área de especialización académica"
+                }
+              </p>
             </div>
 
             <div className="md:col-span-2">

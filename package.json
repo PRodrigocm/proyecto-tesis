@@ -19,7 +19,8 @@
     "create:docente-user": "tsx scripts/create-docente-user.ts",
     "init:retiros-data": "tsx scripts/init-retiros-data.ts",
     "generate:qr-pdf": "tsx scripts/generate-qr-pdf.ts",
-    "verify:qr-codes": "tsx scripts/verify-qr-codes.ts"
+    "verify:qr-codes": "tsx scripts/verify-qr-codes.ts",
+    "init:notificaciones-test": "tsx scripts/init-notificaciones-test.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

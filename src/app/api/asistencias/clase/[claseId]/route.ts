@@ -64,7 +64,9 @@ export async function GET(
       return NextResponse.json({ error: 'Clase no encontrada' }, { status: 404 })
     }
 
-    // Obtener estudiantes del grado-sección
+    // Obtener estudiantes del grado-sección con asistencias y retiros
+    const fechaConsulta = new Date(fecha)
+    
     const estudiantes = await prisma.estudiante.findMany({
       where: {
         idGradoSeccion: docenteAula.idGradoSeccion
@@ -73,7 +75,19 @@ export async function GET(
         usuario: true,
         asistencias: {
           where: {
-            fecha: new Date(fecha)
+            fecha: fechaConsulta
+          },
+          include: {
+            estadoAsistencia: true
+          }
+        },
+        retiros: {
+          where: {
+            fecha: fechaConsulta
+          },
+          include: {
+            estadoRetiro: true,
+            tipoRetiro: true
           }
         }
       }
@@ -84,17 +98,57 @@ export async function GET(
     // Transformar datos para la respuesta
     const asistencias = estudiantes.map(estudiante => {
       const asistenciaDelDia = estudiante.asistencias[0] // Primera asistencia del día
+      const retiroDelDia = estudiante.retiros[0] // Primer retiro del día
+      
+      // Determinar estado visual basado en asistencia y retiro
+      let estado = 'sin_registrar'
+      let estadoVisual = null
+      let observaciones = asistenciaDelDia?.observaciones || null
+      
+      if (retiroDelDia) {
+        // Si hay retiro, determinar estado basado en la hora del retiro
+        const horaRetiro = retiroDelDia.hora
+        const horaRetiroHours = horaRetiro.getHours()
+        const horaRetiroMinutes = horaRetiro.getMinutes()
+        const totalMinutos = horaRetiroHours * 60 + horaRetiroMinutes
+        
+        if (totalMinutos < 510) { // Antes de 8:30 AM
+          estado = 'retiro_temprano'
+          estadoVisual = 'bg-red-100 text-red-800' // Rojo
+        } else if (totalMinutos < 600) { // Entre 8:30 AM y 10:00 AM
+          estado = 'retiro_parcial'
+          estadoVisual = 'bg-gray-100 text-gray-800' // Gris
+        } else { // Después de 10:00 AM
+          estado = 'retiro_tardio'
+          estadoVisual = 'bg-yellow-100 text-yellow-800' // Amarillo
+        }
+        
+        observaciones = `Retiro: ${retiroDelDia.tipoRetiro?.nombre || 'Motivo no especificado'} (${horaRetiro.toTimeString().slice(0, 5)})`
+      } else if (asistenciaDelDia?.estadoAsistencia) {
+        // Si no hay retiro, usar estado de asistencia normal
+        estado = asistenciaDelDia.estadoAsistencia.codigo.toLowerCase()
+      }
       
       return {
         id: estudiante.idEstudiante,
         nombre: `${estudiante.usuario.nombre || 'Sin nombre'} ${estudiante.usuario.apellido || 'Sin apellido'}`,
         codigo: `EST${estudiante.idEstudiante.toString().padStart(3, '0')}`,
         dni: estudiante.usuario.dni || 'Sin DNI',
-        estado: asistenciaDelDia?.idEstadoAsistencia ? 
-          getEstadoTexto(asistenciaDelDia.idEstadoAsistencia) : 'sin_registrar',
+        estado: estado,
+        estadoVisual: estadoVisual,
         horaLlegada: asistenciaDelDia?.horaEntrada ? 
           asistenciaDelDia.horaEntrada.toTimeString().slice(0, 5) : null,
-        observaciones: asistenciaDelDia?.observaciones || null
+        horaSalida: retiroDelDia?.hora ? 
+          retiroDelDia.hora.toTimeString().slice(0, 5) : 
+          (asistenciaDelDia?.horaSalida ? asistenciaDelDia.horaSalida.toTimeString().slice(0, 5) : null),
+        observaciones: observaciones,
+        tieneRetiro: !!retiroDelDia,
+        retiro: retiroDelDia ? {
+          id: retiroDelDia.idRetiro,
+          motivo: retiroDelDia.tipoRetiro?.nombre || 'Sin motivo',
+          hora: retiroDelDia.hora.toTimeString().slice(0, 5),
+          estado: retiroDelDia.estadoRetiro?.nombre || 'Pendiente'
+        } : null
       }
     })
 

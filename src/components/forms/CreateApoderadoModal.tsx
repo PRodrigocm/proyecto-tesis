@@ -34,6 +34,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
     email: '',
     telefono: '',
     ocupacion: '',
+    direccion: '',
     password: ''
   })
   
@@ -104,7 +105,8 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           ieId,
           rol: 'APODERADO',
           apoderado: {
-            ocupacion: formData.ocupacion
+            ocupacion: formData.ocupacion,
+            direccion: formData.direccion
           },
           // Relaciones con estudiantes (múltiples hijos)
           hijosRelaciones: hijosRelaciones.filter(hijo => hijo.estudianteId).map(hijo => ({
@@ -126,6 +128,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           email: '',
           telefono: '',
           ocupacion: '',
+          direccion: '',
           password: ''
         })
         setHijosRelaciones([
@@ -272,6 +275,19 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 onChange={handleChange}
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Profesión u ocupación"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-base font-semibold text-gray-800 mb-2">Dirección *</label>
+              <input
+                type="text"
+                name="direccion"
+                value={formData.direccion}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Dirección completa del domicilio"
               />
             </div>
 

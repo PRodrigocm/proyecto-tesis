@@ -92,10 +92,10 @@ export async function POST(request: NextRequest) {
     
     const { 
       dni, nombre, apellido, email, telefono, 
-      especialidad, grado, seccion, tipoAsignacion, password 
+      especialidad, grado, seccion, tipoAsignacion, password, esDocenteTaller 
     } = body
 
-    console.log('Campos extraídos:', { dni, nombre, apellido, email, especialidad, password })
+    console.log('Campos extraídos:', { dni, nombre, apellido, email, especialidad, password, esDocenteTaller })
 
     // Validar campos requeridos
     const camposRequeridos = { dni, nombre, apellido, email, especialidad, password }
@@ -196,8 +196,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Crear asignación de aula si se proporcionan grado, sección y tipo
-    if (grado && seccion && tipoAsignacion) {
+    // Crear asignación de aula solo si NO es docente de taller y se proporcionan todos los datos
+    if (!esDocenteTaller && grado && seccion && tipoAsignacion) {
+      console.log('Creando asignación de aula para docente regular')
       const gradoSeccion = await prisma.gradoSeccion.findFirst({
         where: {
           idGrado: parseInt(grado),
@@ -213,12 +214,20 @@ export async function POST(request: NextRequest) {
             idTipoAsignacion: parseInt(tipoAsignacion)
           }
         })
+        console.log('Asignación de aula creada exitosamente')
+      } else {
+        console.log('No se encontró el grado-sección especificado')
       }
+    } else if (esDocenteTaller) {
+      console.log('Docente de taller creado sin asignación de aula específica')
+    } else {
+      console.log('Docente creado sin asignación de aula (campos opcionales no completados)')
     }
 
     return NextResponse.json({ 
-      message: 'Docente creado exitosamente',
-      id: newDocente.idDocente
+      message: `Docente ${esDocenteTaller ? 'de taller ' : ''}creado exitosamente`,
+      id: newDocente.idDocente,
+      tipo: esDocenteTaller ? 'taller' : 'regular'
     })
 
   } catch (error) {

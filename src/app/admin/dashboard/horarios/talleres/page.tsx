@@ -2,63 +2,38 @@
 
 import { useState } from 'react'
 import { useExcepcionesHorario } from '@/hooks/useExcepcionesHorario'
-import CreateHorarioTalleresModal from '@/components/admin/CreateHorarioTalleresModal'
+import { useHorariosTalleres } from '@/hooks/useHorariosTalleres'
+import EditHorarioTallerModal from '@/components/admin/EditHorarioTallerModal'
 
 export default function HorarioTalleresPage() {
   const [activeTab, setActiveTab] = useState<'horarios' | 'excepciones'>('horarios')
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedHorario, setSelectedHorario] = useState<any>(null)
+  const [filtroTaller, setFiltroTaller] = useState('')
+  const [filtroInstructor, setFiltroInstructor] = useState('')
+  
   const { 
     excepciones, 
     loading: loadingExcepciones, 
     tiposExcepcion,
     stats: statsExcepciones 
   } = useExcepcionesHorario()
+  
+  const {
+    talleresConHorarios,
+    instructores,
+    loading: loadingHorarios,
+    stats,
+    actualizarHorario,
+    getTalleresPorDia
+  } = useHorariosTalleres()
 
-  // Datos simulados de talleres para mostrar la estructura
-  const talleres = [
-    {
-      id: '1',
-      nombre: 'Robótica',
-      instructor: 'Prof. García',
-      horarios: [
-        { dia: 'Martes', horaInicio: '14:00', horaFin: '16:00', aula: 'Lab 1' },
-        { dia: 'Jueves', horaInicio: '14:00', horaFin: '16:00', aula: 'Lab 1' }
-      ],
-      participantes: 25,
-      activo: true
-    },
-    {
-      id: '2',
-      nombre: 'Arte y Pintura',
-      instructor: 'Prof. Martínez',
-      horarios: [
-        { dia: 'Lunes', horaInicio: '15:00', horaFin: '17:00', aula: 'Aula Arte' },
-        { dia: 'Miércoles', horaInicio: '15:00', horaFin: '17:00', aula: 'Aula Arte' }
-      ],
-      participantes: 20,
-      activo: true
-    },
-    {
-      id: '3',
-      nombre: 'Música',
-      instructor: 'Prof. López',
-      horarios: [
-        { dia: 'Viernes', horaInicio: '14:30', horaFin: '16:30', aula: 'Aula Música' }
-      ],
-      participantes: 30,
-      activo: true
-    },
-    {
-      id: '4',
-      nombre: 'Deportes',
-      instructor: 'Prof. Rodríguez',
-      horarios: [
-        { dia: 'Sábado', horaInicio: '09:00', horaFin: '11:00', aula: 'Cancha' }
-      ],
-      participantes: 40,
-      activo: true
-    }
-  ]
+  // Filtrar talleres según los filtros seleccionados
+  const talleresFiltrados = talleresConHorarios.filter(taller => {
+    const cumpleFiltroTaller = !filtroTaller || taller.id.toString() === filtroTaller
+    const cumpleFiltroInstructor = !filtroInstructor || taller.instructor === filtroInstructor
+    return cumpleFiltroTaller && cumpleFiltroInstructor
+  })
 
   const tabs = [
     {
@@ -77,13 +52,21 @@ export default function HorarioTalleresPage() {
 
   const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-  const handleCreateHorario = async (data: any) => {
+  const handleEditHorario = (horario: any) => {
+    setSelectedHorario(horario)
+    setShowEditModal(true)
+  }
+
+  const handleSaveHorario = async (horarioId: string, data: any) => {
     try {
-      console.log('Creando horario de talleres:', data)
-      // Aquí implementarías la lógica para crear el horario de talleres
-      return true
+      const success = await actualizarHorario(horarioId, data)
+      if (success) {
+        setShowEditModal(false)
+        setSelectedHorario(null)
+      }
+      return success
     } catch (error) {
-      console.error('Error creating horario talleres:', error)
+      console.error('Error updating horario talleres:', error)
       return false
     }
   }
@@ -102,12 +85,6 @@ export default function HorarioTalleresPage() {
             </p>
           </div>
           <div className="flex space-x-3">
-            <button 
-              onClick={() => setShowCreateModal(true)}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              + Nuevo Horario
-            </button>
             <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
               + Nueva Excepción
             </button>
@@ -124,7 +101,7 @@ export default function HorarioTalleresPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Talleres Activos</p>
-              <p className="text-2xl font-semibold text-gray-900">{talleres.filter(t => t.activo).length}</p>
+              <p className="text-2xl font-semibold text-gray-900">{loadingHorarios ? '...' : stats.talleresActivos}</p>
             </div>
           </div>
         </div>
@@ -137,7 +114,7 @@ export default function HorarioTalleresPage() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Participantes</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {talleres.reduce((acc, t) => acc + t.participantes, 0)}
+                {loadingHorarios ? '...' : stats.totalParticipantes}
               </p>
             </div>
           </div>
@@ -165,7 +142,7 @@ export default function HorarioTalleresPage() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Horarios Fin de Semana</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {talleres.filter(t => t.horarios.some(h => h.dia === 'Sábado' || h.dia === 'Domingo')).length}
+                {loadingHorarios ? '...' : stats.talleresFindeSemana}
               </p>
             </div>
           </div>
@@ -201,118 +178,207 @@ export default function HorarioTalleresPage() {
                   Horarios de Talleres por Día
                 </h3>
                 <div className="flex space-x-2">
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                  <select 
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    value={filtroTaller}
+                    onChange={(e) => setFiltroTaller(e.target.value)}
+                  >
                     <option value="">Todos los talleres</option>
-                    {talleres.map(taller => (
-                      <option key={taller.id} value={taller.id}>
+                    {talleresConHorarios.map(taller => (
+                      <option key={taller.id} value={taller.id.toString()}>
                         {taller.nombre}
                       </option>
                     ))}
                   </select>
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                  <select 
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    value={filtroInstructor}
+                    onChange={(e) => setFiltroInstructor(e.target.value)}
+                  >
                     <option value="">Todos los instructores</option>
-                    {Array.from(new Set(talleres.map(t => t.instructor))).map(instructor => (
-                      <option key={instructor} value={instructor}>
-                        {instructor}
+                    {instructores.map(instructor => (
+                      <option key={instructor.nombre} value={instructor.nombre}>
+                        {instructor.nombre}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-                {diasSemana.map((dia) => (
-                  <div key={dia} className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 text-center">
-                      {dia}
-                    </h4>
-                    <div className="space-y-2">
-                      {talleres
-                        .filter(taller => taller.horarios.some(h => h.dia === dia))
-                        .map((taller) => (
-                          taller.horarios
-                            .filter(h => h.dia === dia)
-                            .map((horario, index) => (
-                              <div key={`${taller.id}-${index}`} className="bg-white p-3 rounded border-l-4 border-purple-500">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {horario.horaInicio} - {horario.horaFin}
+              {loadingHorarios ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+                  {diasSemana.map((dia) => {
+                    const talleresDia = getTalleresPorDia(dia).filter(taller => {
+                      const cumpleFiltroTaller = !filtroTaller || taller.id.toString() === filtroTaller
+                      const cumpleFiltroInstructor = !filtroInstructor || taller.instructor === filtroInstructor
+                      return cumpleFiltroTaller && cumpleFiltroInstructor
+                    })
+                    
+                    return (
+                      <div key={dia} className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3 text-center">
+                          {dia}
+                        </h4>
+                        <div className="space-y-2">
+                          {talleresDia.map((taller) => (
+                            taller.horarios
+                              .filter(h => h.dia === dia)
+                              .map((horario) => (
+                                <div 
+                                  key={`${taller.id}-${horario.id}`} 
+                                  className="bg-white p-3 rounded border-l-4 border-purple-500 cursor-pointer hover:bg-gray-50"
+                                  onClick={() => handleEditHorario({
+                                    id: horario.id,
+                                    taller: {
+                                      id: taller.id,
+                                      nombre: taller.nombre,
+                                      instructor: taller.instructor
+                                    },
+                                    diaSemana: horario.diaSemana,
+                                    horaInicio: horario.horaInicio,
+                                    horaFin: horario.horaFin,
+                                    lugar: horario.lugar,
+                                    toleranciaMin: 10,
+                                    activo: true
+                                  })}
+                                >
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {horario.horaInicio} - {horario.horaFin}
+                                  </div>
+                                  <div className="text-sm text-purple-600 font-medium">
+                                    {taller.nombre}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {taller.instructor}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {horario.lugar} • {taller.inscripciones} participantes
+                                  </div>
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    Click para editar
+                                  </div>
                                 </div>
-                                <div className="text-sm text-purple-600 font-medium">
-                                  {taller.nombre}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {taller.instructor}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {horario.aula} • {taller.participantes} participantes
-                                </div>
-                              </div>
-                            ))
-                        ))}
-                      {!talleres.some(taller => taller.horarios.some(h => h.dia === dia)) && (
-                        <div className="text-center text-gray-500 text-sm py-4">
-                          Sin talleres
+                              ))
+                          ))}
+                          {talleresDia.length === 0 && (
+                            <div className="text-center text-gray-500 text-sm py-4">
+                              Sin talleres
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Lista detallada de talleres */}
               <div className="mt-8">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                   Lista de Talleres
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {talleres.map((taller) => (
-                    <div key={taller.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-medium text-gray-900">
-                          {taller.nombre}
-                        </h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          taller.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {taller.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <span className="font-medium">Instructor:</span>
-                          <span className="ml-2">{taller.instructor}</span>
+                {loadingHorarios ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {talleresFiltrados.map((taller) => (
+                      <div key={taller.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-medium text-gray-900">
+                            {taller.nombre}
+                          </h4>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            taller.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {taller.activo ? 'Activo' : 'Inactivo'}
+                          </span>
                         </div>
-                        <div className="flex items-center">
-                          <span className="font-medium">Participantes:</span>
-                          <span className="ml-2">{taller.participantes}</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <h5 className="text-sm font-medium text-gray-900 mb-2">Horarios:</h5>
-                        <div className="space-y-1">
-                          {taller.horarios.map((horario, index) => (
-                            <div key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                              <span className="font-medium">{horario.dia}:</span>
-                              <span className="ml-2">{horario.horaInicio} - {horario.horaFin}</span>
-                              <span className="ml-2 text-gray-500">({horario.aula})</span>
+                        
+                        <div className="space-y-2 text-sm text-gray-600">
+                          <div className="flex items-center">
+                            <span className="font-medium">Instructor:</span>
+                            <span className="ml-2">{taller.instructor || 'Sin asignar'}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="font-medium">Participantes:</span>
+                            <span className="ml-2">{taller.inscripciones}</span>
+                          </div>
+                          {taller.capacidadMaxima && (
+                            <div className="flex items-center">
+                              <span className="font-medium">Capacidad:</span>
+                              <span className="ml-2">{taller.capacidadMaxima}</span>
                             </div>
-                          ))}
+                          )}
+                        </div>
+
+                        <div className="mt-4">
+                          <h5 className="text-sm font-medium text-gray-900 mb-2">Horarios:</h5>
+                          <div className="space-y-1">
+                            {taller.horarios.map((horario) => (
+                              <div 
+                                key={horario.id} 
+                                className="text-sm text-gray-600 bg-gray-50 p-2 rounded cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleEditHorario({
+                                  id: horario.id,
+                                  taller: {
+                                    id: taller.id,
+                                    nombre: taller.nombre,
+                                    instructor: taller.instructor
+                                  },
+                                  diaSemana: horario.diaSemana,
+                                  horaInicio: horario.horaInicio,
+                                  horaFin: horario.horaFin,
+                                  lugar: horario.lugar,
+                                  toleranciaMin: 10,
+                                  activo: true
+                                })}
+                              >
+                                <span className="font-medium">{horario.dia}:</span>
+                                <span className="ml-2">{horario.horaInicio} - {horario.horaFin}</span>
+                                <span className="ml-2 text-gray-500">({horario.lugar || 'Sin lugar'})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex space-x-2">
+                          <button 
+                            onClick={() => {
+                              if (taller.horarios.length > 0) {
+                                handleEditHorario({
+                                  id: taller.horarios[0].id,
+                                  taller: {
+                                    id: taller.id,
+                                    nombre: taller.nombre,
+                                    instructor: taller.instructor
+                                  },
+                                  diaSemana: taller.horarios[0].diaSemana,
+                                  horaInicio: taller.horarios[0].horaInicio,
+                                  horaFin: taller.horarios[0].horaFin,
+                                  lugar: taller.horarios[0].lugar,
+                                  toleranciaMin: 10,
+                                  activo: true
+                                })
+                              }
+                            }}
+                            className="flex-1 text-purple-600 hover:text-purple-900 text-sm font-medium"
+                          >
+                            Editar Horario
+                          </button>
+                          <button className="flex-1 text-gray-600 hover:text-gray-900 text-sm font-medium">
+                            Ver Participantes
+                          </button>
                         </div>
                       </div>
-
-                      <div className="mt-4 flex space-x-2">
-                        <button className="flex-1 text-purple-600 hover:text-purple-900 text-sm font-medium">
-                          Editar
-                        </button>
-                        <button className="flex-1 text-gray-600 hover:text-gray-900 text-sm font-medium">
-                          Ver Participantes
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -416,11 +482,12 @@ export default function HorarioTalleresPage() {
         </div>
       </div>
 
-      {/* Modal para crear horario de talleres */}
-      <CreateHorarioTalleresModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSave={handleCreateHorario}
+      {/* Modal para editar horario de talleres */}
+      <EditHorarioTallerModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveHorario}
+        horario={selectedHorario}
       />
     </div>
   )

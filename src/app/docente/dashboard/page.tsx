@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 
 export default function DocenteDashboard() {
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [docente, setDocente] = useState<any>(null)
   const [stats, setStats] = useState({
     clasesHoy: 0,
     estudiantesTotal: 0,
@@ -13,67 +15,49 @@ export default function DocenteDashboard() {
     retirosPendientes: 0
   })
 
-  const [proximasClases, setProximasClases] = useState([
-    {
-      id: 1,
-      materia: 'Matemáticas',
-      grado: '5to A',
-      hora: '08:00 - 09:30',
-      aula: 'Aula 201',
-      estudiantes: 28
-    },
-    {
-      id: 2,
-      materia: 'Física',
-      grado: '4to B',
-      hora: '10:00 - 11:30',
-      aula: 'Lab. Física',
-      estudiantes: 25
-    },
-    {
-      id: 3,
-      materia: 'Matemáticas',
-      grado: '3ro C',
-      hora: '14:00 - 15:30',
-      aula: 'Aula 105',
-      estudiantes: 30
-    }
-  ])
-
-  const [actividadReciente, setActividadReciente] = useState([
-    {
-      id: 1,
-      tipo: 'asistencia',
-      descripcion: 'Asistencia registrada para 5to A - Matemáticas',
-      tiempo: 'Hace 15 minutos',
-      icono: '✅'
-    },
-    {
-      id: 2,
-      tipo: 'justificacion',
-      descripcion: 'Nueva justificación recibida de Juan Pérez',
-      tiempo: 'Hace 1 hora',
-      icono: '📋'
-    },
-    {
-      id: 3,
-      tipo: 'retiro',
-      descripcion: 'Retiro autorizado para María González',
-      tiempo: 'Hace 2 horas',
-      icono: '🚪'
-    }
-  ])
+  const [proximasClases, setProximasClases] = useState<any[]>([])
+  const [actividadReciente, setActividadReciente] = useState<any[]>([])
 
   useEffect(() => {
-    // Simular carga de datos
-    setStats({
-      clasesHoy: 4,
-      estudiantesTotal: 125,
-      asistenciaPromedio: 92.5,
-      justificacionesPendientes: 3,
-      retirosPendientes: 1
-    })
+    loadDashboardData()
   }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      console.log('🔄 Cargando datos del dashboard del docente...')
+      
+      const response = await fetch('/api/docentes/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Datos del dashboard cargados:', data.data)
+        
+        setStats(data.data.stats)
+        setProximasClases(data.data.proximasClases)
+        setActividadReciente(data.data.actividadReciente)
+        setDocente(data.data.docente)
+      } else {
+        console.error('❌ Error al cargar dashboard:', response.status)
+        // Mantener datos por defecto en caso de error
+      }
+    } catch (error) {
+      console.error('💥 Error loading dashboard:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const StatCard = ({ title, value, subtitle, icon, color }: any) => (
     <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -100,10 +84,24 @@ export default function DocenteDashboard() {
     <div className="px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Docente</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Dashboard Docente
+          {docente && (
+            <span className="text-lg font-normal text-gray-600 ml-2">
+              - {docente.nombre} {docente.apellido}
+            </span>
+          )}
+        </h1>
         <p className="mt-1 text-sm text-gray-600">
+          {docente?.especialidad && `${docente.especialidad} | `}
           Bienvenido de vuelta. Aquí tienes un resumen de tu día.
         </p>
+        {loading && (
+          <div className="mt-2 flex items-center text-sm text-blue-600">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            Cargando datos...
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -174,31 +172,42 @@ export default function DocenteDashboard() {
             <p className="text-sm text-gray-600">Tus clases programadas para hoy</p>
           </div>
           <div className="divide-y divide-gray-200">
-            {proximasClases.map((clase) => (
-              <div key={clase.id} className="px-6 py-4 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
+            {loading ? (
+              <div className="px-6 py-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Cargando clases...</p>
+              </div>
+            ) : proximasClases.length > 0 ? (
+              proximasClases.map((clase) => (
+                <div key={clase.id} className="px-6 py-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-900">{clase.materia}</p>
+                          <p className="text-sm text-gray-500">{clase.grado} • {clase.aula}</p>
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-900">{clase.materia}</p>
-                        <p className="text-sm text-gray-500">{clase.grado} • {clase.aula}</p>
-                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">{clase.hora}</p>
+                      <p className="text-sm text-gray-500">{clase.estudiantes} estudiantes</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{clase.hora}</p>
-                    <p className="text-sm text-gray-500">{clase.estudiantes} estudiantes</p>
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="px-6 py-8 text-center">
+                <p className="text-sm text-gray-500">No hay clases programadas para hoy</p>
               </div>
-            ))}
+            )}
           </div>
           <div className="px-6 py-3 bg-gray-50 text-right">
             <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">
@@ -214,21 +223,32 @@ export default function DocenteDashboard() {
             <p className="text-sm text-gray-600">Últimas acciones realizadas</p>
           </div>
           <div className="divide-y divide-gray-200">
-            {actividadReciente.map((actividad) => (
-              <div key={actividad.id} className="px-6 py-4 hover:bg-gray-50">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm">
-                      {actividad.icono}
+            {loading ? (
+              <div className="px-6 py-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Cargando actividad...</p>
+              </div>
+            ) : actividadReciente.length > 0 ? (
+              actividadReciente.map((actividad) => (
+                <div key={actividad.id} className="px-6 py-4 hover:bg-gray-50">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm">
+                        {actividad.icono}
+                      </div>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm text-gray-900">{actividad.descripcion}</p>
+                      <p className="text-xs text-gray-500 mt-1">{actividad.tiempo}</p>
                     </div>
                   </div>
-                  <div className="ml-3 flex-1">
-                    <p className="text-sm text-gray-900">{actividad.descripcion}</p>
-                    <p className="text-xs text-gray-500 mt-1">{actividad.tiempo}</p>
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="px-6 py-8 text-center">
+                <p className="text-sm text-gray-500">No hay actividad reciente</p>
               </div>
-            ))}
+            )}
           </div>
           <div className="px-6 py-3 bg-gray-50 text-right">
             <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">

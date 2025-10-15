@@ -85,8 +85,15 @@ export const useTalleres = () => {
   const crearTaller = async (data: {
     nombre: string
     descripcion?: string
-    instructor?: string
+    docentesIds?: string[]
+    estudiantesIds?: string[]
     capacidadMaxima?: number
+    horarios?: {
+      diaSemana: number
+      horaInicio: string
+      horaFin: string
+      lugar?: string
+    }[]
   }) => {
     try {
       const token = localStorage.getItem('token')

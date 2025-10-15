@@ -118,12 +118,6 @@ export default function AdminLayout({
           href: '/admin/dashboard/horarios/talleres',
           current: pathname === '/admin/dashboard/horarios/talleres',
           description: 'Administra horarios de talleres, excepciones y suspensiones'
-        },
-        {
-          name: 'Horario General',
-          href: '/admin/dashboard/horarios/general',
-          current: pathname === '/admin/dashboard/horarios/general',
-          description: 'Administra ambos horarios, suspensiones y retiros'
         }
       ]
     },
