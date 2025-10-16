@@ -1,0 +1,436 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
+import {
+  XMarkIcon,
+  QrCodeIcon,
+  CameraIcon,
+  UserGroupIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowLeftOnRectangleIcon
+} from '@heroicons/react/24/outline'
+
+interface Estudiante {
+  id: string
+  nombre: string
+  apellido: string
+  dni: string
+  grado: string
+  seccion: string
+  accion: string
+  hora: string
+  codigo?: string
+  estado?: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA'
+}
+
+interface CameraDevice {
+  id: string
+  label: string
+}
+
+interface QRScannerModalProps {
+  isOpen: boolean
+  onClose: () => void
+  accionSeleccionada: 'entrada' | 'salida'
+  setAccionSeleccionada: (accion: 'entrada' | 'salida') => void
+  qrCode: string
+  setQrCode: (code: string) => void
+  handleQRScan: () => void
+  estudiantesEscaneados: Estudiante[]
+  setEstudiantesEscaneados: (estudiantes: Estudiante[]) => void
+}
+
+export default function QRScannerModal({
+  isOpen,
+  onClose,
+  accionSeleccionada,
+  setAccionSeleccionada,
+  qrCode,
+  setQrCode,
+  handleQRScan,
+  estudiantesEscaneados,
+  setEstudiantesEscaneados
+}: QRScannerModalProps) {
+  const [ultimoEscaneo, setUltimoEscaneo] = useState<string>('')
+  const [estudianteEscaneado, setEstudianteEscaneado] = useState<Estudiante | null>(null)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState<boolean>(false)
+  const [camaras, setCamaras] = useState<CameraDevice[]>([])
+  const [camaraSeleccionada, setCamaraSeleccionada] = useState<string>('')
+  const [scannerActive, setScannerActive] = useState<boolean>(false)
+  const [modoEscaneo, setModoEscaneo] = useState<'camara' | 'manual'>('camara')
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const [permisosCamara, setPermisosCamara] = useState<'granted' | 'denied' | 'pending'>('pending')
+  const [error, setError] = useState<string>('')
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+
+  // Cargar estudiantes para mostrar información
+  useEffect(() => {
+    if (isOpen) {
+      loadEstudiantes()
+      detectarCamaras()
+    }
+  }, [isOpen])
+
+  const loadEstudiantes = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/auxiliar/asistencia/estudiantes', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setEstudiantes(data.estudiantes || [])
+      }
+    } catch (error) {
+      console.error('Error loading estudiantes:', error)
+    }
+  }
+
+  // Detectar cámaras disponibles
+  const detectarCamaras = async () => {
+    try {
+      setError('')
+      setPermisosCamara('pending')
+      
+      const devices = await Html5Qrcode.getCameras()
+      if (devices && devices.length) {
+        const camarasFormateadas = devices.map((device, index) => ({
+          id: device.id,
+          label: device.label || `Cámara ${index + 1}`
+        }))
+        setCamaras(camarasFormateadas)
+        setCamaraSeleccionada(camarasFormateadas[0].id)
+        setPermisosCamara('granted')
+      } else {
+        setError('No se encontraron cámaras disponibles')
+        setPermisosCamara('denied')
+      }
+    } catch (error) {
+      console.error('Error detecting cameras:', error)
+      setError('Error al acceder a las cámaras. Verifica los permisos.')
+      setPermisosCamara('denied')
+    }
+  }
+
+  // Procesar código QR mejorado
+  const procesarCodigoQR = async (codigo: string) => {
+    console.log('🔍 Procesando código:', codigo)
+    setUltimoEscaneo(codigo)
+    
+    const estudiante = estudiantes.find(est => est.codigo === codigo || est.dni === codigo)
+    
+    if (estudiante) {
+      // Mostrar nombre del estudiante
+      setEstudianteEscaneado({ ...estudiante, accion: accionSeleccionada, hora: new Date().toLocaleTimeString() })
+      
+      // Procesar después de mostrar nombre
+      setTimeout(async () => {
+        try {
+          const token = localStorage.getItem('token')
+          const response = await fetch('/api/auxiliar/asistencia/qr-scan', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+              qrCode: codigo,
+              accion: accionSeleccionada
+            })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            
+            // Mostrar confirmación exitosa
+            setMostrarConfirmacion(true)
+            
+            // Agregar a lista de escaneados
+            const nuevoEscaneado = {
+              id: data.estudiante.id,
+              nombre: data.estudiante.nombre,
+              apellido: data.estudiante.apellido,
+              dni: data.estudiante.dni,
+              grado: data.estudiante.grado,
+              seccion: data.estudiante.seccion,
+              accion: accionSeleccionada,
+              hora: new Date().toLocaleTimeString()
+            }
+            setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
+            
+            // Ocultar confirmación después de 4 segundos
+            setTimeout(() => {
+              setMostrarConfirmacion(false)
+              setTimeout(() => {
+                setEstudianteEscaneado(null)
+              }, 1000)
+            }, 4000)
+            
+          } else {
+            const error = await response.json()
+            alert(`❌ Error: ${error.error}`)
+            setEstudianteEscaneado(null)
+          }
+        } catch (error) {
+          console.error('Error scanning QR:', error)
+          alert('❌ Error al procesar código QR')
+          setEstudianteEscaneado(null)
+        }
+      }, 800)
+      
+    } else {
+      setTimeout(() => {
+        alert('❌ Código no válido o estudiante no encontrado')
+      }, 500)
+    }
+  }
+
+  // Iniciar scanner
+  const iniciarEscaner = async () => {
+    if (!camaraSeleccionada) return
+    
+    try {
+      const scanner = new Html5Qrcode('qr-reader-auxiliar')
+      scannerRef.current = scanner
+
+      const config = {
+        fps: 15,
+        qrbox: function(viewfinderWidth: number, viewfinderHeight: number) {
+          const minEdgePercentage = 0.8
+          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
+          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage)
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          }
+        },
+        aspectRatio: 16/9,
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'environment'
+        }
+      }
+
+      await scanner.start(
+        camaraSeleccionada,
+        config,
+        (decodedText) => {
+          console.log('✅ QR escaneado:', decodedText)
+          procesarCodigoQR(decodedText)
+        },
+        (errorMessage) => {
+          // Error silencioso durante escaneo
+        }
+      )
+      
+      setScannerActive(true)
+      setError('')
+    } catch (error) {
+      console.error('Error starting scanner:', error)
+      setError('Error al iniciar el escáner')
+    }
+  }
+
+  // Detener scanner
+  const detenerEscaner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop()
+        scannerRef.current.clear()
+        scannerRef.current = null
+        setScannerActive(false)
+      } catch (error) {
+        console.error('Error stopping scanner:', error)
+      }
+    }
+  }
+
+  // Limpiar al cerrar
+  const handleClose = () => {
+    detenerEscaner()
+    setUltimoEscaneo('')
+    setEstudianteEscaneado(null)
+    setMostrarConfirmacion(false)
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl w-full h-full max-w-none max-h-none overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <div>
+            <h2 className="text-xl font-bold text-black">Scanner QR - Control de Asistencia</h2>
+            <p className="text-sm text-black font-medium">
+              Modo: {accionSeleccionada === 'entrada' ? 'Registro de Entrada' : 'Registro de Salida'}
+            </p>
+          </div>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6 h-full flex flex-col">
+
+            {/* Selector de Acción */}
+            <div className="mb-6">
+              <div className="flex items-center justify-center space-x-4">
+                <button
+                  onClick={() => setAccionSeleccionada('entrada')}
+                  className={`inline-flex items-center px-6 py-3 border text-sm font-medium rounded-md transition-colors ${
+                    accionSeleccionada === 'entrada'
+                      ? 'border-transparent text-white bg-green-600 hover:bg-green-700'
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                  Registrar Entrada
+                </button>
+                <button
+                  onClick={() => setAccionSeleccionada('salida')}
+                  className={`inline-flex items-center px-6 py-3 border text-sm font-medium rounded-md transition-colors ${
+                    accionSeleccionada === 'salida'
+                      ? 'border-transparent text-white bg-blue-600 hover:bg-blue-700'
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" />
+                  Registrar Salida
+                </button>
+              </div>
+              <p className="text-center text-sm text-gray-500 mt-2">
+                Selecciona la acción que deseas realizar al escanear el código QR
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Área del Escáner QR */}
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4">Escáner QR</h4>
+                
+                {/* Área de la Cámara */}
+                <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                  <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <QrCodeIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">
+                        Cámara QR se mostraría aquí
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        (Requiere implementación de librería QR)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Input Manual para Pruebas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Código QR Manual
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={qrCode}
+                      onChange={(e) => setQrCode(e.target.value)}
+                      placeholder="Ingresar código QR del estudiante"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                      onKeyPress={(e) => e.key === 'Enter' && handleQRScan()}
+                    />
+                    <button
+                      onClick={handleQRScan}
+                      disabled={!qrCode.trim()}
+                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        accionSeleccionada === 'entrada' 
+                          ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                          : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                      }`}
+                    >
+                      <QrCodeIcon className="h-4 w-4 mr-2" />
+                      {accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de Estudiantes Registrados */}
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4">
+                  Estudiantes Registrados Hoy ({estudiantesEscaneados.length})
+                </h4>
+                
+                <div className="bg-gray-50 rounded-lg p-4 h-80 overflow-y-auto">
+                  {estudiantesEscaneados.length > 0 ? (
+                    <div className="space-y-3">
+                      {estudiantesEscaneados.map((estudiante, index) => (
+                        <div key={index} className="bg-white rounded-lg p-3 shadow-sm border">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {estudiante.nombre} {estudiante.apellido}
+                              </p>
+                              <p className="text-sm text-gray-500">DNI: {estudiante.dni}</p>
+                              <p className="text-xs text-gray-400">
+                                {estudiante.grado} - {estudiante.seccion}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                estudiante.accion === 'entrada' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {estudiante.accion === 'entrada' ? 'Entrada' : 'Salida'}
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {estudiante.hora}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserGroupIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                      <p className="text-sm text-gray-500">
+                        No hay estudiantes registrados aún
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Los estudiantes aparecerán aquí al escanear sus códigos QR
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              onClick={onClose}
+              className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={() => setEstudiantesEscaneados([])}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+            >
+              Limpiar Lista
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

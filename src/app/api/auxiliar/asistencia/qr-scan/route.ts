@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📱 Procesando escaneo de código QR...')
+    console.log('📱 Procesando escaneo QR del auxiliar...')
+
+    // Para auxiliares, la fuente será genérica ya que pueden registrar cualquier clase
+    const fuenteRegistro = 'AUXILIAR_QR'
+    
+    console.log('📝 Fuente de registro:', fuenteRegistro)
 
     // Verificar autenticación
     const authHeader = request.headers.get('authorization')
@@ -44,13 +47,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Acción requerida (entrada o salida)' }, { status: 400 })
     }
 
-    console.log('🔍 Buscando estudiante con código QR:', qrCode)
+    console.log('🔍 Buscando estudiante con DNI:', qrCode)
 
-    // Buscar estudiante por código QR
+    // Buscar estudiante por DNI (el QR contiene el DNI)
     const estudiante = await prisma.estudiante.findFirst({
       where: {
-        qr: qrCode,
         usuario: {
+          dni: qrCode,
           idIe: userInfo.idIe,
           estado: 'ACTIVO'
         }
@@ -134,6 +137,38 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Buscar el estado de asistencia correspondiente
+      let estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+        where: { codigo: estado }
+      })
+
+      // Si no existe el estado, crearlo
+      if (!estadoAsistencia) {
+        console.log('⚠️ Estado no encontrado, creando estados básicos...')
+        
+        const estadosBasicos = [
+          { codigo: 'PRESENTE', nombreEstado: 'Presente', requiereJustificacion: false, afectaAsistencia: true },
+          { codigo: 'TARDANZA', nombreEstado: 'Tardanza', requiereJustificacion: false, afectaAsistencia: true },
+          { codigo: 'INASISTENCIA', nombreEstado: 'Inasistencia', requiereJustificacion: true, afectaAsistencia: false }
+        ]
+        
+        for (const estadoBasico of estadosBasicos) {
+          await prisma.estadoAsistencia.upsert({
+            where: { codigo: estadoBasico.codigo },
+            update: {},
+            create: estadoBasico
+          })
+        }
+        
+        // Buscar nuevamente el estado
+        estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+          where: { codigo: estado }
+        })
+      }
+
+      console.log('🔍 Estado buscado:', estado)
+      console.log('📋 Estado encontrado:', estadoAsistencia)
+
       const nuevaAsistencia = await prisma.asistencia.create({
         data: {
           idEstudiante: estudiante.idEstudiante,
@@ -141,7 +176,9 @@ export async function POST(request: NextRequest) {
           fecha: fechaHoy,
           horaEntrada: ahora,
           sesion: 'MAÑANA',
-          observaciones: `Entrada por QR - Auxiliar: ${userInfo.nombre} ${userInfo.apellido}`,
+          idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
+          fuente: fuenteRegistro,
+          observaciones: `Entrada por QR - Auxiliar: ${userInfo.nombre} ${userInfo.apellido} - Estado: ${estado}`,
           registradoPor: userInfo.idUsuario
         }
       })
@@ -178,6 +215,7 @@ export async function POST(request: NextRequest) {
           idIe: userInfo.idIe!,
           fecha: fechaHoy,
           hora: ahora.toTimeString().slice(0, 5),
+          origen: fuenteRegistro,
           observaciones: `Salida por QR - Auxiliar: ${userInfo.nombre} ${userInfo.apellido}`
         }
       })

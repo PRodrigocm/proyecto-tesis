@@ -8,6 +8,7 @@ interface Estudiante {
   id: number
   nombre: string
   codigo: string
+  dni: string
   estado: 'pendiente' | 'presente' | 'tardanza'
   horaLlegada?: string
 }
@@ -33,23 +34,35 @@ export default function TomarAsistenciaModal({
   onSave
 }: TomarAsistenciaModalProps) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [estudianteEscaneado, setEstudianteEscaneado] = useState<Estudiante | null>(null)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
+
+  // Debug: Verificar props recibidas
+  console.log('🔍 Props del modal:', {
+    isOpen,
+    claseSeleccionada,
+    fechaSeleccionada,
+    tiposClase: typeof claseSeleccionada,
+    tiposFecha: typeof fechaSeleccionada
+  })
 
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string>('')
-  const [estudianteEscaneado, setEstudianteEscaneado] = useState<Estudiante | null>(null)
-  const [mostrarConfirmacion, setMostrarConfirmacion] = useState<boolean>(false)
   const [codigoManual, setCodigoManual] = useState<string>('')
   const [camaras, setCamaras] = useState<CameraDevice[]>([])
   const [camaraSeleccionada, setCamaraSeleccionada] = useState<string>('')
-  const [usarCamaraIP, setUsarCamaraIP] = useState<boolean>(false)
+  const [usarCamaraIP] = useState<boolean>(false) // Siempre usar cámara local
   const [camaraIP, setCamaraIP] = useState<string>('')
   const [ipValida, setIpValida] = useState<boolean>(false)
   const [mostrarAyudaIP, setMostrarAyudaIP] = useState<boolean>(false)
   const [scannerActive, setScannerActive] = useState<boolean>(false)
   const [modoEscaneo, setModoEscaneo] = useState<'camara' | 'manual'>('camara')
+  const [escaneoMultiple, setEscaneoMultiple] = useState<boolean>(true)
+  const [ultimosEscaneos, setUltimosEscaneos] = useState<string[]>([])
+  const [mostrarListaEstudiantes, setMostrarListaEstudiantes] = useState<boolean>(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [permisosCamara, setPermisosCamara] = useState<'granted' | 'denied' | 'pending'>('pending')
-  const [error, setError] = useState<string>('')
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
 
   // Validar URL de cámara IP
   const validarIP = (url: string) => {
@@ -113,6 +126,7 @@ export default function TomarAsistenciaModal({
           id: est.id,
           nombre: est.nombre,
           codigo: est.codigo,
+          dni: est.dni,
           estado: est.estado === 'sin_registrar' ? 'pendiente' : 
                   est.estado === 'presente' ? 'presente' :
                   est.estado === 'tardanza' ? 'tardanza' : 'pendiente',
@@ -128,12 +142,14 @@ export default function TomarAsistenciaModal({
             id: 1,
             nombre: 'Juan Pérez',
             codigo: 'EST001',
+            dni: '99887766',
             estado: 'pendiente'
           },
           {
             id: 2,
             nombre: 'María González',
             codigo: 'EST002',
+            dni: '88776655',
             estado: 'pendiente'
           }
         ])
@@ -147,6 +163,7 @@ export default function TomarAsistenciaModal({
           id: 1,
           nombre: 'Juan Pérez',
           codigo: 'EST001',
+          dni: '99887766',
           estado: 'pendiente'
         }
       ])
@@ -177,10 +194,20 @@ export default function TomarAsistenciaModal({
 
   // Procesar código QR o manual
   const procesarCodigo = (codigo: string) => {
-    console.log('Procesando código:', codigo)
+    console.log('🔍 Procesando código:', codigo)
     setUltimoEscaneo(codigo)
     
-    const estudiante = estudiantes.find(est => est.codigo === codigo)
+    // Verificar si ya fue escaneado recientemente (evitar duplicados)
+    if (ultimosEscaneos.includes(codigo)) {
+      console.log('⚠️ Código ya escaneado recientemente, ignorando duplicado')
+      return
+    }
+    
+    // Agregar a la lista de escaneos recientes
+    setUltimosEscaneos(prev => [...prev.slice(-4), codigo]) // Mantener solo los últimos 5
+    
+    // El QR contiene el DNI del estudiante
+    const estudiante = estudiantes.find(est => est.dni === codigo)
     
     if (estudiante && estudiante.estado === 'pendiente') {
       const ahora = new Date()
@@ -195,28 +222,107 @@ export default function TomarAsistenciaModal({
       
       const nuevoEstado = ahora > horaLimite ? 'tardanza' : 'presente'
       
-      setEstudiantes(prev => prev.map(est => 
-        est.id === estudiante.id 
-          ? { ...est, estado: nuevoEstado, horaLlegada: horaActual }
-          : est
-      ))
+      // Primero mostrar el nombre del estudiante
+      setEstudianteEscaneado({ ...estudiante, estado: 'pendiente', horaLlegada: undefined })
       
-      // Mostrar confirmación visual
-      setEstudianteEscaneado({ ...estudiante, estado: nuevoEstado, horaLlegada: horaActual })
-      setMostrarConfirmacion(true)
-      
-      reproducirSonidoConfirmacion()
-      
-      // Ocultar confirmación después de 3 segundos
-      setTimeout(() => {
-        setMostrarConfirmacion(false)
-        setEstudianteEscaneado(null)
-      }, 3000)
+      // Después de un breve momento, procesar la asistencia
+      setTimeout(async () => {
+        try {
+          // Enviar al servidor para guardar en BD
+          const token = localStorage.getItem('token')
+          
+          // Preparar datos para enviar
+          const asistenciaData = {
+            estudianteId: estudiante.id,
+            estado: nuevoEstado,
+            horaLlegada: horaActual,
+            fecha: fechaSeleccionada,
+            claseId: claseSeleccionada
+          }
+          
+          console.log('📤 Enviando datos al servidor:', asistenciaData)
+          console.log('🔑 Token presente:', !!token)
+          
+          const response = await fetch('/api/docente/asistencias/guardar-qr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              asistencias: [asistenciaData]
+            })
+          })
+          
+          console.log('📥 Response status:', response.status)
+          console.log('📥 Response ok:', response.ok)
+
+          if (response.ok) {
+            console.log('✅ Asistencia guardada en BD')
+            
+            // Actualizar la lista de estudiantes local
+            const estudiantesActualizados = estudiantes.map(est => 
+              est.id === estudiante.id 
+                ? { ...est, estado: nuevoEstado as 'presente' | 'tardanza', horaLlegada: horaActual }
+                : est
+            )
+            setEstudiantes(estudiantesActualizados)
+            
+            // Notificar al componente padre sobre la actualización
+            onSave(estudiantesActualizados)
+            
+            // Mostrar confirmación visual con círculo verde
+            setEstudianteEscaneado({ ...estudiante, estado: nuevoEstado, horaLlegada: horaActual })
+            setMostrarConfirmacion(true)
+            
+            reproducirSonidoConfirmacion()
+            
+            console.log(`✅ ${estudiante.nombre} registrado como ${nuevoEstado} a las ${horaActual}`)
+            
+          } else {
+            const error = await response.json()
+            console.error('❌ Error al guardar asistencia:', error)
+            
+            // Verificar si es un error de estudiante no encontrado o no pertenece a la clase
+            if (response.status === 404) {
+              alert(`❌ Código QR no válido: El estudiante no existe o no pertenece a esta clase`)
+            } else if (error.error === 'Estudiante no pertenece a esta clase') {
+              alert(`⚠️ ${error.message}`)
+            } else if (error.message && error.message.includes('no pertenece a la clase')) {
+              alert(`⚠️ El estudiante escaneado no pertenece a esta clase`)
+            } else {
+              alert(`❌ Error al guardar asistencia: ${error.error || 'Error desconocido'}`)
+            }
+            return
+          }
+        } catch (error) {
+          console.error('❌ Error de conexión:', error)
+          alert('❌ Error de conexión al guardar asistencia')
+          return
+        }
+        
+        // Ocultar confirmación después de 4 segundos
+        setTimeout(() => {
+          setMostrarConfirmacion(false)
+          // Mantener la información del estudiante por un poco más
+          setTimeout(() => {
+            setEstudianteEscaneado(null)
+          }, 1000)
+        }, 4000)
+      }, 800) // Mostrar nombre por 800ms antes de procesar
       
     } else if (estudiante && estudiante.estado !== 'pendiente') {
-      alert(`${estudiante.nombre} ya fue registrado como ${estudiante.estado}`)
+      // Mostrar información del estudiante ya registrado
+      setEstudianteEscaneado(estudiante)
+      setTimeout(() => {
+        alert(`⚠️ ${estudiante.nombre} ya fue registrado como ${estudiante.estado}`)
+        setEstudianteEscaneado(null)
+      }, 1000)
     } else {
-      alert('Código no válido o estudiante no encontrado')
+      // Código no válido
+      setTimeout(() => {
+        alert('❌ Código no válido o estudiante no encontrado')
+      }, 500)
     }
   }
 
@@ -656,24 +762,24 @@ export default function TomarAsistenciaModal({
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
 
-      // Configuración optimizada para pantalla completa
+      // Configuración para que el área de escaneo sea igual al área de la cámara
       const config = {
         fps: 15,
         qrbox: function(viewfinderWidth: number, viewfinderHeight: number) {
-          const minEdgePercentage = 0.8
-          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage)
+          // Usar 100% del área disponible (toda la cámara)
           return {
-            width: qrboxSize,
-            height: qrboxSize
+            width: viewfinderWidth,
+            height: viewfinderHeight
           }
         },
-        aspectRatio: 16/9, // Aspecto más amplio para pantalla completa
+        aspectRatio: 16/9, // Aspecto más natural para móviles
         videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
           facingMode: 'environment' // Preferir cámara trasera
-        }
+        },
+        rememberLastUsedCamera: true,
+        supportedScanTypes: [0] // Solo QR codes
       }
 
       console.log('🚀 Intentando iniciar cámara con ID:', camaraSeleccionada)
@@ -736,16 +842,73 @@ export default function TomarAsistenciaModal({
 
   // Detener escáner
   const detenerEscaner = async () => {
-    if (scannerRef.current && scannerActive) {
+    console.log('🛑 Iniciando detención del escáner...')
+    
+    // Primero cambiar el estado para evitar reinicios
+    setScannerActive(false)
+    
+    if (scannerRef.current) {
+      // Limpiar directamente sin usar stop() que causa problemas
       try {
-        await scannerRef.current.stop()
-        scannerRef.current.clear()
-        scannerRef.current = null
-        setScannerActive(false)
-        console.log('✅ Escáner detenido')
-      } catch (error) {
-        console.error('Error al detener escáner:', error)
+        const qrReaderElement = document.getElementById('qr-reader')
+        if (qrReaderElement) {
+          // Detener todos los tracks de video manualmente ANTES de limpiar
+          const videos = qrReaderElement.querySelectorAll('video')
+          videos.forEach(video => {
+            try {
+              // Remover event listeners para evitar onabort
+              video.onabort = null
+              video.onerror = null
+              video.onended = null
+              video.onloadstart = null
+              
+              // Pausar primero
+              video.pause()
+              
+              if (video.srcObject) {
+                const stream = video.srcObject as MediaStream
+                stream.getTracks().forEach(track => {
+                  try {
+                    if (track.readyState !== 'ended') {
+                      track.stop()
+                      console.log('🎥 Track de video detenido:', track.kind)
+                    }
+                  } catch (trackError) {
+                    console.log('⚠️ Error al detener track:', trackError)
+                  }
+                })
+                // Limpiar srcObject gradualmente
+                video.srcObject = null
+              }
+              
+              // Remover el elemento del DOM suavemente
+              video.remove()
+            } catch (videoError) {
+              console.log('⚠️ Error al limpiar video:', videoError)
+            }
+          })
+          
+          // Pequeña pausa para asegurar que los tracks se detengan
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Limpiar el HTML completamente
+          qrReaderElement.innerHTML = ''
+          console.log('🧹 Contenido del elemento limpiado')
+        }
+      } catch (cleanupError) {
+        console.error('⚠️ Error durante limpieza:', cleanupError)
+        // Forzar limpieza básica
+        const qrReaderElement = document.getElementById('qr-reader')
+        if (qrReaderElement) {
+          qrReaderElement.innerHTML = ''
+        }
       }
+      
+      // Limpiar la referencia
+      scannerRef.current = null
+      console.log('✅ Escáner completamente detenido y limpiado (sin usar stop())')
+    } else {
+      console.log('ℹ️ No hay escáner activo para detener')
     }
   }
 
@@ -788,11 +951,10 @@ export default function TomarAsistenciaModal({
   }, [camaraSeleccionada, modoEscaneo, permisosCamara, usarCamaraIP])
 
   // Limpiar al cerrar
-  const handleClose = () => {
-    detenerEscaner()
+  const handleClose = async () => {
+    await detenerEscaner()
     setCodigoManual('')
     setUltimoEscaneo('')
-    setScannerActive(false)
     onClose()
   }
 
@@ -815,8 +977,8 @@ export default function TomarAsistenciaModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full h-full max-w-none max-h-none overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full h-full max-w-6xl max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
@@ -833,13 +995,13 @@ export default function TomarAsistenciaModal({
           </button>
         </div>
 
-        <div className="p-6 h-full">
+        <div className="p-4 sm:p-6 flex flex-col">
           {/* Selector de modo */}
-          <div className="mb-6">
-            <div className="flex space-x-4">
+          <div className="mb-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => setModoEscaneo('camara')}
-                className={`px-4 py-2 rounded-md font-medium ${
+                className={`px-4 py-2 rounded-md font-medium text-sm ${
                   modoEscaneo === 'camara'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
@@ -849,7 +1011,7 @@ export default function TomarAsistenciaModal({
               </button>
               <button
                 onClick={() => setModoEscaneo('manual')}
-                className={`px-4 py-2 rounded-md font-medium ${
+                className={`px-4 py-2 rounded-md font-medium text-sm ${
                   modoEscaneo === 'manual'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
@@ -859,6 +1021,43 @@ export default function TomarAsistenciaModal({
               </button>
             </div>
           </div>
+
+          {/* Controles de escaneo múltiple */}
+          {modoEscaneo === 'camara' && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="escaneoMultiple"
+                    checked={escaneoMultiple}
+                    onChange={(e) => setEscaneoMultiple(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="escaneoMultiple" className="text-sm font-medium text-blue-800">
+                    Escaneo múltiple
+                  </label>
+                </div>
+                <div className="text-xs text-blue-600">
+                  {ultimosEscaneos.length > 0 && `Últimos: ${ultimosEscaneos.length}`}
+                </div>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                {escaneoMultiple 
+                  ? 'Puedes escanear varios códigos seguidos. Se evitan duplicados automáticamente.'
+                  : 'Solo se procesará un código a la vez.'
+                }
+              </p>
+              {ultimosEscaneos.length > 0 && (
+                <button
+                  onClick={() => setUltimosEscaneos([])}
+                  className="text-xs text-blue-500 hover:text-blue-700 mt-1"
+                >
+                  Limpiar historial
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Mostrar error si existe */}
           {error && (
@@ -883,38 +1082,14 @@ export default function TomarAsistenciaModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-            {/* Panel de escaneo - Ocupa 2/3 del espacio */}
-            <div className="lg:col-span-2">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 flex-1 min-h-0">
+            {/* Panel de escaneo - Ocupa 2/3 del espacio en desktop, toda la pantalla en móvil */}
+            <div className="lg:col-span-2 flex-1 min-h-0">
               {modoEscaneo === 'camara' ? (
                 <div>
                   <h3 className="text-lg font-medium mb-4">Escanear Código QR</h3>
                   
-                  {/* Selector de tipo de cámara */}
-                  <div className="mb-4">
-                    <div className="grid grid-cols-1 gap-2 mb-3">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="tipoCamara"
-                          checked={!usarCamaraIP}
-                          onChange={() => setUsarCamaraIP(false)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-black">📷 Cámara Local</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="tipoCamara"
-                          checked={usarCamaraIP}
-                          onChange={() => setUsarCamaraIP(true)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-black">📱 Cámara IP (Teléfono)</span>
-                      </label>
-                    </div>
-                  </div>
+                  {/* Siempre usar cámara local - opciones ocultas */}
 
                   {/* Selector de cámara local */}
                   {!usarCamaraIP && camaras.length > 0 && (
@@ -1031,20 +1206,28 @@ export default function TomarAsistenciaModal({
 
                   {/* Área de escaneo - Pantalla completa */}
                   <div className="relative">
-                    {/* Overlay con información del estudiante */}
+                    {/* Overlay con información del estudiante - Confirmación exitosa */}
                     {mostrarConfirmacion && estudianteEscaneado && (
-                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-lg shadow-lg p-4 border-2 border-green-500">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
-                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 border-3 border-green-500 min-w-[300px] animate-bounce">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
-                          <div>
-                            <p className="font-bold text-green-800 text-lg">{estudianteEscaneado.nombre}</p>
-                            <p className="text-green-600 text-sm">
-                              {estudianteEscaneado.estado === 'presente' ? '✅ Presente' : '⏰ Tardanza'} - {estudianteEscaneado.horaLlegada}
+                          <div className="flex-1">
+                            <p className="font-bold text-green-800 text-xl">{estudianteEscaneado.nombre}</p>
+                            <p className="text-green-600 text-base font-medium mt-1">
+                              {estudianteEscaneado.estado === 'presente' ? '✅ Presente' : '⏰ Tardanza'}
                             </p>
+                            <p className="text-green-500 text-sm">
+                              Registrado a las {estudianteEscaneado.horaLlegada}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-center">
+                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            🎉 ¡Asistencia registrada exitosamente!
                           </div>
                         </div>
                       </div>
@@ -1052,19 +1235,41 @@ export default function TomarAsistenciaModal({
                     
                     {/* Información del último estudiante escaneado */}
                     {ultimoEscaneo && estudianteEscaneado && !mostrarConfirmacion && (
-                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 bg-blue-600 text-white rounded-lg shadow-lg p-3">
+                      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-40 bg-blue-600 text-white rounded-xl shadow-lg p-4 min-w-[250px]">
                         <div className="text-center">
-                          <p className="font-semibold">{estudianteEscaneado.nombre}</p>
-                          <p className="text-xs opacity-90">Código: {ultimoEscaneo}</p>
+                          <p className="font-bold text-lg">{estudianteEscaneado.nombre}</p>
+                          <p className="text-sm opacity-90 mt-1">Código: {ultimoEscaneo}</p>
+                          <div className="mt-2 flex justify-center">
+                            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                          </div>
                         </div>
                       </div>
                     )}
                     
                     <div 
                       id="qr-reader" 
-                      className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden"
-                      style={{ minHeight: '500px', height: '70vh' }}
+                      className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden mx-auto w-full max-w-sm sm:max-w-md lg:max-w-lg"
+                      style={{ 
+                        height: '300px'
+                      }}
                     />
+                    
+                    {/* Estilos para hacer que el video ocupe toda el área */}
+                    <style jsx>{`
+                      #qr-reader video {
+                        width: 100% !important;
+                        height: 100% !important;
+                        object-fit: cover !important;
+                        border-radius: 6px;
+                      }
+                      #qr-reader canvas {
+                        display: none !important;
+                      }
+                      #qr-reader div {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                      }
+                    `}</style>
                     
                     {!scannerActive && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
@@ -1157,8 +1362,8 @@ export default function TomarAsistenciaModal({
               )}
             </div>
 
-            {/* Lista de estudiantes - Ocupa 1/3 del espacio */}
-            <div className="lg:col-span-1 max-h-[70vh] overflow-y-auto">
+            {/* Lista de estudiantes - Siempre visible */}
+            <div className="lg:col-span-1 flex flex-col min-h-0 lg:min-h-[400px]">
               <h3 className="text-lg font-medium mb-4">Lista de Estudiantes</h3>
               
               {loading && (
@@ -1168,7 +1373,7 @@ export default function TomarAsistenciaModal({
                 </div>
               )}
               
-              {/* Estadísticas */}
+              {/* Estadísticas - Siempre visibles */}
               {!loading && (
                 <div className="grid grid-cols-3 gap-2 mb-4 text-sm">
                   <div className="bg-green-100 text-green-800 p-2 rounded text-center">
@@ -1186,9 +1391,9 @@ export default function TomarAsistenciaModal({
                 </div>
               )}
 
-              {/* Lista */}
+              {/* Lista - Siempre visible */}
               {!loading && (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
                 {estudiantes.map((estudiante) => (
                   <div
                     key={estudiante.id}

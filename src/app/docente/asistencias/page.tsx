@@ -21,10 +21,7 @@ export default function DocenteAsistencias() {
     { value: 'tardanza', label: 'Tardanza', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'inasistencia', label: 'Inasistencia', color: 'bg-red-100 text-red-800' },
     { value: 'justificada', label: 'Justificada', color: 'bg-blue-100 text-blue-800' },
-    // Estados especiales para retiros
-    { value: 'retiro_temprano', label: 'Retiro Temprano', color: 'bg-red-100 text-red-800' },
-    { value: 'retiro_parcial', label: 'Retiro Parcial', color: 'bg-gray-100 text-gray-800' },
-    { value: 'retiro_tardio', label: 'Retiro Tardío', color: 'bg-yellow-100 text-yellow-800' }
+    { value: 'retirado', label: 'Retirado', color: 'bg-purple-100 text-purple-800' }
   ]
 
   // Cargar datos de autenticación
@@ -157,10 +154,13 @@ export default function DocenteAsistencias() {
     alert('Asistencia guardada correctamente')
   }
 
-  const handleTomarAsistenciaQR = (asistencias: any[]) => {
-    // Actualizar los estudiantes con las asistencias tomadas por QR
-    setEstudiantes(asistencias)
-    alert('Asistencia por QR guardada correctamente')
+  const handleTomarAsistenciaQR = async (estudiantesActualizados: any[]) => {
+    console.log('📥 Recibiendo estudiantes actualizados del modal QR:', estudiantesActualizados)
+    
+    // Actualizar inmediatamente el estado local con los datos del modal
+    setEstudiantes(estudiantesActualizados)
+    
+    console.log('✅ Lista de estudiantes actualizada en tiempo real')
   }
 
   const getEstadoColor = (estado: string, estadoVisual?: string) => {
