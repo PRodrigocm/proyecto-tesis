@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
+import { formatTo12Hour } from '@/utils/timeFormat'
 
-const prisma = new PrismaClient()
-
-// Función para formatear tiempo desde la BD sin conversiones de zona horaria
+// Función para formatear tiempo desde la BD sin conversiones de zona horaria en formato 12h
 function formatTimeFromDB(dateTime: Date): string {
   // Extraer directamente del ISO string la parte de tiempo
   const isoString = dateTime.toISOString()
@@ -13,14 +12,16 @@ function formatTimeFromDB(dateTime: Date): string {
   const match = isoString.match(/T(\d{2}):(\d{2})/)
   if (match) {
     const timeString = `${match[1]}:${match[2]}`
-    console.log(`🕐 formatTimeFromDB: ${isoString} → ${timeString}`)
-    return timeString
+    const time12h = formatTo12Hour(timeString)
+    console.log(`🕐 formatTimeFromDB: ${isoString} → ${timeString} → ${time12h}`)
+    return time12h
   }
   
   // Fallback si no encuentra el patrón
   const fallback = isoString.substring(11, 16)
-  console.log(`🕐 formatTimeFromDB (fallback): ${isoString} → ${fallback}`)
-  return fallback
+  const fallback12h = formatTo12Hour(fallback)
+  console.log(`🕐 formatTimeFromDB (fallback): ${isoString} → ${fallback} → ${fallback12h}`)
+  return fallback12h
 }
 
 interface JWTPayload {

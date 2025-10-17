@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function ApoderadoLayout({
   children,
@@ -255,6 +257,14 @@ export default function ApoderadoLayout({
                 </h1>
               </div>
               <div className="flex items-center space-x-4">
+                {/* Campanita de notificaciones */}
+                {mounted && user && (
+                  <NotificationBell 
+                    userRole="APODERADO" 
+                    userId={user.id || user.idUsuario || '1'} 
+                  />
+                )}
+                
                 <div className="flex items-center space-x-2">
                   <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>

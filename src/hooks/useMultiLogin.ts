@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useMultiSession } from './useMultiSession'
 
 interface LoginFormData {
   email: string
@@ -26,8 +27,10 @@ interface Role {
   nombre: string
 }
 
-export const useLogin = () => {
+export const useMultiLogin = () => {
   const router = useRouter()
+  const { saveSession, sessionId, getAllActiveSessions } = useMultiSession()
+  
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -46,6 +49,7 @@ export const useLogin = () => {
   const [institucionesEducativas, setInstitucionesEducativas] = useState<Institution[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [activeSessions, setActiveSessions] = useState<any[]>([])
 
   const loadFormData = async () => {
     setLoadingData(true)
@@ -71,9 +75,16 @@ export const useLogin = () => {
     }
   }
 
+  // Cargar sesiones activas
+  const loadActiveSessions = () => {
+    const sessions = getAllActiveSessions()
+    setActiveSessions(sessions)
+  }
+
   // Cargar datos al inicializar el hook
   useEffect(() => {
     loadFormData()
+    loadActiveSessions()
   }, [])
 
   const validateForm = () => {
@@ -118,7 +129,8 @@ export const useLogin = () => {
     setIsLoading(true)
     
     try {
-      console.log('🔐 Starting login process...')
+      console.log('🔐 Starting multi-session login process...')
+      console.log('📱 Session ID:', sessionId)
       console.log('Form data:', {
         email: formData.email,
         institucionEducativa: formData.institucionEducativa,
@@ -135,7 +147,8 @@ export const useLogin = () => {
           email: formData.email,
           password: formData.password,
           institucionEducativa: formData.institucionEducativa,
-          rol: formData.rol
+          rol: formData.rol,
+          sessionId: sessionId // Enviar ID de sesión para tracking
         })
       })
 
@@ -144,16 +157,21 @@ export const useLogin = () => {
       console.log('📡 Login response data:', data)
 
       if (response.ok) {
-        console.log('✅ Login successful!')
+        console.log('✅ Multi-session login successful!')
         
-        // Usar el sistema de múltiples sesiones transparente
-        const { saveUserSession } = await import('@/lib/multiSessionManager')
-        saveUserSession(data.data.user, data.data.token)
+        // Guardar sesión usando el hook de múltiples sesiones
+        saveSession(data.data.user, data.data.token)
         
-        // Debug: Log the user data to see what role is being returned
-        console.log('👤 User data saved with multi-session support:', data.data.user)
+        // Debug: Log the user data
+        console.log('👤 User data saved for session:', sessionId)
         console.log('🎭 User role:', data.data.user.rol)
-        console.log('🎭 Role type:', typeof data.data.user.rol)
+        
+        // Mostrar notificación de nueva sesión
+        const existingSessions = getAllActiveSessions()
+        if (existingSessions.length > 1) {
+          console.log('🔔 Multiple sessions detected:', existingSessions.length)
+          // Aquí podrías mostrar una notificación al usuario
+        }
         
         // Redirigir según el rol
         console.log('🔄 Starting redirect logic...')
@@ -184,6 +202,7 @@ export const useLogin = () => {
         setErrors(prev => ({ ...prev, general: data.error || 'Error en el login' }))
       }
     } catch (error) {
+      console.error('❌ Login error:', error)
       setErrors(prev => ({ ...prev, general: 'Error de conexión' }))
     } finally {
       setIsLoading(false)
@@ -221,8 +240,11 @@ export const useLogin = () => {
     institucionesEducativas,
     roles,
     loadingData,
+    activeSessions,
+    sessionId,
     handleSubmit,
     handleChange,
-    handleBack
+    handleBack,
+    loadActiveSessions
   }
 }

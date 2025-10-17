@@ -261,11 +261,11 @@ export default function ReportesDocente() {
     loading,
     configuracion,
     filtros,
+    clases,
     generarReporte,
     exportarReporte,
     guardarConfiguracion,
-    getGradosDisponibles,
-    getSeccionesDisponibles,
+    getClasesDisponibles,
     getEstadisticasAvanzadas,
     setFiltros
   } = useReportes()
@@ -309,7 +309,7 @@ export default function ReportesDocente() {
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-black mb-1">
               Tipo de Reporte
@@ -353,32 +353,18 @@ export default function ReportesDocente() {
 
           <div>
             <label className="block text-sm font-medium text-black mb-1">
-              Grado
+              Clase
             </label>
             <select
-              value={filtrosForm.grado || ''}
-              onChange={(e) => setFiltrosForm(prev => ({ ...prev, grado: e.target.value }))}
+              value={filtrosForm.claseId || ''}
+              onChange={(e) => setFiltrosForm(prev => ({ ...prev, claseId: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
             >
-              <option value="">Todos</option>
-              {getGradosDisponibles().map(grado => (
-                <option key={grado} value={grado}>{grado}°</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Sección
-            </label>
-            <select
-              value={filtrosForm.seccion || ''}
-              onChange={(e) => setFiltrosForm(prev => ({ ...prev, seccion: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
-            >
-              <option value="">Todas</option>
-              {getSeccionesDisponibles(filtrosForm.grado).map(seccion => (
-                <option key={seccion} value={seccion}>{seccion}</option>
+              <option value="">Todas las clases</option>
+              {getClasesDisponibles().map(clase => (
+                <option key={clase.id} value={clase.id}>
+                  {clase.materia} - {clase.grado}° {clase.seccion}
+                </option>
               ))}
             </select>
           </div>

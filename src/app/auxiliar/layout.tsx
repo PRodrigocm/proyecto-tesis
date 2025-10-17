@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function AuxiliarLayout({
   children,
@@ -240,6 +241,14 @@ export default function AuxiliarLayout({
                 </h1>
               </div>
               <div className="flex items-center space-x-4">
+                {/* Campanita de notificaciones */}
+                {mounted && user && (
+                  <NotificationBell 
+                    userRole="AUXILIAR" 
+                    userId={user.id || user.idUsuario || '1'} 
+                  />
+                )}
+                
                 <div className="flex items-center space-x-2">
                   <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
                     <svg className="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>

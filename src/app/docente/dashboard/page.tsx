@@ -15,7 +15,7 @@ export default function DocenteDashboard() {
     retirosPendientes: 0
   })
 
-  const [proximasClases, setProximasClases] = useState<any[]>([])
+  const [aulasDocente, setAulasDocente] = useState<any[]>([])
   const [actividadReciente, setActividadReciente] = useState<any[]>([])
 
   useEffect(() => {
@@ -43,13 +43,16 @@ export default function DocenteDashboard() {
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Datos del dashboard cargados:', data.data)
+        console.log('🏫 Aulas del docente recibidas:', data.data.aulasDocente)
         
         setStats(data.data.stats)
-        setProximasClases(data.data.proximasClases)
+        setAulasDocente(data.data.aulasDocente || [])
         setActividadReciente(data.data.actividadReciente)
         setDocente(data.data.docente)
       } else {
         console.error('❌ Error al cargar dashboard:', response.status)
+        const errorData = await response.text()
+        console.error('❌ Error details:', errorData)
         // Mantener datos por defecto en caso de error
       }
     } catch (error) {
@@ -165,52 +168,98 @@ export default function DocenteDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Próximas Clases */}
+        {/* Clases - Aulas donde enseña */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Próximas Clases</h3>
-            <p className="text-sm text-gray-600">Tus clases programadas para hoy</p>
+            <h3 className="text-lg font-medium text-gray-900">Clases</h3>
+            <p className="text-sm text-gray-600">Aulas donde enseñas</p>
           </div>
           <div className="divide-y divide-gray-200">
             {loading ? (
               <div className="px-6 py-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-sm text-gray-500 mt-2">Cargando clases...</p>
+                <p className="text-sm text-gray-500 mt-2">Cargando aulas...</p>
               </div>
-            ) : proximasClases.length > 0 ? (
-              proximasClases.map((clase) => (
-                <div key={clase.id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
+            ) : aulasDocente.length > 0 ? (
+              aulasDocente.map((aulaInfo: any) => {
+                console.log('🎨 Renderizando aula:', aulaInfo)
+                return (
+                <div key={aulaInfo.id} className="px-6 py-4 hover:bg-gray-50">
+                  <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                           </div>
                         </div>
                         <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-900">{clase.materia}</p>
-                          <p className="text-sm text-gray-500">{clase.grado} • {clase.aula}</p>
+                          <p className="text-sm font-medium text-gray-900">{aulaInfo.aula}</p>
+                          <div className="mt-1 space-y-1">
+                            {/* Clases regulares */}
+                            {aulaInfo.clases.slice(0, 2).map((clase: any, index: number) => (
+                              <p key={index} className="text-xs text-gray-500">
+                                {clase.grado} • {clase.diaNombre} {clase.hora}
+                              </p>
+                            ))}
+                            {aulaInfo.clases.length > 2 && (
+                              <p className="text-xs text-gray-400">
+                                +{aulaInfo.clases.length - 2} más...
+                              </p>
+                            )}
+                            
+                            {/* Recuperaciones */}
+                            {aulaInfo.recuperaciones && aulaInfo.recuperaciones.length > 0 && (
+                              <div className="mt-2 pt-1 border-t border-gray-200">
+                                <p className="text-xs font-medium text-orange-600 mb-1">
+                                  🔄 Recuperaciones:
+                                </p>
+                                {aulaInfo.recuperaciones.slice(0, 2).map((recuperacion: any, index: number) => (
+                                  <p key={index} className="text-xs text-orange-500">
+                                    {recuperacion.grado} • {recuperacion.diaNombre} {recuperacion.hora}
+                                  </p>
+                                ))}
+                                {aulaInfo.recuperaciones.length > 2 && (
+                                  <p className="text-xs text-orange-400">
+                                    +{aulaInfo.recuperaciones.length - 2} más...
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{clase.hora}</p>
-                      <p className="text-sm text-gray-500">{clase.estudiantes} estudiantes</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {aulaInfo.clases.length} clase{aulaInfo.clases.length !== 1 ? 's' : ''}
+                      </p>
+                      {aulaInfo.recuperaciones && aulaInfo.recuperaciones.length > 0 && (
+                        <p className="text-xs font-medium text-orange-600">
+                          {aulaInfo.recuperaciones.length} recuperación{aulaInfo.recuperaciones.length !== 1 ? 'es' : ''}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        {aulaInfo.clases.reduce((total: number, clase: any) => total + clase.estudiantes, 0)} estudiantes
+                      </p>
                     </div>
                   </div>
                 </div>
-              ))
+                )
+              })
             ) : (
               <div className="px-6 py-8 text-center">
-                <p className="text-sm text-gray-500">No hay clases programadas para hoy</p>
+                <p className="text-sm text-gray-500">No tienes aulas asignadas</p>
               </div>
             )}
           </div>
           <div className="px-6 py-3 bg-gray-50 text-right">
-            <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">
+            <button 
+              onClick={() => router.push('/docente/horarios')}
+              className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+            >
               Ver todos los horarios →
             </button>
           </div>

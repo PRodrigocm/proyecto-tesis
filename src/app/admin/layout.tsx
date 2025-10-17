@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { getCurrentUser, isAuthenticated, logoutCurrentSession } from '@/lib/multiSessionManager'
+import SessionDebugger from '@/components/dev/SessionDebugger'
+import NotificationBell from '@/components/NotificationBell'
 
 interface User {
   id: string
@@ -22,36 +25,37 @@ export default function AdminLayout({
   const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openUsers, setOpenUsers] = useState(false)
-  const [openCalendario, setOpenCalendario] = useState(false)
+  const [openCalendario, setOpenCalendario] = useState(
+    pathname.startsWith('/admin/dashboard/calendarios') || pathname.startsWith('/admin/dashboard/horarios')
+  )
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
-    
-    if (!token || !userData) {
+    // Verificar autenticación usando el sistema de múltiples sesiones transparente
+    if (!isAuthenticated()) {
+      console.log('❌ Admin Layout - No authenticated session, redirecting to login')
       router.push('/login')
       return
     }
 
-    try {
-      const parsedUser = JSON.parse(userData)
-      console.log('🔍 Admin Layout - Checking user role:', parsedUser.rol)
-      if (parsedUser.rol !== 'ADMINISTRATIVO') {
-        console.log('❌ Admin Layout - Invalid role, redirecting to login')
-        router.push('/login')
-        return
-      }
-      console.log('✅ Admin Layout - Role valid, setting user')
-      setUser(parsedUser)
-    } catch (error) {
-      console.log('❌ Admin Layout - Error parsing user data:', error)
+    const userData = getCurrentUser()
+    if (!userData || userData.rol !== 'ADMINISTRATIVO') {
+      console.log('❌ Admin Layout - Invalid role or no user, redirecting to login')
       router.push('/login')
+      return
     }
+
+    setUser(userData)
+    console.log('✅ Admin Layout - Multi-session authenticated as:', userData.rol)
   }, [router])
 
+  // Actualizar estados de menús desplegables basado en la ruta actual
+  useEffect(() => {
+    setOpenUsers(pathname.startsWith('/admin/dashboard/usuarios'))
+    setOpenCalendario(pathname.startsWith('/admin/dashboard/calendarios') || pathname.startsWith('/admin/dashboard/horarios'))
+  }, [pathname])
+
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    logoutCurrentSession()
     router.push('/login')
   }
 
@@ -107,6 +111,12 @@ export default function AdminLayout({
       icon: '📅',
       current: pathname.startsWith('/admin/dashboard/calendarios') || pathname.startsWith('/admin/dashboard/horarios'),
       children: [
+        {
+          name: 'Año Lectivo',
+          href: '/admin/dashboard/calendarios/ano-lectivo',
+          current: pathname === '/admin/dashboard/calendarios/ano-lectivo',
+          description: 'Gestiona el calendario escolar anual, feriados y suspensiones'
+        },
         {
           name: 'Horario Clases',
           href: '/admin/dashboard/horarios/clases',
@@ -253,9 +263,15 @@ export default function AdminLayout({
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
+              {/* Campanita de notificaciones */}
+              <NotificationBell 
+                userRole={user?.rol || 'ADMINISTRATIVO'} 
+                userId={user?.id || '1'} 
+              />
+              
               <div className="flex items-center gap-x-4">
                 <span className="text-sm font-medium text-gray-700">
-                  {user.nombre} {user.apellido}
+                  {user?.nombre} {user?.apellido}
                 </span>
                 <button
                   onClick={handleLogout}
@@ -283,6 +299,9 @@ export default function AdminLayout({
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
+
+      {/* Session Debugger - Solo en desarrollo */}
+      <SessionDebugger />
     </div>
   )
 }

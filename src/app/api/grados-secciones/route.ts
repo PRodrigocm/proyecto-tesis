@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       where: {
         grado: {
           nivel: {
-            idIe: parseInt(finalIeId)
+            idIe: parseInt(finalIeId),
+            nombre: 'Primaria' // Solo grados de primaria
           }
         }
       },

@@ -21,7 +21,8 @@ export default function DocenteAsistencias() {
     { value: 'tardanza', label: 'Tardanza', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'inasistencia', label: 'Inasistencia', color: 'bg-red-100 text-red-800' },
     { value: 'justificada', label: 'Justificada', color: 'bg-blue-100 text-blue-800' },
-    { value: 'retirado', label: 'Retirado', color: 'bg-purple-100 text-purple-800' }
+    { value: 'retirado', label: 'Retirado', color: 'bg-purple-100 text-purple-800' },
+    { value: 'sin_registrar', label: 'Sin registrar', color: 'bg-gray-100 text-gray-800' }
   ]
 
   // Cargar datos de autenticación
@@ -189,6 +190,7 @@ export default function DocenteAsistencias() {
       tardanza: conteo.tardanza || 0,
       inasistencia: conteo.inasistencia || 0,
       justificada: conteo.justificada || 0,
+      retirado: conteo.retirado || 0,
       total: estudiantes.length
     }
   }

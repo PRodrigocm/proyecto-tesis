@@ -94,8 +94,18 @@ export interface FiltrosReporte {
   tipoReporte: 'semanal' | 'mensual'
   fechaInicio?: string
   fechaFin?: string
-  grado?: string
-  seccion?: string
+  claseId?: string
+}
+
+export interface ClaseDocente {
+  id: string
+  materia: string
+  grado: string
+  seccion: string
+  diaSemana: string
+  horaInicio: string
+  horaFin: string
+  aula: string
 }
 
 export interface ConfiguracionExportacion {
@@ -116,13 +126,15 @@ export const useReportes = () => {
   const [reporteData, setReporteData] = useState<ReporteData | null>(null)
   const [loading, setLoading] = useState(false)
   const [configuracion, setConfiguracion] = useState<ConfiguracionExportacion | null>(null)
+  const [clases, setClases] = useState<ClaseDocente[]>([])
   const [filtros, setFiltros] = useState<FiltrosReporte>({
     tipoReporte: 'semanal'
   })
 
-  // Cargar configuración al inicializar
+  // Cargar configuración y clases al inicializar
   useEffect(() => {
     loadConfiguracion()
+    loadClasesDocente()
   }, [])
 
   const loadConfiguracion = async () => {
@@ -145,6 +157,36 @@ export const useReportes = () => {
     }
   }
 
+  const loadClasesDocente = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/docentes/horarios', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const clasesFormateadas: ClaseDocente[] = data.horarios.map((horario: any) => ({
+          id: horario.id,
+          materia: horario.materia || 'Sin materia',
+          grado: horario.grado,
+          seccion: horario.seccion,
+          diaSemana: horario.diaSemana,
+          horaInicio: horario.horaInicio,
+          horaFin: horario.horaFin,
+          aula: horario.aula || 'Sin aula'
+        }))
+        setClases(clasesFormateadas)
+      } else {
+        console.error('Error al cargar clases del docente')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
   const generarReporte = async (filtrosReporte: FiltrosReporte) => {
     setLoading(true)
     try {
@@ -155,8 +197,7 @@ export const useReportes = () => {
       
       if (filtrosReporte.fechaInicio) params.append('fechaInicio', filtrosReporte.fechaInicio)
       if (filtrosReporte.fechaFin) params.append('fechaFin', filtrosReporte.fechaFin)
-      if (filtrosReporte.grado) params.append('grado', filtrosReporte.grado)
-      if (filtrosReporte.seccion) params.append('seccion', filtrosReporte.seccion)
+      if (filtrosReporte.claseId) params.append('claseId', filtrosReporte.claseId)
 
       const response = await fetch(`/api/docentes/reportes?${params}`, {
         headers: {
@@ -286,21 +327,25 @@ export const useReportes = () => {
     }
   }
 
-  // Obtener opciones para filtros
-  const getGradosDisponibles = () => {
-    if (!reporteData) return []
-    const grados = [...new Set(reporteData.estudiantes.map(e => e.grado))].sort()
-    return grados
-  }
-
-  const getSeccionesDisponibles = (grado?: string) => {
-    if (!reporteData) return []
-    let estudiantes = reporteData.estudiantes
-    if (grado) {
-      estudiantes = estudiantes.filter(e => e.grado === grado)
-    }
-    const secciones = [...new Set(estudiantes.map(e => e.seccion))].sort()
-    return secciones
+  // Obtener opciones para filtros (sin duplicados)
+  const getClasesDisponibles = () => {
+    // Crear un Map para agrupar clases únicas por materia-grado-seccion
+    const clasesUnicas = new Map<string, ClaseDocente>()
+    
+    clases.forEach(clase => {
+      const key = `${clase.materia}-${clase.grado}-${clase.seccion}`
+      if (!clasesUnicas.has(key)) {
+        clasesUnicas.set(key, clase)
+      }
+    })
+    
+    // Convertir Map a array y ordenar
+    return Array.from(clasesUnicas.values()).sort((a, b) => {
+      // Ordenar por materia, luego por grado, luego por sección
+      if (a.materia !== b.materia) return a.materia.localeCompare(b.materia)
+      if (a.grado !== b.grado) return a.grado.localeCompare(b.grado)
+      return a.seccion.localeCompare(b.seccion)
+    })
   }
 
   // Calcular estadísticas adicionales
@@ -360,13 +405,13 @@ export const useReportes = () => {
     loading,
     configuracion,
     filtros,
+    clases,
     generarReporte,
     exportarReporte,
     guardarConfiguracion,
     deshabilitarExportacionAutomatica,
     loadConfiguracion,
-    getGradosDisponibles,
-    getSeccionesDisponibles,
+    getClasesDisponibles,
     getEstadisticasAvanzadas,
     setFiltros
   }

@@ -461,7 +461,7 @@ export default function EditApoderadoModal({
                               <select
                                 value={estudiantesRelaciones[estudiante.id] || 'Padre/Madre'}
                                 onChange={(e) => handleRelacionChange(estudiante.id, e.target.value)}
-                                className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                               >
                                 <option value="Padre/Madre">Padre/Madre</option>
                                 <option value="Padre">Padre</option>

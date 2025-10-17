@@ -105,50 +105,49 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Usar transacción para actualizar retiro y asistencia
-    const resultado = await prisma.$transaction(async (tx) => {
-      // Actualizar el retiro
-      const retiroActualizado = await tx.retiro.update({
-        where: { idRetiro: parseInt(retiroId) },
-        data: {
-          idEstadoRetiro: nuevoEstado.idEstadoRetiro,
-          verificadoPor: user.userId,
-          observaciones: observaciones || retiro.observaciones,
-          updatedAt: new Date()
-        },
-        include: {
-          estudiante: {
-            include: {
-              usuario: true,
-              gradoSeccion: {
-                include: {
-                  grado: true,
-                  seccion: true
-                }
+    // Actualizar el retiro
+    const retiroActualizado = await prisma.retiro.update({
+      where: { idRetiro: parseInt(retiroId) },
+      data: {
+        idEstadoRetiro: nuevoEstado.idEstadoRetiro,
+        verificadoPor: user.userId,
+        observaciones: observaciones || retiro.observaciones,
+        updatedAt: new Date()
+      },
+      include: {
+        estudiante: {
+          include: {
+            usuario: true,
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
               }
             }
-          },
-          estadoRetiro: true,
-          usuarioVerificador: {
-            select: {
-              nombre: true,
-              apellido: true
-            }
+          }
+        },
+        estadoRetiro: true,
+        usuarioVerificador: {
+          select: {
+            nombre: true,
+            apellido: true
           }
         }
-      })
+      }
+    })
 
-      // Si el retiro fue AUTORIZADO, actualizar la asistencia del día
-      if (accion === 'AUTORIZAR') {
-        console.log('🔄 Retiro autorizado, actualizando asistencia del estudiante...')
-        
+    // Si el retiro fue AUTORIZADO, actualizar la asistencia del estudiante
+    if (accion === 'AUTORIZAR') {
+      console.log('🔄 Actualizando asistencia del estudiante como RETIRADO...')
+      
+      try {
         // Buscar o crear el estado de asistencia "RETIRADO"
-        let estadoRetirado = await tx.estadoAsistencia.findFirst({
+        let estadoRetirado = await prisma.estadoAsistencia.findFirst({
           where: { codigo: 'RETIRADO' }
         })
         
         if (!estadoRetirado) {
-          estadoRetirado = await tx.estadoAsistencia.create({
+          estadoRetirado = await prisma.estadoAsistencia.create({
             data: {
               codigo: 'RETIRADO',
               nombreEstado: 'Retirado',
@@ -157,22 +156,23 @@ export async function POST(request: NextRequest) {
               activo: true
             }
           })
+          console.log('✅ Estado RETIRADO creado en EstadoAsistencia')
         }
-
+        
         // Buscar la asistencia del día del retiro
         const fechaRetiro = new Date(retiro.fecha)
         fechaRetiro.setHours(0, 0, 0, 0)
-
-        const asistenciaExistente = await tx.asistencia.findFirst({
+        
+        const asistenciaExistente = await prisma.asistencia.findFirst({
           where: {
             idEstudiante: retiro.idEstudiante,
             fecha: fechaRetiro
           }
         })
-
+        
         if (asistenciaExistente) {
           // Actualizar asistencia existente
-          await tx.asistencia.update({
+          await prisma.asistencia.update({
             where: { idAsistencia: asistenciaExistente.idAsistencia },
             data: {
               idEstadoAsistencia: estadoRetirado.idEstadoAsistencia,
@@ -181,31 +181,32 @@ export async function POST(request: NextRequest) {
               fuente: 'RETIRO_AUTORIZADO'
             }
           })
-          console.log('✅ Asistencia existente actualizada a RETIRADO')
+          console.log('✅ Asistencia existente actualizada como RETIRADO')
         } else {
-          // Crear nueva asistencia marcada como retirado
-          await tx.asistencia.create({
+          // Crear nueva asistencia como retirado
+          await prisma.asistencia.create({
             data: {
               idEstudiante: retiro.idEstudiante,
               idIe: retiro.idIe,
               fecha: fechaRetiro,
-              horaEntrada: new Date(`${retiro.fecha.toISOString().split('T')[0]}T08:00:00`), // Hora de entrada por defecto
-              horaSalida: new Date(`${retiro.fecha.toISOString().split('T')[0]}T${retiro.hora}:00`),
               sesion: 'MAÑANA',
               idEstadoAsistencia: estadoRetirado.idEstadoAsistencia,
+              horaSalida: new Date(`${retiro.fecha.toISOString().split('T')[0]}T${retiro.hora}:00`),
               observaciones: `RETIRADO: ${retiro.observaciones || 'Retiro autorizado'}`,
               fuente: 'RETIRO_AUTORIZADO',
               registradoPor: user.userId
             }
           })
-          console.log('✅ Nueva asistencia creada marcada como RETIRADO')
+          console.log('✅ Nueva asistencia creada como RETIRADO')
         }
+        
+        console.log(`✅ Asistencia actualizada para estudiante ${retiroActualizado.estudiante.usuario.nombre} ${retiroActualizado.estudiante.usuario.apellido}`)
+        
+      } catch (asistenciaError) {
+        console.error('❌ Error actualizando asistencia:', asistenciaError)
+        // No fallar la autorización del retiro por esto, solo loggear el error
       }
-
-      return retiroActualizado
-    })
-
-    const retiroActualizado = resultado
+    }
 
     console.log(`✅ Retiro ${accion.toLowerCase()} por ${user.email}:`, {
       retiroId: retiroActualizado.idRetiro,

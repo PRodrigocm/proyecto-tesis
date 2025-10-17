@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { getCurrentUser, getCurrentToken, isAuthenticated, logoutCurrentSession } from '@/lib/multiSessionManager'
 
 export interface User {
   id: number
@@ -20,13 +21,16 @@ export const useAuth = () => {
 
   const loadUser = () => {
     try {
-      const userStr = localStorage.getItem('user')
-      if (userStr) {
-        const userData = JSON.parse(userStr)
+      // Usar el sistema de múltiples sesiones
+      const userData = getCurrentUser()
+      if (userData && isAuthenticated()) {
         setUser(userData)
+      } else {
+        setUser(null)
       }
     } catch (error) {
       console.error('Error loading user:', error)
+      setUser(null)
     } finally {
       setLoading(false)
     }
@@ -38,12 +42,11 @@ export const useAuth = () => {
   }
 
   const getToken = (): string | null => {
-    return localStorage.getItem('token')
+    return getCurrentToken()
   }
 
   const logout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('token')
+    logoutCurrentSession()
     setUser(null)
   }
 

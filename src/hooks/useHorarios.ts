@@ -205,6 +205,42 @@ export const useHorarios = () => {
     }
   }
 
+  // Función para actualizar horarios de ingreso y salida
+  const actualizarHorarios = async (id: string, horaInicio: string, horaFin: string) => {
+    try {
+      console.log('🌐 Hook actualizarHorarios llamado:')
+      console.log(`URL: /api/docentes/horarios/${id}/horarios`)
+      console.log(`Datos: ${JSON.stringify({ horaInicio, horaFin })}`)
+      
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/docentes/horarios/${id}/horarios`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ horaInicio, horaFin })
+      })
+
+      console.log(`📡 Respuesta de la API: ${response.status} ${response.statusText}`)
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Respuesta exitosa:', result)
+        console.log('🔄 Recargando horarios...')
+        loadHorarios()
+        return true
+      } else {
+        const error = await response.text()
+        console.log('❌ Error de la API:', error)
+        return false
+      }
+    } catch (error) {
+      console.error('❌ Error en actualizarHorarios:', error)
+      return false
+    }
+  }
+
   const stats = {
     total: filteredHorarios.length,
     activos: filteredHorarios.filter(h => h.activo).length,
@@ -226,6 +262,7 @@ export const useHorarios = () => {
     actualizarHorario,
     eliminarHorario,
     actualizarTolerancia,
+    actualizarHorarios,
     updateFilters
   }
 }

@@ -2,15 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+/**
+ * Hook para gestionar notificaciones dinámicas del sistema
+ * 
+ * IMPORTANTE: Las notificaciones ahora se generan dinámicamente y NO se guardan en BD
+ * - Se generan en tiempo real basadas en el estado actual del sistema
+ * - Marcar como leída/eliminar solo afecta el estado local de la sesión
+ * - Al recargar la página, las notificaciones se regeneran automáticamente
+ * - Esto garantiza notificaciones siempre actualizadas sin ocupar espacio en BD
+ */
+
 interface Notificacion {
-  id: number
-  titulo: string
-  mensaje: string
-  tipo: string
-  leida: boolean
-  fechaEnvio: string
-  fechaLectura: string | null
-  origen: string | null
+  id: string
+  title: string
+  message: string
+  type: string
+  isRead: boolean
+  createdAt: string
+  relatedTo?: string
+  actionUrl?: string
 }
 
 interface UseNotificacionesOptions {
@@ -46,18 +56,9 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       setLoading(true)
       setError(null)
 
-      const params = new URLSearchParams()
-      if (opciones?.soloNoLeidas) {
-        params.append('soloNoLeidas', 'true')
-      }
-      if (opciones?.limite) {
-        params.append('limite', opciones.limite.toString())
-      }
-      if (opciones?.tipo) {
-        params.append('tipo', opciones.tipo)
-      }
+      console.log('🔔 Obteniendo notificaciones dinámicas...')
 
-      const response = await fetch(`/api/notificaciones?${params}`, {
+      const response = await fetch('/api/notifications', {
         headers: getAuthHeaders()
       })
 
@@ -66,9 +67,28 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       }
 
       const data = await response.json()
-      setNotificaciones(data.notificaciones || [])
+      const notificacionesDinamicas = data.notifications || []
       
-      return data.notificaciones || []
+      console.log('📋 Notificaciones dinámicas obtenidas:', notificacionesDinamicas.length)
+      
+      // Filtrar por opciones si se proporcionan
+      let notificacionesFiltradas = notificacionesDinamicas
+      
+      if (opciones?.soloNoLeidas) {
+        notificacionesFiltradas = notificacionesFiltradas.filter((n: Notificacion) => !n.isRead)
+      }
+      
+      if (opciones?.tipo) {
+        notificacionesFiltradas = notificacionesFiltradas.filter((n: Notificacion) => n.type === opciones.tipo)
+      }
+      
+      if (opciones?.limite) {
+        notificacionesFiltradas = notificacionesFiltradas.slice(0, opciones.limite)
+      }
+
+      setNotificaciones(notificacionesFiltradas)
+      
+      return notificacionesFiltradas
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
       setError(errorMessage)
@@ -81,7 +101,9 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
 
   const fetchCount = useCallback(async () => {
     try {
-      const response = await fetch('/api/notificaciones?accion=contar', {
+      console.log('🔢 Calculando conteo de notificaciones dinámicas...')
+      
+      const response = await fetch('/api/notifications', {
         headers: getAuthHeaders()
       })
 
@@ -90,31 +112,34 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       }
 
       const data = await response.json()
-      setCount(data.count || 0)
+      const notificacionesDinamicas = data.notifications || []
       
-      return data.count || 0
+      // Contar solo las no leídas (las dinámicas siempre son no leídas)
+      const countNoLeidas = notificacionesDinamicas.filter((n: Notificacion) => !n.isRead).length
+      
+      console.log('📊 Conteo calculado:', countNoLeidas, 'notificaciones no leídas')
+      
+      setCount(countNoLeidas)
+      
+      return countNoLeidas
     } catch (err) {
       console.error('Error al obtener conteo de notificaciones:', err)
       return 0
     }
   }, [getAuthHeaders])
 
-  const marcarComoLeida = useCallback(async (id: number) => {
+  const marcarComoLeida = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/notificaciones/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al marcar como leída')
-      }
-
+      console.log('✅ Marcando notificación como leída (solo local):', id)
+      
+      // Las notificaciones dinámicas solo se marcan como leídas localmente
+      // No se guardan en BD, por lo que solo actualizamos el estado local
+      
       // Actualizar estado local
       setNotificaciones(prev => 
         prev.map(notif => 
           notif.id === id 
-            ? { ...notif, leida: true, fechaLectura: new Date().toISOString() }
+            ? { ...notif, isRead: true }
             : notif
         )
       )
@@ -127,26 +152,20 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       console.error('Error al marcar notificación como leída:', err)
       return false
     }
-  }, [getAuthHeaders])
+  }, [])
 
   const marcarTodasComoLeidas = useCallback(async () => {
     try {
-      const response = await fetch('/api/notificaciones', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ accion: 'marcarTodasLeidas' })
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al marcar todas como leídas')
-      }
+      console.log('✅ Marcando todas las notificaciones como leídas (solo local)')
+      
+      // Las notificaciones dinámicas solo se marcan como leídas localmente
+      // No se guardan en BD, por lo que solo actualizamos el estado local
 
       // Actualizar estado local
       setNotificaciones(prev => 
         prev.map(notif => ({ 
           ...notif, 
-          leida: true, 
-          fechaLectura: new Date().toISOString() 
+          isRead: true
         }))
       )
 
@@ -158,25 +177,21 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       console.error('Error al marcar todas como leídas:', err)
       return false
     }
-  }, [getAuthHeaders])
+  }, [])
 
-  const eliminarNotificacion = useCallback(async (id: number) => {
+  const eliminarNotificacion = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/notificaciones/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar notificación')
-      }
+      console.log('🗑️ Eliminando notificación (solo local):', id)
+      
+      // Las notificaciones dinámicas solo se eliminan localmente
+      // No se guardan en BD, por lo que solo actualizamos el estado local
 
       // Actualizar estado local
       const notificacionEliminada = notificaciones.find(n => n.id === id)
       setNotificaciones(prev => prev.filter(notif => notif.id !== id))
 
       // Actualizar conteo si la notificación no estaba leída
-      if (notificacionEliminada && !notificacionEliminada.leida) {
+      if (notificacionEliminada && !notificacionEliminada.isRead) {
         setCount(prev => Math.max(0, prev - 1))
       }
 
@@ -185,7 +200,7 @@ export function useNotificaciones(options: UseNotificacionesOptions = {}) {
       console.error('Error al eliminar notificación:', err)
       return false
     }
-  }, [getAuthHeaders, notificaciones])
+  }, [notificaciones])
 
   const refresh = useCallback(() => {
     fetchCount()

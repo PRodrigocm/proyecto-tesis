@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useHorarios, type Horario } from '@/hooks/useHorarios'
+import { formatTo12Hour, formatTo24Hour } from '@/utils/timeFormat'
 
 // Modal para editar tolerancia
 interface ToleranciaModalProps {
@@ -9,6 +10,14 @@ interface ToleranciaModalProps {
   onClose: () => void
   horario: Horario | null
   onSave: (toleranciaMin: number) => Promise<boolean>
+}
+
+// Modal para editar horarios
+interface HorarioModalProps {
+  isOpen: boolean
+  onClose: () => void
+  horario: Horario | null
+  onSave: (horaInicio: string, horaFin: string) => Promise<boolean>
 }
 
 function ToleranciaModal({ isOpen, onClose, horario, onSave }: ToleranciaModalProps) {
@@ -122,6 +131,130 @@ function ToleranciaModal({ isOpen, onClose, horario, onSave }: ToleranciaModalPr
   )
 }
 
+function HorarioModal({ isOpen, onClose, horario, onSave }: HorarioModalProps) {
+  const [horaInicio, setHoraInicio] = useState('')
+  const [horaFin, setHoraFin] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (horario) {
+      // Convertir de formato 12h (de la API) a formato 24h (para los inputs)
+      const horaInicio24h = formatTo24Hour(horario.horaInicio)
+      const horaFin24h = formatTo24Hour(horario.horaFin)
+      
+      console.log('🕐 Inicializando modal con horarios:')
+      console.log(`API (12h): ${horario.horaInicio} → Input (24h): ${horaInicio24h}`)
+      console.log(`API (12h): ${horario.horaFin} → Input (24h): ${horaFin24h}`)
+      
+      setHoraInicio(horaInicio24h)
+      setHoraFin(horaFin24h)
+    }
+  }, [horario])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      // Los inputs ya están en formato 24h, enviar directamente
+      console.log('🕐 Enviando horarios en formato 24h:')
+      console.log(`Inicio: ${horaInicio}`)
+      console.log(`Fin: ${horaFin}`)
+      
+      const success = await onSave(horaInicio, horaFin)
+      if (success) {
+        onClose()
+      }
+    } catch (error) {
+      console.error('Error saving horario:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen || !horario) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-black mb-4">
+            🕐 Editar Horarios
+          </h3>
+          
+          <div className="mb-4">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+              <h4 className="font-medium text-blue-800 mb-2">📚 Información del Horario:</h4>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p><strong>Materia:</strong> {horario.materia}</p>
+                <p><strong>Grado:</strong> {horario.grado}° {horario.seccion}</p>
+                <p><strong>Día:</strong> {horario.diaSemana}</p>
+                <p><strong>Aula:</strong> {horario.aula}</p>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">
+                Hora de Inicio *
+              </label>
+              <input
+                type="time"
+                value={horaInicio}
+                onChange={(e) => setHoraInicio(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">
+                Hora de Fin *
+              </label>
+              <input
+                type="time"
+                value={horaFin}
+                onChange={(e) => setHoraFin(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                required
+              />
+            </div>
+
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h4 className="font-medium text-yellow-800 mb-1">⚠️ Importante:</h4>
+              <ul className="text-xs text-yellow-700 space-y-1">
+                <li>• La hora de inicio debe ser menor que la hora de fin</li>
+                <li>• Se verificarán conflictos con otros horarios</li>
+                <li>• Los cambios se reflejarán inmediatamente</li>
+                <li>• Asegúrate de coordinar con otros docentes</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Guardando...' : 'Guardar Horarios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function HorariosDocente() {
   const {
     horarios,
@@ -133,10 +266,12 @@ export default function HorariosDocente() {
     stats,
     loadHorarios,
     actualizarTolerancia,
+    actualizarHorarios,
     updateFilters
   } = useHorarios()
 
   const [showToleranciaModal, setShowToleranciaModal] = useState(false)
+  const [showHorarioModal, setShowHorarioModal] = useState(false)
   const [selectedHorario, setSelectedHorario] = useState<Horario | null>(null)
   const [vistaActual, setVistaActual] = useState<'lista' | 'calendario'>('lista')
 
@@ -150,6 +285,11 @@ export default function HorariosDocente() {
     setShowToleranciaModal(true)
   }
 
+  const handleEditHorario = (horario: Horario) => {
+    setSelectedHorario(horario)
+    setShowHorarioModal(true)
+  }
+
   const handleSaveTolerancia = async (toleranciaMin: number) => {
     if (!selectedHorario) return false
     
@@ -161,6 +301,30 @@ export default function HorariosDocente() {
       return success
     } catch (error) {
       console.error('❌ Error al actualizar tolerancia:', error)
+      return false
+    }
+  }
+
+  const handleSaveHorario = async (horaInicio: string, horaFin: string) => {
+    if (!selectedHorario) return false
+    
+    console.log('🔄 Iniciando actualización de horario:')
+    console.log(`ID del horario seleccionado: ${selectedHorario.id}`)
+    console.log(`Día: ${selectedHorario.diaSemana}`)
+    console.log(`Horario anterior: ${selectedHorario.horaInicio} - ${selectedHorario.horaFin}`)
+    console.log(`Horario nuevo: ${horaInicio} - ${horaFin}`)
+    
+    try {
+      const success = await actualizarHorarios(selectedHorario.id, horaInicio, horaFin)
+      if (success) {
+        console.log('✅ Horario actualizado exitosamente')
+        console.log('🔄 Recargando lista de horarios...')
+      } else {
+        console.log('❌ Error: La actualización falló')
+      }
+      return success
+    } catch (error) {
+      console.error('❌ Error al actualizar horario:', error)
       return false
     }
   }
@@ -362,6 +526,12 @@ export default function HorariosDocente() {
                     {/* Acciones */}
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handleEditHorario(horario)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      >
+                        🕐 Editar Horarios
+                      </button>
+                      <button
                         onClick={() => handleEditTolerancia(horario)}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                       >
@@ -414,6 +584,14 @@ export default function HorariosDocente() {
         onClose={() => setShowToleranciaModal(false)}
         horario={selectedHorario}
         onSave={handleSaveTolerancia}
+      />
+
+      {/* Modal de horarios */}
+      <HorarioModal
+        isOpen={showHorarioModal}
+        onClose={() => setShowHorarioModal(false)}
+        horario={selectedHorario}
+        onSave={handleSaveHorario}
       />
     </div>
   )

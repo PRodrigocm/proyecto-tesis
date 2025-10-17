@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCalendarios } from '@/hooks/useCalendarios'
 import CalendariosTable from '@/components/admin/CalendariosTable'
 import CalendariosStats from '@/components/admin/CalendariosStats'
@@ -40,6 +41,15 @@ export default function CalendariosPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex space-x-3">
+          <Link
+            href="/admin/dashboard/calendarios/ano-lectivo"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Año Lectivo
+          </Link>
           <button
             type="button"
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -72,7 +82,7 @@ export default function CalendariosPage() {
               id="tipo"
               value={filters.tipo}
               onChange={(e) => updateFilters({ tipo: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="">Todos</option>
               <option value="ACADEMICO">Académico</option>
@@ -91,7 +101,7 @@ export default function CalendariosPage() {
               id="prioridad"
               value={filters.prioridad}
               onChange={(e) => updateFilters({ prioridad: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="">Todas</option>
               <option value="ALTA">Alta</option>
@@ -107,7 +117,7 @@ export default function CalendariosPage() {
               id="mes"
               value={filters.mes}
               onChange={(e) => updateFilters({ mes: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="">Todos</option>
               {mesesDisponibles.map((mes) => (
@@ -125,7 +135,7 @@ export default function CalendariosPage() {
               id="año"
               value={filters.año}
               onChange={(e) => updateFilters({ año: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="">Todos</option>
               {añosDisponibles.map((año) => (
@@ -143,7 +153,7 @@ export default function CalendariosPage() {
               id="visible"
               value={filters.visible}
               onChange={(e) => updateFilters({ visible: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
             >
               <option value="TODOS">Todos</option>
               <option value="VISIBLE">Visibles</option>

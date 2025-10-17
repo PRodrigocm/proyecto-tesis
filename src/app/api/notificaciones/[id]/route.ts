@@ -1,4 +1,14 @@
+/**
+ * ⚠️ DEPRECADO: Esta API está obsoleta
+ * 
+ * Las notificaciones ahora se generan dinámicamente y no se guardan en BD.
+ * Las acciones de marcar como leída/eliminar ahora son solo locales.
+ * 
+ * Esta API se mantiene temporalmente para compatibilidad hacia atrás.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { marcarComoLeida } from '@/lib/notificaciones-utils'
 import { PrismaClient } from '@prisma/client'

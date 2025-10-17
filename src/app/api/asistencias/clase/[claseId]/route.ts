@@ -126,7 +126,16 @@ export async function GET(
         observaciones = `Retiro: ${retiroDelDia.tipoRetiro?.nombre || 'Motivo no especificado'} (${horaRetiro.toTimeString().slice(0, 5)})`
       } else if (asistenciaDelDia?.estadoAsistencia) {
         // Si no hay retiro, usar estado de asistencia normal
-        estado = asistenciaDelDia.estadoAsistencia.codigo.toLowerCase()
+        const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toLowerCase()
+        
+        // Manejar estado especial RETIRADO
+        if (codigoEstado === 'retirado') {
+          estado = 'retirado'
+          estadoVisual = 'bg-purple-100 text-purple-800' // Morado para retirado
+          observaciones = `RETIRADO: ${asistenciaDelDia.observaciones || 'Retiro autorizado'}`
+        } else {
+          estado = codigoEstado
+        }
       }
       
       return {

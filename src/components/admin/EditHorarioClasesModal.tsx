@@ -90,7 +90,35 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
 
       if (response.ok) {
         const data = await response.json()
-        setGradosSecciones(data.data || [])
+        console.log('📚 Grados y secciones cargados:', data.data)
+        
+        // Filtrar duplicados y solo grados de primaria (1° a 6°)
+        const gradosUnicos = (data.data || []).filter((gs: GradoSeccion, index: number, array: GradoSeccion[]) => {
+          // Verificar que sea grado de primaria (1° a 6°)
+          const gradoNumero = parseInt(gs.grado.nombre)
+          const esPrimaria = gradoNumero >= 1 && gradoNumero <= 6
+          
+          if (!esPrimaria) {
+            console.log(`🚫 Excluyendo grado no primario: ${gs.grado.nombre}° ${gs.seccion.nombre}`)
+            return false
+          }
+          
+          // Eliminar duplicados basados en grado y sección
+          const isDuplicate = array.findIndex(item => 
+            item.grado.nombre === gs.grado.nombre && 
+            item.seccion.nombre === gs.seccion.nombre
+          ) !== index
+          
+          if (isDuplicate) {
+            console.log(`🔄 Eliminando duplicado: ${gs.grado.nombre}° ${gs.seccion.nombre}`)
+            return false
+          }
+          
+          return true
+        })
+        
+        console.log('✅ Grados únicos de primaria:', gradosUnicos.length, 'registros')
+        setGradosSecciones(gradosUnicos)
       }
     } catch (error) {
       console.error('Error loading grados y secciones:', error)

@@ -42,7 +42,6 @@ model Ie {
   talleres             Taller[]
   asistencias          Asistencia[]
   retiros              Retiro[]
-  consecutivos         Consecutivo[]
   justificaciones      Justificacion[]
   
   @@map("ie")
@@ -133,7 +132,6 @@ model Usuario {
   justificacionesRevisadas Justificacion[] @relation("JustificacionRevisadaPor")
   documentosSubidos        DocumentoJustificacion[] @relation("DocumentoSubidoPor")
   justificacionesAplicadas AsistenciaJustificacion[] @relation("JustificacionAplicadaPor")
-  notificaciones           Notificacion[]
   
   @@map("usuarios")
 }
@@ -669,37 +667,5 @@ model Retiro {
   @@map("retiros")
 }
 
-// ======================
-// Notificaciones
-// ======================
-model Notificacion {
-  idNotificacion  Int       @id @default(autoincrement()) @map("id_notificacion")
-  idUsuario       Int       @map("id_usuario")
-  titulo          String
-  mensaje         String    @db.Text
-  tipo            String    // INFO, ALERTA, JUSTIFICACION, RETIRO, ASISTENCIA, etc.
-  leida           Boolean   @default(false)
-  fechaEnvio      DateTime  @default(now()) @map("fecha_envio") @db.Timestamptz
-  fechaLectura    DateTime? @map("fecha_lectura") @db.Timestamptz
-  origen          String?   // Qué módulo la generó: Asistencia, Justificación, etc.
-  
-  usuario         Usuario   @relation(fields: [idUsuario], references: [idUsuario])
 
-  @@index([idUsuario, leida])
-  @@map("notificaciones")
-}
 
-// ======================
-// Códigos de negocio
-// ======================
-model Consecutivo {
-  tabla       String  @map("tabla")
-  idIe        Int     @map("id_ie")
-  ultimoNum   Int     @default(0) @map("ultimo_num")
-  ancho       Int     @default(2)
-  prefijoFijo String? @map("prefijo_fijo") @db.VarChar(10)
-  ie          Ie      @relation(fields: [idIe], references: [idIe])
-  
-  @@id([tabla, idIe])
-  @@map("consecutivos")
-}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
+import { formatTo12Hour } from '@/utils/timeFormat'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
@@ -223,7 +224,12 @@ function getDiaNombre(diaSemana: number): string {
   return dias[diaSemana] || 'DESCONOCIDO'
 }
 
-// Función auxiliar para formatear tiempo
-function formatTime(time: Date): string {
-  return time.toTimeString().slice(0, 5) // HH:MM
+// Función auxiliar para formatear tiempo en formato 12 horas sin problemas de zona horaria
+function formatTime(date: Date): string {
+  // Usar UTC para evitar problemas de zona horaria
+  const hours = date.getUTCHours().toString().padStart(2, '0')
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+  const timeString = `${hours}:${minutes}`
+  return formatTo12Hour(timeString)
 }
+
