@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   XMarkIcon, 
   CheckIcon, 
@@ -9,20 +9,18 @@ import {
   ClockIcon,
   UserGroupIcon,
   AcademicCapIcon,
-  BellIcon,
-  ArrowTopRightOnSquareIcon
+  BellIcon
 } from '@heroicons/react/24/outline'
-import { useNotificaciones } from '@/hooks/useNotificaciones'
 
 interface Notificacion {
-  id: string
-  title: string
-  message: string
-  type: string
-  isRead: boolean
-  createdAt: string
-  relatedTo?: string
-  actionUrl?: string
+  id: number
+  titulo: string
+  mensaje: string
+  tipo: string
+  leida: boolean
+  fechaEnvio: string
+  fechaLectura: string | null
+  origen: string | null
 }
 
 interface NotificacionesPanelProps {
@@ -31,31 +29,132 @@ interface NotificacionesPanelProps {
 }
 
 export default function NotificacionesPanel({ isOpen, onClose }: NotificacionesPanelProps) {
-  const { 
-    notificaciones, 
-    loading, 
-    fetchNotificaciones, 
-    marcarComoLeida, 
-    marcarTodasComoLeidas, 
-    eliminarNotificacion 
-  } = useNotificaciones()
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'todas' | 'noLeidas'>('todas')
 
   useEffect(() => {
     if (isOpen) {
       fetchNotificaciones()
     }
-  }, [isOpen, fetchNotificaciones])
+  }, [isOpen, filter])
+
+  const fetchNotificaciones = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const params = new URLSearchParams()
+      if (filter === 'noLeidas') {
+        params.append('soloNoLeidas', 'true')
+      }
+      params.append('limite', '20')
+
+      const response = await fetch(`/api/notificaciones?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setNotificaciones(data.notificaciones || [])
+      }
+    } catch (error) {
+      console.error('Error al obtener notificaciones:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const marcarComoLeida = async (id: number) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch(`/api/notificaciones/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        setNotificaciones(prev => 
+          prev.map(notif => 
+            notif.id === id 
+              ? { ...notif, leida: true, fechaLectura: new Date().toISOString() }
+              : notif
+          )
+        )
+      }
+    } catch (error) {
+      console.error('Error al marcar notificación como leída:', error)
+    }
+  }
+
+  const marcarTodasComoLeidas = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/notificaciones', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ accion: 'marcarTodasLeidas' })
+      })
+
+      if (response.ok) {
+        setNotificaciones(prev => 
+          prev.map(notif => ({ 
+            ...notif, 
+            leida: true, 
+            fechaLectura: new Date().toISOString() 
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Error al marcar todas como leídas:', error)
+    }
+  }
+
+  const eliminarNotificacion = async (id: number) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch(`/api/notificaciones/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        setNotificaciones(prev => prev.filter(notif => notif.id !== id))
+      }
+    } catch (error) {
+      console.error('Error al eliminar notificación:', error)
+    }
+  }
 
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
-      case 'warning':
+      case 'ALERTA':
         return <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
-      case 'info':
-        return <InformationCircleIcon className="h-5 w-5 text-blue-500" />
-      case 'success':
-        return <CheckIcon className="h-5 w-5 text-green-500" />
-      case 'error':
-        return <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+      case 'RETIRO':
+        return <UserGroupIcon className="h-5 w-5 text-orange-500" />
+      case 'ASISTENCIA':
+        return <ClockIcon className="h-5 w-5 text-blue-500" />
+      case 'JUSTIFICACION':
+        return <AcademicCapIcon className="h-5 w-5 text-purple-500" />
+      case 'RECORDATORIO':
+        return <BellIcon className="h-5 w-5 text-yellow-500" />
       default:
         return <InformationCircleIcon className="h-5 w-5 text-gray-500" />
     }
@@ -102,14 +201,33 @@ export default function NotificacionesPanel({ isOpen, onClose }: NotificacionesP
             </button>
           </div>
 
-          {/* Acciones */}
+          {/* Filtros y acciones */}
           <div className="border-b border-gray-200 px-4 py-3">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Notificaciones dinámicas del sistema
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setFilter('todas')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    filter === 'todas'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={() => setFilter('noLeidas')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    filter === 'noLeidas'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  No leídas
+                </button>
               </div>
               
-              {notificaciones.some(n => !n.isRead) && (
+              {notificaciones.some(n => !n.leida) && (
                 <button
                   onClick={marcarTodasComoLeidas}
                   className="text-sm text-blue-600 hover:text-blue-700"
@@ -137,40 +255,30 @@ export default function NotificacionesPanel({ isOpen, onClose }: NotificacionesP
                   <div
                     key={notificacion.id}
                     className={`p-4 hover:bg-gray-50 ${
-                      !notificacion.isRead ? 'bg-blue-50' : ''
+                      !notificacion.leida ? 'bg-blue-50' : ''
                     }`}
                   >
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0">
-                        {getIconoTipo(notificacion.type)}
+                        {getIconoTipo(notificacion.tipo)}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className={`text-sm font-medium ${
-                            !notificacion.isRead ? 'text-gray-900' : 'text-gray-700'
+                            !notificacion.leida ? 'text-gray-900' : 'text-gray-700'
                           }`}>
-                            {notificacion.title}
+                            {notificacion.titulo}
                           </p>
                           
                           <div className="flex items-center space-x-1">
-                            {!notificacion.isRead && (
+                            {!notificacion.leida && (
                               <button
                                 onClick={() => marcarComoLeida(notificacion.id)}
                                 className="text-blue-600 hover:text-blue-700"
                                 title="Marcar como leída"
                               >
                                 <CheckIcon className="h-4 w-4" />
-                              </button>
-                            )}
-                            
-                            {notificacion.actionUrl && (
-                              <button
-                                onClick={() => window.open(notificacion.actionUrl, '_blank')}
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Ir a la acción"
-                              >
-                                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                               </button>
                             )}
                             
@@ -185,14 +293,14 @@ export default function NotificacionesPanel({ isOpen, onClose }: NotificacionesP
                         </div>
                         
                         <p className="mt-1 text-sm text-gray-600">
-                          {notificacion.message}
+                          {notificacion.mensaje}
                         </p>
                         
                         <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                          <span>{formatearFecha(notificacion.createdAt)}</span>
-                          {notificacion.relatedTo && (
+                          <span>{formatearFecha(notificacion.fechaEnvio)}</span>
+                          {notificacion.origen && (
                             <span className="bg-gray-100 px-2 py-1 rounded">
-                              {notificacion.relatedTo}
+                              {notificacion.origen}
                             </span>
                           )}
                         </div>

@@ -1,14 +1,4 @@
-/**
- * ⚠️ DEPRECADO: Esta API está obsoleta
- * 
- * Las notificaciones ahora se generan dinámicamente y no se guardan en BD.
- * Usar /api/notifications en su lugar para obtener notificaciones dinámicas.
- * 
- * Esta API se mantiene temporalmente para compatibilidad hacia atrás.
- */
-
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { 
   obtenerNotificacionesUsuario, 

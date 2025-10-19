@@ -4,8 +4,7 @@ import jwt from 'jsonwebtoken'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔔 GET /api/notifications - Generando notificaciones dinámicas')
-    console.log('📋 Las notificaciones se generan en tiempo real, no se guardan en BD')
+    console.log('🔔 GET /api/notifications - Obteniendo notificaciones')
     
     // Verificar autenticación
     const authHeader = request.headers.get('authorization')
@@ -54,16 +53,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * Genera notificaciones dinámicamente basadas en el rol del usuario
- * Las notificaciones NO se guardan en base de datos - se generan en tiempo real
- * Esto permite notificaciones siempre actualizadas sin ocupar espacio en BD
- */
 async function generateNotificationsByRole(role: string, userId: number) {
   const notifications: any[] = []
   const now = new Date()
-
-  console.log('🔄 Generando notificaciones dinámicas para rol:', role, 'usuario:', userId)
 
   try {
     switch (role) {
