@@ -33,7 +33,6 @@ model Ie {
   justificaciones   Justificacion[]
   niveles           Nivel[]
   retiros           Retiro[]
-  talleres          Taller[]
   usuarios          Usuario[]
 
   @@map("ie")
@@ -147,7 +146,6 @@ model Estudiante {
   ie                   Ie?                   @relation(fields: [idIe], references: [idIe])
   usuario              Usuario               @relation(fields: [idUsuario], references: [idUsuario])
   apoderados           EstudianteApoderado[]
-  inscripcionesTaller  InscripcionTaller[]
   justificaciones      Justificacion[]
   retiros              Retiro[]
 
@@ -241,7 +239,6 @@ model ExcepcionHorario {
   tipoExcepcion   TipoExcepcionEnum @map("tipo_excepcion")
   tipoHorario     TipoHorarioEnum   @map("tipo_horario")
   idHorarioClase  Int?              @map("id_horario_clase")
-  idHorarioTaller Int?              @map("id_horario_taller")
   motivo          String?
   descripcion     String?
   horaInicioAlt   DateTime?         @map("hora_inicio_alt") @db.Time(6)
@@ -251,11 +248,9 @@ model ExcepcionHorario {
   updatedAt       DateTime?         @updatedAt @map("updated_at") @db.Timestamptz(6)
   fechaFin        DateTime?         @map("fecha_fin") @db.Date
   horarioClase    HorarioClase?     @relation(fields: [idHorarioClase], references: [idHorarioClase])
-  horarioTaller   HorarioTaller?    @relation(fields: [idHorarioTaller], references: [idHorarioTaller])
   ie              Ie                @relation(fields: [idIe], references: [idIe])
 
   @@unique([idHorarioClase, fecha], name: "uq_exc_horario_clase_fecha")
-  @@unique([idHorarioTaller, fecha], name: "uq_exc_horario_taller_fecha")
   @@index([fecha])
   @@index([idIe, fecha])
   @@index([tipoHorario])
@@ -285,57 +280,8 @@ model HorarioClase {
   @@map("horarios_clase")
 }
 
-model Taller {
-  idTaller        Int                 @id @default(autoincrement()) @map("id_taller")
-  idIe            Int                 @map("id_ie")
-  codigo          String?             @unique @db.VarChar(32)
-  nombre          String
-  descripcion     String?
-  activo          Boolean             @default(true)
-  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  capacidadMaxima Int?                @map("capacidad_maxima")
-  instructor      String?
-  updatedAt       DateTime?           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  horarios        HorarioTaller[]
-  inscripciones   InscripcionTaller[]
-  ie              Ie                  @relation(fields: [idIe], references: [idIe])
 
-  @@unique([idIe, nombre], name: "uq_taller_ie_nombre")
-  @@map("talleres")
-}
 
-model InscripcionTaller {
-  idInscripcion    Int          @id @default(autoincrement()) @map("id_inscripcion")
-  idEstudiante     Int          @map("id_estudiante")
-  idTaller         Int          @map("id_taller")
-  anio             Int
-  fechaInscripcion DateTime     @map("fecha_inscripcion") @db.Date
-  estado           String       @default("activa")
-  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  asistencias      Asistencia[]
-  estudiante       Estudiante   @relation(fields: [idEstudiante], references: [idEstudiante])
-  taller           Taller       @relation(fields: [idTaller], references: [idTaller])
-
-  @@unique([idEstudiante, idTaller, anio], name: "uq_insc_est_taller_anio")
-  @@map("inscripcion_taller")
-}
-
-model HorarioTaller {
-  idHorarioTaller Int                @id @default(autoincrement()) @map("id_horario_taller")
-  idTaller        Int                @map("id_taller")
-  diaSemana       Int                @map("dia_semana")
-  horaInicio      DateTime           @map("hora_inicio") @db.Time(6)
-  horaFin         DateTime           @map("hora_fin") @db.Time(6)
-  toleranciaMin   Int                @default(10) @map("tolerancia_min")
-  lugar           String?
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  activo          Boolean            @default(true)
-  excepciones     ExcepcionHorario[]
-  taller          Taller             @relation(fields: [idTaller], references: [idTaller])
-
-  @@unique([idTaller, diaSemana, horaInicio], name: "uq_htaller_taller_dia_inicio")
-  @@map("horarios_taller")
-}
 
 model EstadoAsistencia {
   idEstadoAsistencia    Int                         @id @default(autoincrement()) @map("id_estado_asistencia")
@@ -443,7 +389,6 @@ model Asistencia {
   idIe                     Int                         @map("id_ie")
   fecha                    DateTime                    @db.Date
   sesion                   String                      @default("AM")
-  idInscripcionTaller      Int?                        @map("id_inscripcion_taller")
   horaEntrada              DateTime?                   @map("hora_entrada") @db.Time(6)
   horaSalida               DateTime?                   @map("hora_salida") @db.Time(6)
   idEstadoAsistencia       Int?                        @map("id_estado_asistencia")
@@ -455,7 +400,6 @@ model Asistencia {
   estadoAsistencia         EstadoAsistencia?           @relation(fields: [idEstadoAsistencia], references: [idEstadoAsistencia])
   estudiante               Estudiante                  @relation(fields: [idEstudiante], references: [idEstudiante])
   ie                       Ie                          @relation(fields: [idIe], references: [idIe])
-  inscripcionTaller        InscripcionTaller?          @relation(fields: [idInscripcionTaller], references: [idInscripcion])
   usuarioRegistrador       Usuario?                    @relation("RegistradoPor", fields: [registradoPor], references: [idUsuario])
   justificacionesAfectadas AsistenciaJustificacion[]
   historicoEstados         HistoricoEstadoAsistencia[]
@@ -463,7 +407,6 @@ model Asistencia {
   @@unique([idEstudiante, fecha, sesion], name: "uq_asistencia_est_fecha_sesion")
   @@index([fecha])
   @@index([idIe, fecha])
-  @@index([idInscripcionTaller])
   @@map("asistencias")
 }
 
@@ -580,7 +523,6 @@ enum TipoExcepcionEnum {
 
 enum TipoHorarioEnum {
   CLASE
-  TALLER
   AMBOS
 
   @@map("tipo_horario")
@@ -591,7 +533,6 @@ enum TipoActividadEnum {
   REFORZAMIENTO
   RECUPERACION
   EVALUACION
-  TALLER_EXTRA
 
   @@map("tipo_actividad")
 }

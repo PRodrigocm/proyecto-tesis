@@ -11,7 +11,6 @@ const registrarAsistenciaSchema = z.object({
   idEstudiante: z.number().int().positive(),
   fecha: z.string().datetime(),
   sesion: z.enum(['AM', 'PM']),
-  idInscripcionTaller: z.number().int().positive().optional(),
   horaEntrada: z.string().optional(),
   horaSalida: z.string().optional(),
   fuente: z.string().optional(),
@@ -21,28 +20,12 @@ const registrarAsistenciaSchema = z.object({
 /**
  * POST /api/asistencias
  * Registrar asistencia de estudiante
- * Cumple con RF-05 y RF-06: Registro de asistencia diaria y talleres
+ * Cumple con RF-05: Registro de asistencia diaria
  */
 router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const validatedData = registrarAsistenciaSchema.parse(req.body);
-    const { idEstudiante, fecha, sesion, idInscripcionTaller, horaEntrada, horaSalida, fuente, observaciones } = validatedData;
-
-    // Validar que para sesión PM se requiera inscripción a taller
-    if (sesion === 'PM' && !idInscripcionTaller) {
-      return res.status(400).json({
-        success: false,
-        error: 'Para sesión PM se requiere inscripción a taller'
-      });
-    }
-
-    // Validar que para sesión AM no haya inscripción a taller
-    if (sesion === 'AM' && idInscripcionTaller) {
-      return res.status(400).json({
-        success: false,
-        error: 'Para sesión AM no debe especificar taller'
-      });
-    }
+    const { idEstudiante, fecha, sesion, horaEntrada, horaSalida, fuente, observaciones } = validatedData;
 
     // Verificar si ya existe asistencia para ese día y sesión
     const existingAsistencia = await prisma.asistencia.findUnique({
@@ -87,7 +70,6 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
         idIe: estudiante.idIe!,
         fecha: new Date(fecha),
         sesion,
-        idInscripcionTaller,
         horaEntrada: horaEntrada ? new Date(`1970-01-01T${horaEntrada}`) : undefined,
         horaSalida: horaSalida ? new Date(`1970-01-01T${horaSalida}`) : undefined,
         idEstadoAsistencia: estadoPresente?.idEstadoAsistencia,
@@ -101,12 +83,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
             usuario: true
           }
         },
-        estadoAsistencia: true,
-        inscripcionTaller: {
-          include: {
-            taller: true
-          }
-        }
+        estadoAsistencia: true
       }
     });
 
@@ -122,7 +99,6 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
         fecha: asistencia.fecha,
         sesion: asistencia.sesion,
         estado: asistencia.estadoAsistencia?.nombreEstado,
-        taller: asistencia.inscripcionTaller?.taller?.nombre,
         horaEntrada: asistencia.horaEntrada,
         message: 'Asistencia registrada exitosamente'
       }
@@ -217,11 +193,6 @@ router.get('/', authenticateToken, async (req, res) => {
           }
         },
         estadoAsistencia: true,
-        inscripcionTaller: {
-          include: {
-            taller: true
-          }
-        },
         usuarioRegistrador: true
       },
       orderBy: [
@@ -248,7 +219,6 @@ router.get('/', authenticateToken, async (req, res) => {
           fecha: a.fecha,
           sesion: a.sesion,
           estado: a.estadoAsistencia?.nombreEstado,
-          taller: a.inscripcionTaller?.taller?.nombre,
           horaEntrada: a.horaEntrada,
           horaSalida: a.horaSalida,
           fuente: a.fuente,

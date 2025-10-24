@@ -53,7 +53,11 @@ export async function GET(request: NextRequest) {
           estado: 'ACTIVO'
         }
       },
-      include: {
+      select: {
+        idEstudiante: true,
+        idGradoSeccion: true,
+        codigo: true,
+        qr: true,
         usuario: true,
         gradoSeccion: {
           include: {
@@ -143,7 +147,8 @@ export async function GET(request: NextRequest) {
           grado: estudiante.gradoSeccion?.grado?.nombre || '',
           seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
           nivel: estudiante.gradoSeccion?.grado?.nivel?.nombre || '',
-          codigoQR: estudiante.qr || '',
+          codigo: estudiante.codigo || estudiante.qr || estudiante.usuario.dni, // Usar código real
+          codigoQR: estudiante.qr || estudiante.codigo || estudiante.usuario.dni, // Para compatibilidad
           estado,
           horaEntrada,
           horaSalida,

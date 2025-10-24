@@ -17,16 +17,19 @@ export async function GET(request: NextRequest) {
       where: {
         grado: {
           nivel: {
-            idIe: parseInt(finalIeId),
-            nombre: 'Primaria' // Solo grados de primaria
+            idIe: parseInt(finalIeId)
+            // Eliminamos el filtro por nombre para incluir todos los niveles
           }
         }
       },
       include: {
         grado: {
-          select: {
-            idGrado: true,
-            nombre: true
+          include: {
+            nivel: {
+              select: {
+                nombre: true
+              }
+            }
           }
         },
         seccion: {
@@ -37,6 +40,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: [
+        { grado: { nivel: { nombre: 'asc' } } }, // Ordenar por nivel primero
         { grado: { nombre: 'asc' } },
         { seccion: { nombre: 'asc' } }
       ]
@@ -46,7 +50,8 @@ export async function GET(request: NextRequest) {
       idGradoSeccion: gs.idGradoSeccion,
       grado: {
         idGrado: gs.grado.idGrado,
-        nombre: gs.grado.nombre
+        nombre: gs.grado.nombre,
+        nivel: gs.grado.nivel.nombre
       },
       seccion: {
         idSeccion: gs.seccion.idSeccion,

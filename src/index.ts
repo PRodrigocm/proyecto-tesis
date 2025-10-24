@@ -9,13 +9,13 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import asistenciaRoutes from './routes/asistencias';
 import retiroRoutes from './routes/retiros';
-import tallerRoutes from './routes/talleres';
 import institucionRoutes from './routes/instituciones';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
+const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
@@ -39,7 +39,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/asistencias', asistenciaRoutes);
 app.use('/api/retiros', retiroRoutes);
-app.use('/api/talleres', tallerRoutes);
 app.use('/api/instituciones', institucionRoutes);
 
 // 404 handler

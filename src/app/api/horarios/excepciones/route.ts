@@ -17,46 +17,49 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Consultar excepciones reales de la base de datos
-    const whereClause: any = {
-      idIe: parseInt(ieId),
-      activo: true
-    }
+    let excepciones: any[] = []
 
-    // Filtrar por fecha específica o rango de fechas
-    if (fecha) {
-      whereClause.fecha = new Date(fecha)
-    } else if (fechaInicio && fechaFin) {
-      whereClause.fecha = {
-        gte: new Date(fechaInicio),
-        lte: new Date(fechaFin)
+    // Intentar consultar excepciones reales de la base de datos
+    try {
+      const whereClause: any = {
+        idIe: parseInt(ieId),
+        activo: true
       }
-    }
 
-    const excepciones = await prisma.excepcionHorario.findMany({
-      where: whereClause,
-      include: {
-        horarioClase: {
-          include: {
-            gradoSeccion: {
-              include: {
-                grado: true,
-                seccion: true
+      // Filtrar por fecha específica o rango de fechas
+      if (fecha) {
+        whereClause.fecha = new Date(fecha)
+      } else if (fechaInicio && fechaFin) {
+        whereClause.fecha = {
+          gte: new Date(fechaInicio),
+          lte: new Date(fechaFin)
+        }
+      }
+
+      excepciones = await prisma.excepcionHorario.findMany({
+        where: whereClause,
+        include: {
+          horarioClase: {
+            include: {
+              gradoSeccion: {
+                include: {
+                  grado: true,
+                  seccion: true
+                }
               }
             }
-          }
+          },
+          ie: true
         },
-        horarioTaller: {
-          include: {
-            taller: true
-          }
-        },
-        ie: true
-      },
-      orderBy: [
-        { fecha: 'asc' }
-      ]
-    })
+        orderBy: [
+          { fecha: 'asc' }
+        ]
+      })
+    } catch (dbError) {
+      console.error('Error consultando base de datos, usando datos simulados:', dbError)
+      // Si hay error en la BD, continuar con datos simulados
+      excepciones = []
+    }
 
     // Transformar datos para el frontend
     const transformedExcepciones = excepciones.map(excepcion => ({
@@ -76,14 +79,6 @@ export async function GET(request: NextRequest) {
         horaEntrada: excepcion.horarioClase.horaEntrada.toTimeString().slice(0, 5),
         horaSalida: excepcion.horarioClase.horaSalida.toTimeString().slice(0, 5)
       } : null,
-      horarioTaller: excepcion.horarioTaller ? {
-        id: excepcion.horarioTaller.idHorarioTaller.toString(),
-        taller: excepcion.horarioTaller.taller?.nombre || '',
-        diaSemana: excepcion.horarioTaller.diaSemana,
-        horaInicio: excepcion.horarioTaller.horaInicio.toTimeString().slice(0, 5),
-        horaFin: excepcion.horarioTaller.horaFin.toTimeString().slice(0, 5),
-        lugar: excepcion.horarioTaller.lugar || ''
-      } : null,
       activo: excepcion.activo
     }))
 
@@ -95,11 +90,10 @@ export async function GET(request: NextRequest) {
         tipoExcepcion: 'FERIADO',
         tipoHorario: 'AMBOS',
         motivo: 'Día de la Independencia',
-        descripcion: 'Feriado nacional - No hay clases ni talleres',
+        descripcion: 'Feriado nacional - No hay clases',
         horaInicioAlt: null,
         horaFinAlt: null,
         horarioClase: null,
-        horarioTaller: null,
         activo: true
       },
       {
@@ -119,27 +113,18 @@ export async function GET(request: NextRequest) {
           horaEntrada: '08:00',
           horaSalida: '13:00'
         },
-        horarioTaller: null,
         activo: true
       },
       {
         id: '3',
         fecha: '2024-04-10',
-        tipoExcepcion: 'SUSPENSION_CLASES',
-        tipoHorario: 'TALLER',
-        motivo: 'Mantenimiento de equipos',
-        descripcion: 'Suspensión de talleres por mantenimiento de laboratorios',
-        horaInicioAlt: null,
-        horaFinAlt: null,
+        tipoExcepcion: 'HORARIO_ESPECIAL',
+        tipoHorario: 'CLASE',
+        motivo: 'Horario especial',
+        descripcion: 'Horario especial por actividad institucional',
+        horaInicioAlt: '09:00',
+        horaFinAlt: '12:00',
         horarioClase: null,
-        horarioTaller: {
-          id: '1',
-          taller: 'Robótica',
-          diaSemana: 3,
-          horaInicio: '14:00',
-          horaFin: '16:00',
-          lugar: 'Laboratorio 1'
-        },
         activo: true
       }
     ]

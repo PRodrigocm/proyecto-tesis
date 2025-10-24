@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import TomarAsistenciaModal from '@/components/docente/TomarAsistenciaModal'
+import TomarAsistenciaButton from '@/components/docente/TomarAsistenciaButton'
 
 export default function DocenteAsistencias() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0])
@@ -14,7 +14,7 @@ export default function DocenteAsistencias() {
   const [token, setToken] = useState<string | null>(null)
 
   const [modoEdicion, setModoEdicion] = useState(false)
-  const [showTomarAsistenciaModal, setShowTomarAsistenciaModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const estadosAsistencia = [
     { value: 'presente', label: 'Presente', color: 'bg-green-100 text-green-800' },
@@ -59,27 +59,60 @@ export default function DocenteAsistencias() {
     try {
       const userId = userData.idUsuario || userData.id
       console.log('🔍 Cargando clases para asistencia del docente:', userId)
+      console.log('👤 Datos del usuario:', userData)
+      console.log('🔑 Token disponible:', tokenData ? 'SÍ' : 'NO')
 
-      const response = await fetch(`/api/docentes/${userId}/clases-asistencia`, {
+      const apiUrl = `/api/docentes/${userId}/clases-asistencia`
+      console.log('🌐 URL de la API:', apiUrl)
+
+      const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${tokenData}`
+          'Authorization': `Bearer ${tokenData}`,
+          'Content-Type': 'application/json'
         }
+      })
+
+      console.log('📡 Respuesta de la API:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       })
 
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Clases cargadas:', data.data)
         setClases(data.data || [])
+        setErrorMessage(null) // Limpiar mensaje de error si la carga es exitosa
       } else {
-        console.error('❌ Error al cargar clases')
-        // Datos de fallback
-        setClases([
-          { id: 1, nombre: 'Matemáticas - 5to A', horario: '08:00-09:30' },
-          { id: 2, nombre: 'Física - 4to B', horario: '10:00-11:30' }
-        ])
+        const errorText = await response.text()
+        console.error('❌ Error al cargar clases:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        })
+        
+        // Mostrar mensaje específico según el error
+        if (response.status === 404) {
+          console.warn('⚠️ No se encontraron clases asignadas para este docente')
+          setErrorMessage('No tienes clases asignadas. Contacta al administrador para que te asigne aulas.')
+          setClases([])
+        } else if (response.status === 401) {
+          console.error('🔐 Error de autenticación')
+          setErrorMessage('Error de autenticación. Por favor, inicia sesión nuevamente.')
+          setClases([])
+        } else {
+          console.error('💥 Error del servidor:', response.status)
+          setErrorMessage(`Error del servidor (${response.status}). Intenta nuevamente más tarde.`)
+          // Datos de fallback solo para errores del servidor
+          setClases([
+            { id: 1, nombre: 'Matemáticas - 5to A', horario: '08:00-09:30' },
+            { id: 2, nombre: 'Física - 4to B', horario: '10:00-11:30' }
+          ])
+        }
       }
     } catch (error) {
-      console.error('Error loading clases:', error)
+      console.error('💥 Error de conexión al cargar clases:', error)
+      setErrorMessage('Error de conexión. Verifica tu conexión a internet e intenta nuevamente.')
       setClases([])
     }
   }
@@ -89,7 +122,7 @@ export default function DocenteAsistencias() {
       setLoading(true)
       console.log('🔍 Cargando estudiantes para clase:', claseSeleccionada, 'fecha:', fechaSeleccionada)
 
-      const response = await fetch(`/api/asistencias/clase/${claseSeleccionada}?fecha=${fechaSeleccionada}`, {
+      const response = await fetch(`/api/docente/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -97,8 +130,8 @@ export default function DocenteAsistencias() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Estudiantes cargados:', data.data)
-        setEstudiantes(data.data || [])
+        console.log('✅ Estudiantes cargados:', data.estudiantes)
+        setEstudiantes(data.estudiantes || [])
       } else {
         console.error('❌ Error al cargar estudiantes')
         // Datos de fallback
@@ -210,21 +243,12 @@ export default function DocenteAsistencias() {
         
         {/* Botones de acción en el header */}
         <div className="mt-4 sm:mt-0 flex space-x-3">
-          <button
-            onClick={() => setShowTomarAsistenciaModal(true)}
+          <TomarAsistenciaButton
+            claseId={claseSeleccionada}
+            fecha={fechaSeleccionada}
+            onAsistenciaUpdated={handleTomarAsistenciaQR}
             disabled={!claseSeleccionada}
-            className={`inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-              !claseSeleccionada 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-            }`}
-            title={!claseSeleccionada ? 'Selecciona una clase primero' : 'Tomar asistencia por QR'}
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h4" />
-            </svg>
-            Tomar Asistencia
-          </button>
+          />
           <button
             onClick={() => setModoEdicion(!modoEdicion)}
             disabled={!claseSeleccionada || estudiantes.length === 0}
@@ -248,6 +272,38 @@ export default function DocenteAsistencias() {
           </button>
         </div>
       </div>
+
+      {/* Mensaje de Error */}
+      {errorMessage && (
+        <div className="mt-6 bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error al cargar clases</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{errorMessage}</p>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    setErrorMessage(null)
+                    if (token && user) {
+                      loadClases(token, user)
+                    }
+                  }}
+                  className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="mt-6 bg-white shadow rounded-lg p-6">
@@ -571,14 +627,6 @@ export default function DocenteAsistencias() {
         </button>
       </div>
 
-      {/* Modal Tomar Asistencia */}
-      <TomarAsistenciaModal
-        isOpen={showTomarAsistenciaModal}
-        onClose={() => setShowTomarAsistenciaModal(false)}
-        claseSeleccionada={claseSeleccionada}
-        fechaSeleccionada={fechaSeleccionada}
-        onSave={handleTomarAsistenciaQR}
-      />
     </div>
   )
 }

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         horaFin: formatTime(horario.horaFin),
         materia: horario.materia || 'Clase Regular',
         toleranciaMin: horario.toleranciaMin,
-        aula: horario.aula || `${horario.gradoSeccion?.grado?.nombre}° ${horario.gradoSeccion?.seccion?.nombre}`,
+        aula: horario.aula || `Aula ${horario.gradoSeccion?.grado?.nombre}° ${horario.gradoSeccion?.seccion?.nombre}`,
         tipoActividad: horario.tipoActividad,
         activo: horario.activo,
         docente: horario.docente ? {
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       horaFin: formatTime(horario.horaFin),
       materia: horario.materia || 'Clase Regular',
       toleranciaMin: horario.toleranciaMin,
-      aula: horario.aula || `${horario.gradoSeccion?.grado?.nombre}° ${horario.gradoSeccion?.seccion?.nombre}`,
+      aula: horario.aula || `Aula ${horario.gradoSeccion?.grado?.nombre}° ${horario.gradoSeccion?.seccion?.nombre}`,
       tipoActividad: horario.tipoActividad,
       activo: horario.activo,
       docente: {

@@ -71,7 +71,11 @@ export async function GET(
       where: {
         idGradoSeccion: docenteAula.idGradoSeccion
       },
-      include: {
+      select: {
+        idEstudiante: true,
+        codigo: true,
+        qr: true,
+        idGradoSeccion: true,
         usuario: true,
         asistencias: {
           where: {
@@ -94,6 +98,11 @@ export async function GET(
     })
 
     console.log('👥 Estudiantes encontrados:', estudiantes.length)
+
+    // Mostrar datos de estudiantes para debugging
+    estudiantes.forEach(est => {
+      console.log(`  - ${est.usuario.nombre} ${est.usuario.apellido}: ID=${est.idEstudiante}, Código=${est.codigo}, QR=${est.qr}, DNI=${est.usuario.dni}`)
+    })
 
     // Transformar datos para la respuesta
     const asistencias = estudiantes.map(estudiante => {
@@ -138,10 +147,13 @@ export async function GET(
         }
       }
       
+      const codigoFinal = estudiante.codigo || estudiante.qr || estudiante.usuario.dni || `EST${estudiante.idEstudiante.toString().padStart(4, '0')}`
+      console.log(`🔄 Transformando estudiante: ${estudiante.usuario.nombre} → Código final: ${codigoFinal}`)
+      
       return {
         id: estudiante.idEstudiante,
         nombre: `${estudiante.usuario.nombre || 'Sin nombre'} ${estudiante.usuario.apellido || 'Sin apellido'}`,
-        codigo: `EST${estudiante.idEstudiante.toString().padStart(3, '0')}`,
+        codigo: codigoFinal, // Usar código real de BD
         dni: estudiante.usuario.dni || 'Sin DNI',
         estado: estado,
         estadoVisual: estadoVisual,

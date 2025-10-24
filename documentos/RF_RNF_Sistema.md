@@ -168,22 +168,10 @@
 
 ---
 
-## **RF-07: GESTIÓN DE TALLERES**
 
-### RF-07.1: Administración de Talleres
-- **Descripción**: CRUD completo de talleres extracurriculares
-- **Funcionalidades**:
-  - Creación con capacidad máxima
-  - Horarios específicos de talleres
-  - Inscripción de estudiantes
-  - Control de asistencia independiente
-- **Implementado en**: `/api/talleres`, `/admin/dashboard/talleres`
+## **RF-07: GENERACIÓN DE CÓDIGOS QR**
 
----
-
-## **RF-08: GENERACIÓN DE CÓDIGOS QR**
-
-### RF-08.1: Generación Masiva de QR
+### RF-07.1: Generación Masiva de QR
 - **Descripción**: El sistema genera códigos QR únicos para todos los estudiantes
 - **Funcionalidades**:
   - QR único por estudiante (EST_ID_TIMESTAMP)
@@ -194,9 +182,9 @@
 
 ---
 
-## **RF-09: REPORTES Y ESTADÍSTICAS**
+## **RF-08: REPORTES Y ESTADÍSTICAS**
 
-### RF-09.1: Dashboard Administrativo
+### RF-08.1: Dashboard Administrativo
 - **Descripción**: Panel de control con estadísticas generales del sistema
 - **Métricas**:
   - Total de usuarios por rol
@@ -206,7 +194,7 @@
   - Promedio de asistencia
 - **Implementado en**: `/api/dashboard/stats`, `/admin/dashboard`
 
-### RF-09.2: Reportes de Asistencia
+### RF-08.2: Reportes de Asistencia
 - **Descripción**: Generación de reportes detallados de asistencia
 - **Funcionalidades**:
   - Reportes por estudiante, clase, fecha
@@ -217,9 +205,9 @@
 
 ---
 
-## **RF-10: SISTEMA DE NOTIFICACIONES**
+## **RF-09: SISTEMA DE NOTIFICACIONES**
 
-### RF-10.1: Notificaciones Automáticas
+### RF-09.1: Notificaciones Automáticas
 - **Descripción**: El sistema envía notificaciones automáticas a los usuarios
 - **Tipos**:
   - Inasistencias a apoderados
@@ -404,14 +392,13 @@
 
 ### 🔄 **Funcionalidades Parcialmente Implementadas:**
 - Reportes avanzados (estructura base creada)
-- Sistema de talleres (CRUD básico)
 - Notificaciones push (estructura preparada)
 
 ### 📊 **Métricas del Sistema:**
 - **APIs implementadas**: 50+ endpoints
 - **Modelos de datos**: 25+ entidades
 - **Roles de usuario**: 5 roles principales
-- **Módulos principales**: 8 módulos funcionales
+- **Módulos principales**: 7 módulos funcionales
 - **Pantallas de usuario**: 20+ interfaces
 
 El sistema implementa un **95% de las funcionalidades core** requeridas para la gestión educativa, con una arquitectura sólida y escalable que permite futuras expansiones.

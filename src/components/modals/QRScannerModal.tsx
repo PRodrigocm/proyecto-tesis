@@ -63,6 +63,15 @@ export default function QRScannerModal({
   const [permisosCamara, setPermisosCamara] = useState<'granted' | 'denied' | 'pending'>('pending')
   const [error, setError] = useState<string>('')
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [procesandoEscaneo, setProcesandoEscaneo] = useState<boolean>(false)
+  const [contadorProcesados, setContadorProcesados] = useState<number>(0)
+  
+  // Sistema de debouncing robusto
+  const ultimoEscaneoRef = useRef<{ codigo: string, timestamp: number } | null>(null)
+  const codigosCooldownRef = useRef<Map<string, number>>(new Map())
+  const codigosProcesadosRef = useRef<Set<string>>(new Set()) // Códigos ya procesados exitosamente
+  const COOLDOWN_DURACION = 5000 // 5 segundos de cooldown por código (reducido)
+  const DEBOUNCE_DURACION = 300 // 300ms entre escaneos (reducido)
 
   // Cargar estudiantes para mostrar información
   useEffect(() => {
@@ -73,6 +82,32 @@ export default function QRScannerModal({
       }
       detectarCamaras()
     }
+  }, [isOpen])
+
+  // Limpieza automática de cooldowns antiguos cada 30 segundos
+  useEffect(() => {
+    if (!isOpen) return
+
+    const intervalo = setInterval(() => {
+      const ahora = Date.now()
+      const codigosAEliminar: string[] = []
+      
+      codigosCooldownRef.current.forEach((timestamp, codigo) => {
+        if (ahora - timestamp > COOLDOWN_DURACION * 2) { // Limpiar después del doble del cooldown
+          codigosAEliminar.push(codigo)
+        }
+      })
+      
+      codigosAEliminar.forEach(codigo => {
+        codigosCooldownRef.current.delete(codigo)
+      })
+      
+      if (codigosAEliminar.length > 0) {
+        console.log(`🧹 Limpiados ${codigosAEliminar.length} códigos antiguos del cooldown`)
+      }
+    }, 30000) // Cada 30 segundos
+
+    return () => clearInterval(intervalo)
   }, [isOpen])
 
   const loadEstudiantes = async () => {
@@ -118,44 +153,149 @@ export default function QRScannerModal({
     }
   }
 
-  // Procesar código QR mejorado
+  // Sistema de debouncing robusto para evitar escaneos múltiples
   const procesarCodigoQR = async (codigo: string) => {
-    console.log('🔍 Procesando código:', codigo)
-    setUltimoEscaneo(codigo)
+    const ahora = Date.now()
+    const codigoLimpio = codigo.trim()
     
-    // El QR contiene el DNI del estudiante
-    const estudiante = estudiantes.find(est => est.dni === codigo)
+    console.log('🔍 Código detectado:', codigoLimpio)
+    console.log('📊 Estado actual:', {
+      procesandoEscaneo,
+      codigosProcesados: Array.from(codigosProcesadosRef.current),
+      cooldownActivos: Array.from(codigosCooldownRef.current.keys())
+    })
     
-    if (estudiante) {
-      // Mostrar nombre del estudiante
-      setEstudianteEscaneado({ ...estudiante, accion: accionSeleccionada, hora: new Date().toLocaleTimeString() })
+    // 1. VERIFICAR DEBOUNCE TEMPORAL (evitar escaneos muy rápidos)
+    if (ultimoEscaneoRef.current) {
+      const tiempoTranscurrido = ahora - ultimoEscaneoRef.current.timestamp
+      if (tiempoTranscurrido < DEBOUNCE_DURACION) {
+        console.log(`⏱️ Debounce activo: ${tiempoTranscurrido}ms < ${DEBOUNCE_DURACION}ms`)
+        return
+      }
+    }
+    
+    // 2. VERIFICAR SI YA FUE PROCESADO EXITOSAMENTE (solo para esta sesión)
+    if (codigosProcesadosRef.current.has(codigoLimpio)) {
+      console.log(`🚫 Código ${codigoLimpio} ya fue procesado en esta sesión, ignorando`)
+      setUltimoEscaneo(`${codigoLimpio} - Ya procesado en esta sesión`)
+      setTimeout(() => setUltimoEscaneo(''), 2000)
+      return
+    }
+    
+    console.log(`🔍 Código ${codigoLimpio} no está en procesados, continuando...`)
+
+    // 3. VERIFICAR COOLDOWN POR CÓDIGO ESPECÍFICO
+    const ultimoCooldown = codigosCooldownRef.current.get(codigoLimpio)
+    if (ultimoCooldown) {
+      const tiempoRestante = ultimoCooldown + COOLDOWN_DURACION - ahora
+      if (tiempoRestante > 0) {
+        const segundosRestantes = Math.ceil(tiempoRestante / 1000)
+        console.log(`🚫 Código ${codigoLimpio} en cooldown: ${segundosRestantes}s restantes`)
+        setUltimoEscaneo(`${codigoLimpio} - Espera ${segundosRestantes}s`)
+        setTimeout(() => setUltimoEscaneo(''), 2000)
+        return
+      }
+    }
+    
+    // 3. VERIFICAR SI YA SE ESTÁ PROCESANDO
+    if (procesandoEscaneo) {
+      console.log('⚠️ Ya se está procesando un escaneo, ignorando')
+      return
+    }
+    
+    // 4. ACTUALIZAR REFERENCIAS DE CONTROL
+    ultimoEscaneoRef.current = { codigo: codigoLimpio, timestamp: ahora }
+    codigosCooldownRef.current.set(codigoLimpio, ahora)
+    setProcesandoEscaneo(true)
+    setUltimoEscaneo(codigoLimpio)
+    
+    console.log('✅ Procesando código:', codigoLimpio)
+    
+    try {
+      // 5. BUSCAR ESTUDIANTE
+      const estudiante = estudiantes.find(est => est.dni === codigoLimpio)
       
-      // Procesar después de mostrar nombre
+      // 6. VERIFICAR SI YA FUE ESCANEADO EN ESTA SESIÓN
+      const yaEscaneado = estudiantesEscaneados.find(escaneado => escaneado.dni === codigoLimpio)
+      if (yaEscaneado) {
+        console.log(`⚠️ Estudiante ya registrado: ${yaEscaneado.nombre} ${yaEscaneado.apellido}`)
+        setUltimoEscaneo(`${codigoLimpio} - Ya registrado como ${yaEscaneado.accion}`)
+        
+        setTimeout(() => {
+          alert(`⚠️ ${yaEscaneado.nombre} ${yaEscaneado.apellido} ya fue registrado como ${yaEscaneado.accion.toUpperCase()}`)
+          setUltimoEscaneo('')
+          setProcesandoEscaneo(false)
+        }, 1000)
+        return
+      }
+      
+      if (!estudiante) {
+        console.log('❌ Estudiante no encontrado:', codigoLimpio)
+        setTimeout(() => {
+          alert('❌ Código no válido o estudiante no encontrado')
+          setUltimoEscaneo('')
+          setProcesandoEscaneo(false)
+        }, 500)
+        return
+      }
+      
+      // 7. PROCESAR ESTUDIANTE VÁLIDO
+      console.log('👤 Estudiante encontrado:', estudiante.nombre, estudiante.apellido)
+      setEstudianteEscaneado({ 
+        ...estudiante, 
+        accion: accionSeleccionada, 
+        hora: new Date().toLocaleTimeString() 
+      })
+      
+      // 8. ENVIAR A API DESPUÉS DE MOSTRAR NOMBRE
       setTimeout(async () => {
         try {
           const token = localStorage.getItem('token')
-          const response = await fetch('/api/auxiliar/asistencia/qr-scan', {
+          const response = await fetch('/api/asistencia/qr-scan', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ 
-              qrCode: codigo,
-              accion: accionSeleccionada
+              qrCode: codigoLimpio,
+              estado: accionSeleccionada === 'entrada' ? 'PRESENTE' : 'AUSENTE'
             })
           })
 
           if (response.ok) {
             const data = await response.json()
             
+            // Verificar si es un duplicado
+            if (data.duplicado) {
+              console.log('⚠️ Asistencia duplicada:', data.mensaje)
+              
+              // NO marcar como procesado los duplicados - solo mostrar mensaje
+              // Esto permite intentar escanear otros códigos
+              
+              setUltimoEscaneo(`${codigoLimpio} - Ya registrado`)
+              setTimeout(() => {
+                alert(data.mensaje)
+                setUltimoEscaneo('')
+                setProcesandoEscaneo(false)
+              }, 1000)
+              return
+            }
+            
+            console.log('✅ Asistencia registrada exitosamente:', data.mensaje)
+            
+            // Marcar como procesado para evitar futuros escaneos
+            codigosProcesadosRef.current.add(codigoLimpio)
+            setContadorProcesados(codigosProcesadosRef.current.size)
+            console.log(`✅ Código ${codigoLimpio} marcado como procesado (exitoso)`)
+            
             // Mostrar confirmación exitosa
             setMostrarConfirmacion(true)
             
-            // Actualizar el estado del estudiante en la lista principal
+            // Actualizar estado del estudiante
             setEstudiantes((prevEstudiantes: Estudiante[]) => 
               prevEstudiantes.map(est => 
-                est.dni === codigo 
+                est.dni === codigoLimpio 
                   ? { 
                       ...est, 
                       estado: accionSeleccionada === 'entrada' ? 'PRESENTE' : 'RETIRADO' as 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA',
@@ -167,7 +307,7 @@ export default function QRScannerModal({
             
             // Agregar a lista de escaneados
             const nuevoEscaneado: Estudiante = {
-              id: data.estudiante.id,
+              id: data.estudiante.id.toString(),
               nombre: data.estudiante.nombre,
               apellido: data.estudiante.apellido,
               dni: data.estudiante.dni,
@@ -178,30 +318,33 @@ export default function QRScannerModal({
             }
             setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
             
-            // Ocultar confirmación después de 4 segundos
+            // Limpiar después de 4 segundos
             setTimeout(() => {
               setMostrarConfirmacion(false)
               setTimeout(() => {
                 setEstudianteEscaneado(null)
+                setProcesandoEscaneo(false)
               }, 1000)
             }, 4000)
             
           } else {
             const error = await response.json()
+            console.error('❌ Error de API:', error)
             alert(`❌ Error: ${error.error}`)
             setEstudianteEscaneado(null)
+            setProcesandoEscaneo(false)
           }
         } catch (error) {
-          console.error('Error scanning QR:', error)
+          console.error('❌ Error de red:', error)
           alert('❌ Error al procesar código QR')
           setEstudianteEscaneado(null)
+          setProcesandoEscaneo(false)
         }
       }, 800)
       
-    } else {
-      setTimeout(() => {
-        alert('❌ Código no válido o estudiante no encontrado')
-      }, 500)
+    } catch (error) {
+      console.error('❌ Error general:', error)
+      setProcesandoEscaneo(false)
     }
   }
 
@@ -272,6 +415,15 @@ export default function QRScannerModal({
     setUltimoEscaneo('')
     setEstudianteEscaneado(null)
     setMostrarConfirmacion(false)
+    setProcesandoEscaneo(false)
+    
+    // Limpiar referencias de debouncing
+    ultimoEscaneoRef.current = null
+    codigosCooldownRef.current.clear()
+    codigosProcesadosRef.current.clear()
+    setContadorProcesados(0)
+    
+    console.log('🧹 Modal cerrado - Referencias de debouncing y códigos procesados limpiadas')
     onClose()
   }
 
@@ -302,23 +454,38 @@ export default function QRScannerModal({
             <div className="flex space-x-4">
               <button
                 onClick={() => setModoEscaneo('camara')}
-                className={`px-4 py-2 rounded-md font-medium ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   modoEscaneo === 'camara'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                 }`}
               >
-                📷 Escanear QR
+                📷 Cámara
               </button>
               <button
                 onClick={() => setModoEscaneo('manual')}
-                className={`px-4 py-2 rounded-md font-medium ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   modoEscaneo === 'manual'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                 }`}
               >
                 ⌨️ Código Manual
+              </button>
+              <button
+                onClick={() => {
+                  const procesadosCount = codigosProcesadosRef.current.size
+                  const cooldownCount = codigosCooldownRef.current.size
+                  codigosProcesadosRef.current.clear()
+                  codigosCooldownRef.current.clear()
+                  setContadorProcesados(0)
+                  console.log('🧹 Códigos procesados limpiados manualmente')
+                  alert(`✅ Limpiados ${procesadosCount} códigos procesados y ${cooldownCount} en cooldown. Ahora puedes volver a escanear.`)
+                }}
+                className="px-4 py-2 rounded-lg font-medium bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+                title="Limpiar códigos ya procesados para permitir re-escaneo"
+              >
+                🧹 Limpiar ({contadorProcesados})
               </button>
             </div>
           </div>

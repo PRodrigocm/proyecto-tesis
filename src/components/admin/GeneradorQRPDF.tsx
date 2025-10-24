@@ -82,15 +82,8 @@ export default function GeneradorQRPDF() {
         setError('Error inesperado al cargar estudiantes')
       }
       
-      // Datos de ejemplo como fallback
-      console.log('📋 Usando datos de ejemplo como fallback')
-      setEstudiantes([
-        { id: '1', nombre: 'Juan Pérez', codigo: 'EST001', grado: '1°', seccion: 'A' },
-        { id: '2', nombre: 'María González', codigo: 'EST002', grado: '1°', seccion: 'A' },
-        { id: '3', nombre: 'Carlos López', codigo: 'EST003', grado: '1°', seccion: 'B' },
-        { id: '4', nombre: 'Ana Martínez', codigo: 'EST004', grado: '2°', seccion: 'A' },
-        { id: '5', nombre: 'Luis Rodríguez', codigo: 'EST005', grado: '2°', seccion: 'B' }
-      ])
+      // NO usar datos de ejemplo - solo datos reales de la BD
+      setEstudiantes([])
     } finally {
       setLoading(false)
     }
@@ -245,35 +238,13 @@ export default function GeneradorQRPDF() {
         </div>
 
         {estudiantes.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold text-black mb-3">
-              Estudiantes encontrados: {estudiantes.length}
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-black mb-2">
+              ✅ Estudiantes encontrados: {estudiantes.length}
             </h3>
-            <div className="max-h-60 overflow-y-auto border rounded-lg">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-black">Código</th>
-                    <th className="px-4 py-2 text-left text-black">Nombre</th>
-                    <th className="px-4 py-2 text-left text-black">Grado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {estudiantes.map((estudiante) => (
-                    <tr key={estudiante.id} className="border-t">
-                      <td className="px-4 py-2 text-black font-mono">{estudiante.codigo}</td>
-                      <td className="px-4 py-2 text-black">{estudiante.nombre}</td>
-                      <td className="px-4 py-2 text-black">
-                        {estudiante.grado && estudiante.seccion 
-                          ? `${estudiante.grado} - ${estudiante.seccion}`
-                          : 'N/A'
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <p className="text-sm text-gray-600">
+              Los códigos QR se generarán para todos los estudiantes activos del sistema.
+            </p>
           </div>
         )}
       </div>

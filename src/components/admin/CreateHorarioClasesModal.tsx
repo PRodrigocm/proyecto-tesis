@@ -13,6 +13,7 @@ interface GradoSeccion {
   grado: {
     idGrado: number
     nombre: string
+    nivel: string
   }
   seccion: {
     idSeccion: number
@@ -78,8 +79,23 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
         console.log('📊 Total encontrados:', data.data?.length || 0)
         
         if (data.data && data.data.length > 0) {
-          setGradosSecciones(data.data)
-          console.log('✅ Estado actualizado con', data.data.length, 'grados-secciones')
+          // Verificar duplicados
+          const ids = data.data.map((gs: any) => gs.idGradoSeccion)
+          const uniqueIds = [...new Set(ids)]
+          
+          if (ids.length !== uniqueIds.length) {
+            console.warn('⚠️ Se detectaron IDs duplicados en grados-secciones:', ids)
+            console.warn('⚠️ IDs únicos:', uniqueIds)
+          }
+          
+          // Filtrar duplicados si existen
+          const uniqueGradosSecciones = data.data.filter((gs: any, index: number, self: any[]) => 
+            index === self.findIndex((g: any) => g.idGradoSeccion === gs.idGradoSeccion)
+          )
+          
+          setGradosSecciones(uniqueGradosSecciones)
+          console.log('✅ Estado actualizado con', uniqueGradosSecciones.length, 'grados-secciones únicos')
+          console.log('📋 Grados-secciones cargados:', uniqueGradosSecciones.map((gs: GradoSeccion) => `${gs.grado.nivel} - ${gs.grado.nombre}° ${gs.seccion.nombre}`))
         } else {
           console.log('⚠️ No se encontraron grados-secciones')
           setGradosSecciones([])
@@ -124,7 +140,7 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
     
     if (!formData.idGradoSeccion) {
       console.error('❌ Validación: Grado y sección no seleccionados')
-      alert('Por favor selecciona un grado y sección')
+      alert('Por favor selecciona un grado y sección o "Todos los grados y secciones"')
       return
     }
 
@@ -144,6 +160,16 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
       return
     }
     console.log('✅ Todas las validaciones pasaron')
+    
+    // Log específico para la opción seleccionada
+    if (formData.idGradoSeccion === 'TODOS') {
+      console.log('🏫 Opción seleccionada: TODOS los grados y secciones')
+      console.log('📊 Se aplicará a', gradosSecciones.length, 'grados-secciones')
+    } else {
+      const selected = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === formData.idGradoSeccion)
+      console.log('🎯 Grado-sección específico seleccionado:', selected ? `${selected.grado.nivel} - ${selected.grado.nombre}° ${selected.seccion.nombre}` : 'No encontrado')
+    }
+    
     console.log('🚀 Enviando datos al hook...')
 
     setLoading(true)
@@ -245,9 +271,13 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                 ) : (
                   <>
                     <option value="">📚 Seleccionar grado y sección...</option>
+                    <option value="TODOS" className="font-bold text-blue-600">
+                      🏫 Todos los grados y secciones
+                    </option>
+                    <option disabled>──────────────────────</option>
                     {gradosSecciones.map((gs) => (
-                      <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
-                        {gs.grado.nombre}° {gs.seccion.nombre}
+                      <option key={`grado-seccion-${gs.idGradoSeccion}`} value={gs.idGradoSeccion}>
+                        {gs.grado.nivel} - {gs.grado.nombre}° {gs.seccion.nombre}
                       </option>
                     ))}
                   </>
@@ -261,6 +291,13 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
               )}
               {!loadingGrados && gradosSecciones.length > 0 && (
                 <p className="text-sm text-green-600 mt-1">✅ {gradosSecciones.length} grados disponibles</p>
+              )}
+              {formData.idGradoSeccion === 'TODOS' && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-700">
+                    🏫 <strong>Modo masivo:</strong> Se creará el mismo horario base para todos los {gradosSecciones.length} grados y secciones disponibles.
+                  </p>
+                </div>
               )}
             </div>
 
@@ -328,6 +365,16 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
             <h4 className="text-sm font-medium text-green-800 mb-2">✅ Lo que se creará:</h4>
             <ul className="text-sm text-green-700 space-y-1">
               <li>• <strong>Lunes a Viernes:</strong> {formatearHora(formData.horaInicio)} - {formatearHora(formData.horaFin)}</li>
+              <li>• <strong>Aplicar a:</strong> {
+                formData.idGradoSeccion === 'TODOS' 
+                  ? `🏫 Todos los grados y secciones (${gradosSecciones.length} grados)`
+                  : formData.idGradoSeccion 
+                    ? (() => {
+                        const selected = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === formData.idGradoSeccion)
+                        return selected ? `${selected.grado.nivel} - ${selected.grado.nombre}° ${selected.seccion.nombre}` : 'Grado seleccionado'
+                      })()
+                    : 'Ningún grado seleccionado'
+              }</li>
               <li>• <strong>Aula:</strong> {formData.aula || 'Sin especificar'}</li>
               <li>• <strong>Tolerancia:</strong> {formData.toleranciaMin} minutos</li>
               <li>• <strong>Tipo:</strong> Clase Regular (horario base)</li>
@@ -353,7 +400,7 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 disabled={loading}
               >
-                {loading ? 'Creando...' : 'Crear Horario Base'}
+                {loading ? 'Creando...' : formData.idGradoSeccion === 'TODOS' ? 'Crear Horarios Masivos' : 'Crear Horario Base'}
               </button>
             </div>
           </div>

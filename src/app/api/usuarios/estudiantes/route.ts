@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
           estado: 'ACTIVO'
         }
       },
-      include: {
+      select: {
+        idEstudiante: true,
+        codigo: true,
+        qr: true,
         usuario: {
           select: {
             nombre: true,
@@ -90,16 +93,26 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ ${estudiantes.length} estudiantes encontrados`)
 
+    // Mostrar datos de estudiantes para debugging
+    estudiantes.forEach(est => {
+      console.log(`  - ${est.usuario.nombre} ${est.usuario.apellido}: ID=${est.idEstudiante}, Código=${est.codigo}, QR=${est.qr}, DNI=${est.usuario.dni}`)
+    })
+
     // Transformar datos para el generador de QR
-    const estudiantesTransformados = estudiantes.map(estudiante => ({
-      id: estudiante.idEstudiante.toString(),
-      nombre: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
-      codigo: `EST${String(estudiante.idEstudiante).padStart(4, '0')}`, // Generar código basado en ID
-      grado: estudiante.gradoSeccion?.grado?.nombre || '',
-      seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
-      dni: estudiante.usuario.dni,
-      estado: estudiante.usuario.estado
-    }))
+    const estudiantesTransformados = estudiantes.map(estudiante => {
+      const codigoFinal = estudiante.codigo || estudiante.qr || estudiante.usuario.dni
+      console.log(`🔄 Transformando: ${estudiante.usuario.nombre} → Código final: ${codigoFinal}`)
+      
+      return {
+        id: estudiante.idEstudiante.toString(),
+        nombre: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
+        codigo: codigoFinal, // Usar código real de BD
+        grado: estudiante.gradoSeccion?.grado?.nombre || '',
+        seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+        dni: estudiante.usuario.dni,
+        estado: estudiante.usuario.estado
+      }
+    })
 
     return NextResponse.json({
       success: true,

@@ -11,7 +11,7 @@ export interface HorarioSemanalDetalle {
   materia: string
   docente: string
   aula: string
-  tipoActividad: 'CLASE_REGULAR' | 'REFORZAMIENTO' | 'RECUPERACION' | 'EVALUACION' | 'TALLER_EXTRA'
+  tipoActividad: 'CLASE_REGULAR' | 'REFORZAMIENTO' | 'RECUPERACION' | 'EVALUACION'
   tipoActividadLabel: string
   observaciones: string
   grado: string
@@ -197,8 +197,7 @@ export const useHorariosSemanales = () => {
     { value: 'CLASE_REGULAR', label: 'Clase Regular' },
     { value: 'REFORZAMIENTO', label: 'Reforzamiento' },
     { value: 'RECUPERACION', label: 'Recuperación' },
-    { value: 'EVALUACION', label: 'Evaluación' },
-    { value: 'TALLER_EXTRA', label: 'Taller Extra' }
+    { value: 'EVALUACION', label: 'Evaluación' }
   ]
 
   const diasSemana = [

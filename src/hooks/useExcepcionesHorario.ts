@@ -4,7 +4,7 @@ export interface ExcepcionHorario {
   id: string
   fecha: string
   tipoExcepcion: 'FERIADO' | 'DIA_NO_LABORABLE' | 'SUSPENSION_CLASES' | 'HORARIO_ESPECIAL' | 'VACACIONES' | 'CAPACITACION' | 'OTRO'
-  tipoHorario: 'CLASE' | 'TALLER' | 'AMBOS'
+  tipoHorario: 'CLASE' | 'AMBOS'
   motivo: string
   descripcion: string
   horaInicioAlt?: string | null
@@ -16,14 +16,6 @@ export interface ExcepcionHorario {
     diaSemana: number
     horaEntrada: string
     horaSalida: string
-  } | null
-  horarioTaller?: {
-    id: string
-    taller: string
-    diaSemana: number
-    horaInicio: string
-    horaFin: string
-    lugar: string
   } | null
   activo: boolean
 }
@@ -111,8 +103,7 @@ export const useExcepcionesHorario = () => {
 
   const tiposHorario = [
     { value: 'CLASE', label: 'Solo Clases' },
-    { value: 'TALLER', label: 'Solo Talleres' },
-    { value: 'AMBOS', label: 'Clases y Talleres' }
+    { value: 'AMBOS', label: 'Clases y Otros' }
   ]
 
   const crearExcepcion = async (data: {
@@ -124,7 +115,6 @@ export const useExcepcionesHorario = () => {
     horaInicioAlt?: string
     horaFinAlt?: string
     idHorarioClase?: string
-    idHorarioTaller?: string
   }) => {
     try {
       const token = localStorage.getItem('token')

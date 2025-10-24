@@ -5,7 +5,6 @@ interface DashboardStats {
   totalEstudiantes: number
   totalDocentes: number
   totalApoderados: number
-  totalTalleres: number
   asistenciasHoy: number
 }
 
@@ -15,7 +14,6 @@ export function useDashboardStats() {
     totalEstudiantes: 0,
     totalDocentes: 0,
     totalApoderados: 0,
-    totalTalleres: 0,
     asistenciasHoy: 0
   })
   const [loading, setLoading] = useState(true)

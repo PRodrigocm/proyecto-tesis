@@ -123,12 +123,6 @@ export default function AdminLayout({
           current: pathname === '/admin/dashboard/horarios/clases',
           description: 'Administra horarios de clases, excepciones y suspensiones'
         },
-        {
-          name: 'Horario Talleres',
-          href: '/admin/dashboard/horarios/talleres',
-          current: pathname === '/admin/dashboard/horarios/talleres',
-          description: 'Administra horarios de talleres, excepciones y suspensiones'
-        }
       ]
     },
     {
@@ -136,12 +130,6 @@ export default function AdminLayout({
       href: '/admin/dashboard/retiros',
       icon: '🚪',
       current: pathname === '/admin/dashboard/retiros'
-    },
-    {
-      name: 'Talleres',
-      href: '/admin/dashboard/talleres',
-      icon: '🎨',
-      current: pathname === '/admin/dashboard/talleres'
     },
     {
       name: 'Reportes',

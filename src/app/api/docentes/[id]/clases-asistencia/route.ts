@@ -59,9 +59,32 @@ export async function GET(
 
     console.log('📚 Aulas encontradas para asistencia:', docenteAulas.length)
 
-    // Transformar los datos para la respuesta
-    const clases = docenteAulas.map((docenteAula) => {
+    // Transformar los datos para la respuesta con horarios
+    const clases = await Promise.all(docenteAulas.map(async (docenteAula) => {
       const { gradoSeccion, tipoAsignacion } = docenteAula
+      
+      // Obtener el horario del grado-sección
+      let horario = '08:00-13:30' // Horario por defecto
+      
+      try {
+        const horarioClase = await prisma.horarioClase.findFirst({
+          where: {
+            idGradoSeccion: gradoSeccion.idGradoSeccion,
+            activo: true
+          },
+          orderBy: {
+            diaSemana: 'asc'
+          }
+        })
+        
+        if (horarioClase) {
+          const horaInicio = horarioClase.horaInicio.toTimeString().slice(0, 5)
+          const horaFin = horarioClase.horaFin.toTimeString().slice(0, 5)
+          horario = `${horaInicio}-${horaFin}`
+        }
+      } catch (error) {
+        console.error('Error obteniendo horario:', error)
+      }
       
       return {
         id: docenteAula.idDocenteAula,
@@ -69,9 +92,9 @@ export async function GET(
         grado: gradoSeccion.grado.nombre,
         seccion: gradoSeccion.seccion.nombre,
         tipoAsignacion: tipoAsignacion.nombre,
-        horario: '08:00-09:30' // Horario simulado por ahora
+        horario: horario
       }
-    })
+    }))
 
     console.log('✅ Clases para asistencia obtenidas exitosamente')
     return NextResponse.json({
