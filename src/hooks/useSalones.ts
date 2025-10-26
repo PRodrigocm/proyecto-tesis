@@ -7,6 +7,7 @@ export interface Salon {
   seccion: string
   nombre: string
   cantidadEstudiantes: number
+  docente?: string
   createdAt: string
 }
 

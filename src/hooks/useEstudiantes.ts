@@ -20,7 +20,7 @@ export interface Estudiante {
   }
   estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO'
   fechaRegistro: string
-  qrCode: string
+  codigoQR: string
 }
 
 export interface EstudiantesFilters {
@@ -118,7 +118,7 @@ export const useEstudiantes = () => {
         setEstudiantes(prev => 
           prev.map(estudiante => 
             estudiante.id === estudianteId 
-              ? { ...estudiante, qrCode: data.qrCode }
+              ? { ...estudiante, codigoQR: data.codigoQR }
               : estudiante
           )
         )

@@ -210,6 +210,89 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Verificar si es modo masivo (TODOS)
+    if (idGradoSeccion === 'TODOS') {
+      console.log('🏫 === MODO MASIVO: Creando horarios para TODOS los grados y secciones ===')
+      
+      // Obtener todos los grados-secciones
+      const todosGradosSecciones = await prisma.gradoSeccion.findMany({
+        include: {
+          grado: {
+            include: {
+              nivel: true
+            }
+          },
+          seccion: true
+        }
+      })
+
+      console.log(`📊 Total de grados-secciones encontrados: ${todosGradosSecciones.length}`)
+
+      let totalHorariosCreados = 0
+      const diasSemana = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+
+      // Crear horarios para cada grado-sección
+      for (const gs of todosGradosSecciones) {
+        // Generar nombre de aula automáticamente
+        const aulaGenerada = `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`
+        console.log(`🏫 Procesando ${gs.grado.nombre}° ${gs.seccion.nombre} - Aula: ${aulaGenerada}`)
+
+        // Buscar docente asignado
+        let docenteAsignado = null
+        try {
+          const docenteAula = await prisma.docenteAula.findFirst({
+            where: { idGradoSeccion: gs.idGradoSeccion }
+          })
+          if (docenteAula) {
+            docenteAsignado = docenteAula.idDocente
+          }
+        } catch (error) {
+          console.error('Error buscando docente:', error)
+        }
+
+        // Crear horarios L-V para este grado-sección
+        for (let dia = 1; dia <= 5; dia++) {
+          const existeHorario = await prisma.horarioClase.findFirst({
+            where: {
+              idGradoSeccion: gs.idGradoSeccion,
+              diaSemana: dia,
+              activo: true
+            }
+          })
+
+          if (!existeHorario) {
+            await prisma.horarioClase.create({
+              data: {
+                idGradoSeccion: gs.idGradoSeccion,
+                diaSemana: dia,
+                horaInicio: new Date(`1970-01-01T${horaInicio}:00.000Z`),
+                horaFin: new Date(`1970-01-01T${horaFin}:00.000Z`),
+                aula: aulaGenerada,
+                idDocente: docenteAsignado || (idDocente ? parseInt(idDocente) : null),
+                toleranciaMin: parseInt(toleranciaMin),
+                tipoActividad: 'CLASE_REGULAR' as any,
+                activo: true
+              }
+            })
+            totalHorariosCreados++
+          }
+        }
+      }
+
+      console.log(`✅ Horarios masivos creados: ${totalHorariosCreados} horarios para ${todosGradosSecciones.length} grados-secciones`)
+
+      return NextResponse.json({
+        success: true,
+        message: `Horarios creados para ${todosGradosSecciones.length} grados y secciones`,
+        data: {
+          gradosSecciones: todosGradosSecciones.length,
+          horario: `${horaInicio} - ${horaFin}`,
+          dias: 'Lunes a Viernes',
+          horariosCreados: totalHorariosCreados
+        }
+      })
+    }
+
     console.log('🔍 Verificando que el grado-sección existe...')
     
     // Verificar que el grado-sección existe

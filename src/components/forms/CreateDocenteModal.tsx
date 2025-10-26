@@ -21,8 +21,7 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     grado: '',
     seccion: '',
     tipoAsignacion: '',
-    password: '',
-    esDocenteTaller: false
+    password: ''
   })
   
   const [grados, setGrados] = useState<any[]>([])
@@ -175,8 +174,7 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
           grado: '',
           seccion: '',
           tipoAsignacion: '',
-          password: '',
-          esDocenteTaller: false
+          password: ''
         })
       } else {
         const error = await response.json()
@@ -199,17 +197,6 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     })
-    
-    // Si se marca como docente de taller, limpiar grado y sección
-    if (name === 'esDocenteTaller' && checked) {
-      setFormData(prev => ({
-        ...prev,
-        [name]: checked,
-        grado: '',
-        seccion: ''
-      }))
-      setSecciones([])
-    }
   }
 
   if (!isOpen) return null
@@ -237,9 +224,12 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 value={formData.dni}
                 onChange={handleChange}
                 required
+                maxLength={8}
+                pattern="[0-9]{8}"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="12345678"
               />
+              <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
             </div>
 
             <div>
@@ -285,37 +275,16 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 name="telefono"
                 value={formData.telefono}
                 onChange={handleChange}
+                maxLength={9}
+                pattern="[0-9]{9}"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                placeholder="999999999"
               />
+              <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 9 dígitos</p>
             </div>
 
-            {/* Checkbox Docente de Taller */}
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <input
-                  type="checkbox"
-                  id="esDocenteTaller"
-                  name="esDocenteTaller"
-                  checked={formData.esDocenteTaller}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="esDocenteTaller" className="text-base font-medium text-gray-800">
-                  🎨 Docente de taller
-                </label>
-                <div className="text-sm text-gray-600">
-                  Marcar si este docente se encargará de talleres extracurriculares
-                </div>
-              </div>
-              {formData.esDocenteTaller && (
-                <p className="text-sm text-blue-600 mt-2">
-                  ℹ️ Los docentes de taller no requieren asignación de grado y sección específicos
-                </p>
-              )}
-            </div>
-
-            {/* Grado - Solo visible si NO es docente de taller */}
-            {!formData.esDocenteTaller && (
+            {/* Grado */}
+            {
               <div>
                 <label className="block text-base font-semibold text-gray-800 mb-2">Grado</label>
                 <select
@@ -339,10 +308,10 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                   Opcional: Grado al que será asignado el docente
                 </p>
               </div>
-            )}
+            }
 
-            {/* Sección - Solo visible si NO es docente de taller */}
-            {!formData.esDocenteTaller && (
+            {/* Sección */}
+            {
               <div>
                 <label className="block text-base font-semibold text-gray-800 mb-2">Sección</label>
                 <select
@@ -369,10 +338,10 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                   Opcional: Sección específica del grado seleccionado
                 </p>
               </div>
-            )}
+            }
 
-            {/* Tipo de Asignación - Solo visible si NO es docente de taller */}
-            {!formData.esDocenteTaller && (
+            {/* Tipo de Asignación */}
+            {
               <div>
                 <label className="block text-base font-semibold text-gray-800 mb-2">Tipo de Asignación</label>
                 <select
@@ -396,9 +365,9 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                   Opcional: Define el rol del docente (Tutor, Profesor de materia, etc.)
                 </p>
               </div>
-            )}
+            }
 
-            <div className={formData.esDocenteTaller ? 'md:col-span-2' : ''}>
+            <div>
               <label className="block text-base font-semibold text-gray-800 mb-2">Especialidad *</label>
               <input
                 type="text"
@@ -407,13 +376,10 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 onChange={handleChange}
                 required
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder={formData.esDocenteTaller ? "Robótica, Arte, Música, Deportes, etc." : "Matemáticas, Comunicación, etc."}
+                placeholder="Matemáticas, Comunicación, etc."
               />
               <p className="text-sm text-gray-500 mt-1">
-                {formData.esDocenteTaller 
-                  ? "Especialidad o área del taller que impartirá" 
-                  : "Materia o área de especialización académica"
-                }
+                Materia o área de especialización académica
               </p>
             </div>
 

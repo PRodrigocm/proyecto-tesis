@@ -160,10 +160,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Generar código único para el apoderado
+    const codigoApoderado = `APO${String(newUser.idUsuario).padStart(4, '0')}`
+
     // Crear registro de apoderado
     await prisma.apoderado.create({
       data: {
         idUsuario: newUser.idUsuario,
+        codigo: codigoApoderado,
         direccion,
         ocupacion
       }

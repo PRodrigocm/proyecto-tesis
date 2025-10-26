@@ -22,6 +22,8 @@ interface Estudiante {
   hora: string
   codigo?: string
   estado?: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA'
+  duplicado?: boolean
+  mensajeDuplicado?: string
 }
 
 interface CameraDevice {
@@ -174,49 +176,46 @@ export default function QRScannerModal({
       }
     }
     
-    // 2. VERIFICAR SI YA FUE PROCESADO EXITOSAMENTE (solo para esta sesión)
-    if (codigosProcesadosRef.current.has(codigoLimpio)) {
-      console.log(`🚫 Código ${codigoLimpio} ya fue procesado en esta sesión, ignorando`)
-      setUltimoEscaneo(`${codigoLimpio} - Ya procesado en esta sesión`)
-      setTimeout(() => setUltimoEscaneo(''), 2000)
-      return
-    }
-    
-    console.log(`🔍 Código ${codigoLimpio} no está en procesados, continuando...`)
-
-    // 3. VERIFICAR COOLDOWN POR CÓDIGO ESPECÍFICO
-    const ultimoCooldown = codigosCooldownRef.current.get(codigoLimpio)
-    if (ultimoCooldown) {
-      const tiempoRestante = ultimoCooldown + COOLDOWN_DURACION - ahora
-      if (tiempoRestante > 0) {
-        const segundosRestantes = Math.ceil(tiempoRestante / 1000)
-        console.log(`🚫 Código ${codigoLimpio} en cooldown: ${segundosRestantes}s restantes`)
-        setUltimoEscaneo(`${codigoLimpio} - Espera ${segundosRestantes}s`)
+    try {
+      // 2. VERIFICAR SI YA FUE PROCESADO EXITOSAMENTE (solo para esta sesión)
+      if (codigosProcesadosRef.current.has(codigoLimpio)) {
+        console.log(`🚫 Código ${codigoLimpio} ya fue procesado en esta sesión, ignorando`)
+        setUltimoEscaneo(`${codigoLimpio} - Ya procesado en esta sesión`)
         setTimeout(() => setUltimoEscaneo(''), 2000)
         return
       }
-    }
-    
-    // 3. VERIFICAR SI YA SE ESTÁ PROCESANDO
-    if (procesandoEscaneo) {
-      console.log('⚠️ Ya se está procesando un escaneo, ignorando')
-      return
-    }
-    
-    // 4. ACTUALIZAR REFERENCIAS DE CONTROL
-    ultimoEscaneoRef.current = { codigo: codigoLimpio, timestamp: ahora }
-    codigosCooldownRef.current.set(codigoLimpio, ahora)
-    setProcesandoEscaneo(true)
-    setUltimoEscaneo(codigoLimpio)
-    
-    console.log('✅ Procesando código:', codigoLimpio)
-    
-    try {
-      // 5. BUSCAR ESTUDIANTE
-      const estudiante = estudiantes.find(est => est.dni === codigoLimpio)
+      
+      console.log(`🔍 Código ${codigoLimpio} no está en procesados, continuando...`)
+
+      // 3. VERIFICAR COOLDOWN POR CÓDIGO ESPECÍFICO
+      const ultimoCooldown = codigosCooldownRef.current.get(codigoLimpio)
+      if (ultimoCooldown) {
+        const tiempoRestante = ultimoCooldown + COOLDOWN_DURACION - ahora
+        if (tiempoRestante > 0) {
+          const segundosRestantes = Math.ceil(tiempoRestante / 1000)
+          console.log(`🚫 Código ${codigoLimpio} en cooldown: ${segundosRestantes}s restantes`)
+          setUltimoEscaneo(`${codigoLimpio} - Espera ${segundosRestantes}s`)
+          setTimeout(() => setUltimoEscaneo(''), 2000)
+          return
+        }
+      }
+      
+      // 4. VERIFICAR SI YA SE ESTÁ PROCESANDO
+      if (procesandoEscaneo) {
+        console.log('⚠️ Ya se está procesando un escaneo, ignorando')
+        return
+      }
+      
+      // 5. ACTUALIZAR REFERENCIAS DE CONTROL
+      ultimoEscaneoRef.current = { codigo: codigoLimpio, timestamp: ahora }
+      codigosCooldownRef.current.set(codigoLimpio, ahora)
+      setProcesandoEscaneo(true)
+      setUltimoEscaneo(codigoLimpio)
+      
+      console.log('✅ Procesando código:', codigoLimpio)
       
       // 6. VERIFICAR SI YA FUE ESCANEADO EN ESTA SESIÓN
-      const yaEscaneado = estudiantesEscaneados.find(escaneado => escaneado.dni === codigoLimpio)
+      const yaEscaneado = estudiantesEscaneados.find(escaneado => escaneado.dni === codigoLimpio || escaneado.codigo === codigoLimpio)
       if (yaEscaneado) {
         console.log(`⚠️ Estudiante ya registrado: ${yaEscaneado.nombre} ${yaEscaneado.apellido}`)
         setUltimoEscaneo(`${codigoLimpio} - Ya registrado como ${yaEscaneado.accion}`)
@@ -229,121 +228,117 @@ export default function QRScannerModal({
         return
       }
       
-      if (!estudiante) {
-        console.log('❌ Estudiante no encontrado:', codigoLimpio)
-        setTimeout(() => {
-          alert('❌ Código no válido o estudiante no encontrado')
-          setUltimoEscaneo('')
-          setProcesandoEscaneo(false)
-        }, 500)
-        return
-      }
+      // 7. ENVIAR DIRECTAMENTE A LA API (sin validar localmente)
+      // La API buscará el estudiante en TODA la base de datos
+      console.log('📡 Enviando código a la API para validación:', codigoLimpio)
       
-      // 7. PROCESAR ESTUDIANTE VÁLIDO
-      console.log('👤 Estudiante encontrado:', estudiante.nombre, estudiante.apellido)
-      setEstudianteEscaneado({ 
-        ...estudiante, 
-        accion: accionSeleccionada, 
-        hora: new Date().toLocaleTimeString() 
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/auxiliar/asistencia/qr-scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          qrCode: codigoLimpio,
+          accion: accionSeleccionada
+        })
       })
-      
-      // 8. ENVIAR A API DESPUÉS DE MOSTRAR NOMBRE
-      setTimeout(async () => {
-        try {
-          const token = localStorage.getItem('token')
-          const response = await fetch('/api/asistencia/qr-scan', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ 
-              qrCode: codigoLimpio,
-              estado: accionSeleccionada === 'entrada' ? 'PRESENTE' : 'AUSENTE'
-            })
-          })
 
-          if (response.ok) {
-            const data = await response.json()
-            
-            // Verificar si es un duplicado
-            if (data.duplicado) {
-              console.log('⚠️ Asistencia duplicada:', data.mensaje)
-              
-              // NO marcar como procesado los duplicados - solo mostrar mensaje
-              // Esto permite intentar escanear otros códigos
-              
-              setUltimoEscaneo(`${codigoLimpio} - Ya registrado`)
-              setTimeout(() => {
-                alert(data.mensaje)
-                setUltimoEscaneo('')
-                setProcesandoEscaneo(false)
-              }, 1000)
-              return
-            }
-            
-            console.log('✅ Asistencia registrada exitosamente:', data.mensaje)
-            
-            // Marcar como procesado para evitar futuros escaneos
-            codigosProcesadosRef.current.add(codigoLimpio)
-            setContadorProcesados(codigosProcesadosRef.current.size)
-            console.log(`✅ Código ${codigoLimpio} marcado como procesado (exitoso)`)
-            
-            // Mostrar confirmación exitosa
-            setMostrarConfirmacion(true)
-            
-            // Actualizar estado del estudiante
-            setEstudiantes((prevEstudiantes: Estudiante[]) => 
-              prevEstudiantes.map(est => 
-                est.dni === codigoLimpio 
-                  ? { 
-                      ...est, 
-                      estado: accionSeleccionada === 'entrada' ? 'PRESENTE' : 'RETIRADO' as 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA',
-                      hora: new Date().toLocaleTimeString()
-                    }
-                  : est
-              )
-            )
-            
-            // Agregar a lista de escaneados
-            const nuevoEscaneado: Estudiante = {
-              id: data.estudiante.id.toString(),
-              nombre: data.estudiante.nombre,
-              apellido: data.estudiante.apellido,
-              dni: data.estudiante.dni,
-              grado: data.estudiante.grado,
-              seccion: data.estudiante.seccion,
-              accion: accionSeleccionada,
-              hora: new Date().toLocaleTimeString()
-            }
-            setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
-            
-            // Limpiar después de 4 segundos
-            setTimeout(() => {
-              setMostrarConfirmacion(false)
-              setTimeout(() => {
-                setEstudianteEscaneado(null)
-                setProcesandoEscaneo(false)
-              }, 1000)
-            }, 4000)
-            
-          } else {
-            const error = await response.json()
-            console.error('❌ Error de API:', error)
-            alert(`❌ Error: ${error.error}`)
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Verificar si es un duplicado - mostrar notificación temporal
+        if (data.duplicado) {
+          console.log('⚠️ Asistencia duplicada:', data.mensaje)
+          
+          // Mostrar información del estudiante con mensaje de duplicado
+          setEstudianteEscaneado({
+            id: data.estudiante.id.toString(),
+            nombre: data.estudiante.nombre,
+            apellido: data.estudiante.apellido,
+            dni: data.estudiante.dni,
+            grado: data.estudiante.grado,
+            seccion: data.estudiante.seccion,
+            accion: accionSeleccionada,
+            hora: new Date().toLocaleTimeString(),
+            duplicado: true,
+            mensajeDuplicado: data.mensaje
+          })
+          
+          // Mostrar overlay brevemente
+          setMostrarConfirmacion(true)
+          
+          // Cerrar automáticamente después de 1.5 segundos
+          setTimeout(() => {
+            setMostrarConfirmacion(false)
+            setEstudianteEscaneado(null)
+            setUltimoEscaneo('')
+            setProcesandoEscaneo(false)
+          }, 1500)
+          return
+        }
+        
+        console.log('✅ Asistencia registrada exitosamente:', data.mensaje)
+        
+        // Marcar como procesado para evitar futuros escaneos
+        codigosProcesadosRef.current.add(codigoLimpio)
+        setContadorProcesados(codigosProcesadosRef.current.size)
+        console.log(`✅ Código ${codigoLimpio} marcado como procesado (exitoso)`)
+        
+        // Mostrar estudiante escaneado
+        setEstudianteEscaneado({
+          id: data.estudiante.id.toString(),
+          nombre: data.estudiante.nombre,
+          apellido: data.estudiante.apellido,
+          dni: data.estudiante.dni,
+          grado: data.estudiante.grado,
+          seccion: data.estudiante.seccion,
+          accion: accionSeleccionada,
+          hora: new Date().toLocaleTimeString()
+        })
+        
+        // Mostrar confirmación exitosa
+        setMostrarConfirmacion(true)
+        
+        // Agregar a lista de escaneados
+        const nuevoEscaneado: Estudiante = {
+          id: data.estudiante.id.toString(),
+          nombre: data.estudiante.nombre,
+          apellido: data.estudiante.apellido,
+          dni: data.estudiante.dni,
+          grado: data.estudiante.grado,
+          seccion: data.estudiante.seccion,
+          accion: accionSeleccionada,
+          hora: new Date().toLocaleTimeString()
+        }
+        setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
+        
+        // Limpiar después de 4 segundos
+        setTimeout(() => {
+          setMostrarConfirmacion(false)
+          setTimeout(() => {
             setEstudianteEscaneado(null)
             setProcesandoEscaneo(false)
-          }
-        } catch (error) {
-          console.error('❌ Error de red:', error)
-          alert('❌ Error al procesar código QR')
-          setEstudianteEscaneado(null)
-          setProcesandoEscaneo(false)
+          }, 1000)
+        }, 4000)
+        
+      } else {
+        let errorMsg = 'Error desconocido'
+        try {
+          const error = await response.json()
+          errorMsg = error.error || error.mensaje || error.details || 'Error al procesar código QR'
+          console.error('❌ Error de API:', error)
+        } catch (e) {
+          console.error('❌ Error al parsear respuesta:', e)
         }
-      }, 800)
-      
+        alert(`❌ ${errorMsg}`)
+        setEstudianteEscaneado(null)
+        setProcesandoEscaneo(false)
+      }
     } catch (error) {
       console.error('❌ Error general:', error)
+      alert('❌ Error al procesar código QR')
       setProcesandoEscaneo(false)
     }
   }
@@ -359,15 +354,18 @@ export default function QRScannerModal({
       const config = {
         fps: 15,
         qrbox: function(viewfinderWidth: number, viewfinderHeight: number) {
-          const minEdgePercentage = 0.8
+          // Usar 90% del área disponible para maximizar el área de escaneo
+          const qrboxPercentage = 0.9
           const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage)
+          const calculatedSize = Math.floor(minEdgeSize * qrboxPercentage)
+          // Asegurar que el tamaño mínimo sea 50px y máximo 600px
+          const qrboxSize = Math.max(Math.min(calculatedSize, 600), 50)
           return {
             width: qrboxSize,
             height: qrboxSize
           }
         },
-        aspectRatio: 16/9,
+        aspectRatio: 1,
         videoConstraints: {
           width: { ideal: 1920 },
           height: { ideal: 1080 },
@@ -430,13 +428,13 @@ export default function QRScannerModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl w-full h-full max-w-none max-h-none overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-none md:rounded-lg shadow-xl w-full h-full md:max-w-6xl md:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b">
+        <div className="flex justify-between items-center p-3 md:p-6 border-b flex-shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-black">Scanner QR - Control de Asistencia</h2>
-            <p className="text-sm text-black font-medium">
+            <h2 className="text-base md:text-xl font-bold text-black">Scanner QR - Control de Asistencia</h2>
+            <p className="text-xs md:text-sm text-black font-medium">
               Modo: {accionSeleccionada === 'entrada' ? 'Registro de Entrada' : 'Registro de Salida'}
             </p>
           </div>
@@ -448,13 +446,13 @@ export default function QRScannerModal({
           </button>
         </div>
 
-        <div className="p-6 h-full flex flex-col">
+        <div className="p-3 md:p-6 flex-1 flex flex-col overflow-y-auto">
           {/* Selector de Modo */}
-          <div className="mb-6">
-            <div className="flex space-x-4">
+          <div className="mb-3 md:mb-6">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setModoEscaneo('camara')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 md:flex-none px-3 md:px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                   modoEscaneo === 'camara'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
@@ -464,13 +462,13 @@ export default function QRScannerModal({
               </button>
               <button
                 onClick={() => setModoEscaneo('manual')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 md:flex-none px-3 md:px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                   modoEscaneo === 'manual'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                 }`}
               >
-                ⌨️ Código Manual
+                ⌨️ Manual
               </button>
               <button
                 onClick={() => {
@@ -482,59 +480,59 @@ export default function QRScannerModal({
                   console.log('🧹 Códigos procesados limpiados manualmente')
                   alert(`✅ Limpiados ${procesadosCount} códigos procesados y ${cooldownCount} en cooldown. Ahora puedes volver a escanear.`)
                 }}
-                className="px-4 py-2 rounded-lg font-medium bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+                className="px-3 md:px-4 py-2 rounded-lg font-medium text-sm bg-orange-600 text-white hover:bg-orange-700 transition-colors"
                 title="Limpiar códigos ya procesados para permitir re-escaneo"
               >
-                🧹 Limpiar ({contadorProcesados})
+                🧹 ({contadorProcesados})
               </button>
             </div>
           </div>
 
           {/* Selector de Acción */}
-          <div className="mb-6">
-            <div className="flex items-center justify-center space-x-4">
+          <div className="mb-3 md:mb-6">
+            <div className="flex items-center justify-center gap-2 md:gap-4">
               <button
                 onClick={() => setAccionSeleccionada('entrada')}
-                className={`inline-flex items-center px-6 py-3 border text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 md:flex-none inline-flex items-center justify-center px-3 md:px-6 py-2 md:py-3 border text-xs md:text-sm font-medium rounded-md transition-colors ${
                   accionSeleccionada === 'entrada'
                     ? 'border-transparent text-white bg-green-600 hover:bg-green-700'
                     : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                 }`}
               >
-                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                Registrar Entrada
+                <ArrowRightOnRectangleIcon className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
+                <span className="hidden md:inline">Registrar </span>Entrada
               </button>
               <button
                 onClick={() => setAccionSeleccionada('salida')}
-                className={`inline-flex items-center px-6 py-3 border text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 md:flex-none inline-flex items-center justify-center px-3 md:px-6 py-2 md:py-3 border text-xs md:text-sm font-medium rounded-md transition-colors ${
                   accionSeleccionada === 'salida'
                     ? 'border-transparent text-white bg-blue-600 hover:bg-blue-700'
                     : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                 }`}
               >
-                <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" />
-                Registrar Salida
+                <ArrowLeftOnRectangleIcon className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
+                <span className="hidden md:inline">Registrar </span>Salida
               </button>
             </div>
           </div>
 
-          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 flex-1 min-h-0">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Panel de escaneo - Ocupa 2/3 del espacio en desktop, toda la pantalla en móvil */}
-            <div className="lg:col-span-2 flex-1 min-h-0">
+            <div className="lg:col-span-2">
               {modoEscaneo === 'camara' ? (
                 <div>
-                  <h3 className="text-lg font-medium mb-4">Escanear Código QR</h3>
+                  <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">Escanear Código QR</h3>
                   
                   {/* Selector de cámara */}
                   {camaras.length > 0 && (
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-black mb-2">
+                    <div className="mb-2 md:mb-4">
+                      <label className="block text-xs md:text-sm font-medium text-black mb-1 md:mb-2">
                         Seleccionar Cámara:
                       </label>
                       <select
                         value={camaraSeleccionada}
                         onChange={(e) => setCamaraSeleccionada(e.target.value)}
-                        className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+                        className="w-full p-2 md:p-3 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                       >
                         {camaras.map((camara) => (
                           <option key={camara.id} value={camara.id}>
@@ -545,32 +543,51 @@ export default function QRScannerModal({
                     </div>
                   )}
 
-                  {/* Área de escaneo - Pantalla completa */}
+                  {/* Área de escaneo - Tamaño fijo */}
                   <div className="relative">
                     {/* Overlay con información del estudiante - Confirmación exitosa */}
                     {mostrarConfirmacion && estudianteEscaneado && (
-                      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 border-3 border-green-500 min-w-[300px] animate-bounce">
+                      <div className={`absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 border-3 min-w-[300px] ${
+                        estudianteEscaneado.duplicado ? 'border-yellow-500' : 'border-green-500 animate-bounce'
+                      }`}>
                         <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse shadow-lg ${
+                            estudianteEscaneado.duplicado ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}>
+                            {estudianteEscaneado.duplicado ? (
+                              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
                           </div>
                           <div className="flex-1">
-                            <p className="font-bold text-green-800 text-xl">{estudianteEscaneado.nombre} {estudianteEscaneado.apellido}</p>
-                            <p className="text-green-600 text-base font-medium mt-1">
-                              {accionSeleccionada === 'entrada' ? '✅ Entrada Registrada' : '🚪 Salida Registrada'}
+                            <p className={`font-bold text-xl ${estudianteEscaneado.duplicado ? 'text-yellow-800' : 'text-green-800'}`}>
+                              {estudianteEscaneado.nombre} {estudianteEscaneado.apellido}
                             </p>
-                            <p className="text-green-500 text-sm">
-                              Registrado a las {estudianteEscaneado.hora}
+                            <p className={`text-base font-medium mt-1 ${estudianteEscaneado.duplicado ? 'text-yellow-600' : 'text-green-600'}`}>
+                              {estudianteEscaneado.duplicado 
+                                ? `⚠️ Ya tiene ${accionSeleccionada} registrada`
+                                : accionSeleccionada === 'entrada' ? '✅ Entrada Registrada' : '🚪 Salida Registrada'
+                              }
                             </p>
+                            {!estudianteEscaneado.duplicado && (
+                              <p className="text-green-500 text-sm">
+                                Registrado a las {estudianteEscaneado.hora}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className="mt-3 text-center">
-                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                            🎉 ¡{accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'} registrada exitosamente!
+                        {!estudianteEscaneado.duplicado && (
+                          <div className="mt-3 text-center">
+                            <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              🎉 ¡{accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'} registrada exitosamente!
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                     
@@ -589,11 +606,9 @@ export default function QRScannerModal({
                     
                     <div 
                       id="qr-reader-auxiliar" 
-                      className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden"
+                      className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden [&_video]:w-full [&_video]:h-full [&_video]:object-cover"
                       style={{ 
-                        minHeight: '300px', 
-                        height: 'min(75vh, 600px)', 
-                        maxHeight: '600px'
+                        height: '400px'
                       }}
                     />
                     
@@ -641,26 +656,26 @@ export default function QRScannerModal({
                 </div>
               ) : (
                 <div>
-                  <h3 className="text-lg font-medium mb-4">Código Manual</h3>
-                  <div className="flex space-x-2">
+                  <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">Código Manual</h3>
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={qrCode}
                       onChange={(e) => setQrCode(e.target.value)}
                       placeholder="Ingresar código QR del estudiante"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
                       onKeyPress={(e) => e.key === 'Enter' && handleQRScan()}
                     />
                     <button
                       onClick={handleQRScan}
                       disabled={!qrCode.trim()}
-                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`inline-flex items-center px-3 md:px-4 py-2 border border-transparent text-xs md:text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                         accionSeleccionada === 'entrada' 
                           ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                           : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                       }`}
                     >
-                      <QrCodeIcon className="h-4 w-4 mr-2" />
+                      <QrCodeIcon className="h-4 w-4 mr-1 md:mr-2" />
                       {accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'}
                     </button>
                   </div>
@@ -668,13 +683,13 @@ export default function QRScannerModal({
               )}
             </div>
 
-            {/* Lista de estudiantes - Siempre visible */}
-            <div className="lg:col-span-1 flex flex-col min-h-0 lg:min-h-[400px]">
-              <h3 className="text-lg font-medium mb-4">
+            {/* Lista de estudiantes - Abajo en móvil, al lado en desktop */}
+            <div className="lg:col-span-1 mt-4 lg:mt-0">
+              <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">
                 Registrados Hoy ({estudiantesEscaneados.length})
               </h3>
               
-              <div className="bg-gray-50 rounded-lg p-4 flex-1 overflow-y-auto min-h-0">
+              <div className="bg-gray-50 rounded-lg p-3 md:p-4 max-h-96 overflow-y-auto">
                 {estudiantesEscaneados.length > 0 ? (
                   <div className="space-y-3">
                     {estudiantesEscaneados.map((estudiante, index) => (
@@ -721,16 +736,16 @@ export default function QRScannerModal({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
+          <div className="flex justify-end gap-2 md:gap-3 mt-3 md:mt-6 pt-3 md:pt-6 border-t flex-shrink-0">
             <button
               onClick={() => setEstudiantesEscaneados([])}
-              className="px-4 py-2 border border-gray-300 text-black font-medium rounded-md hover:bg-gray-50"
+              className="px-3 md:px-4 py-2 border border-gray-300 text-black text-sm font-medium rounded-md hover:bg-gray-50"
             >
               Limpiar Lista
             </button>
             <button
               onClick={handleClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
             >
               Cerrar
             </button>

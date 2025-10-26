@@ -67,19 +67,13 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Clase verificada:', `${docenteAula.gradoSeccion.grado.nombre}° ${docenteAula.gradoSeccion.seccion.nombre}`)
 
-    // 3. BUSCAR ESTUDIANTE POR QR/DNI/CÓDIGO
+    // 3. BUSCAR ESTUDIANTE POR CÓDIGO QR
     const codigoLimpio = qrCode.trim()
     const estudiante = await prisma.estudiante.findFirst({
       where: {
         AND: [
           { idGradoSeccion: docenteAula.idGradoSeccion }, // Solo estudiantes de esta clase
-          {
-            OR: [
-              { usuario: { dni: codigoLimpio } },
-              { codigo: codigoLimpio },
-              { qr: codigoLimpio }
-            ]
-          }
+          { codigoQR: codigoLimpio }
         ]
       },
       include: {
@@ -102,11 +96,34 @@ export async function POST(request: NextRequest) {
 
     console.log('👤 Estudiante encontrado:', `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`)
 
-    // 4. VERIFICAR SI YA TIENE ASISTENCIA HOY
+    // 4. OBTENER HORARIO DE CLASE ACTUAL
+    const ahora = new Date()
+    const diaSemana = ahora.getDay() === 0 ? 7 : ahora.getDay()
+    const horaActual = ahora.toTimeString().slice(0, 5)
+    
+    const horarioClase = await prisma.horarioClase.findFirst({
+      where: {
+        idGradoSeccion: docenteAula.idGradoSeccion,
+        diaSemana: diaSemana,
+        activo: true
+      }
+    })
+
+    if (!horarioClase) {
+      return NextResponse.json({ 
+        error: 'No hay horario de clase activo',
+        details: 'No se encontró un horario de clase para el día actual'
+      }, { status: 404 })
+    }
+
+    console.log('📅 Horario de clase encontrado:', horarioClase.materia)
+
+    // 5. VERIFICAR SI YA TIENE ASISTENCIA EN ESTA CLASE HOY
     const fechaAsistencia = new Date(fechaSeleccionada)
     const asistenciaExistente = await prisma.asistencia.findFirst({
       where: {
         idEstudiante: estudiante.idEstudiante,
+        idHorarioClase: horarioClase.idHorarioClase,
         fecha: fechaAsistencia
       },
       include: {
@@ -130,23 +147,25 @@ export async function POST(request: NextRequest) {
         },
         asistencia: {
           estado: asistenciaExistente.estadoAsistencia?.codigo || 'REGISTRADO',
-          horaRegistro: asistenciaExistente.horaEntrada?.toISOString() || asistenciaExistente.createdAt.toISOString()
+          horaRegistro: asistenciaExistente.horaRegistro?.toISOString() || asistenciaExistente.createdAt.toISOString()
         }
       })
     }
 
-    // 5. DETERMINAR ESTADO SEGÚN LA HORA
-    const ahora = new Date()
-    const horaActual = ahora.getHours()
-    const minutoActual = ahora.getMinutes()
-    const totalMinutos = horaActual * 60 + minutoActual
-
+    // 6. DETERMINAR ESTADO SEGÚN LA HORA Y TOLERANCIA
+    const horaInicioClase = new Date(fechaAsistencia)
+    const [horas, minutos] = horarioClase.horaInicio.toTimeString().slice(0, 5).split(':')
+    horaInicioClase.setHours(parseInt(horas), parseInt(minutos), 0, 0)
+    
+    const toleranciaMin = horarioClase.toleranciaMin || 10
+    const horaLimiteTolerancia = new Date(horaInicioClase.getTime() + (toleranciaMin * 60 * 1000))
+    
     let estadoCodigo = 'PRESENTE'
-    if (totalMinutos > 510) { // Después de 8:30 AM
+    if (ahora > horaLimiteTolerancia) {
       estadoCodigo = 'TARDANZA'
     }
 
-    // 6. BUSCAR O CREAR ESTADO DE ASISTENCIA
+    // 7. BUSCAR O CREAR ESTADO DE ASISTENCIA
     let estadoAsistencia = await prisma.estadoAsistencia.findFirst({
       where: { codigo: estadoCodigo }
     })
@@ -163,16 +182,15 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 7. CREAR ASISTENCIA
+    // 8. CREAR ASISTENCIA EN AULA
     const nuevaAsistencia = await prisma.asistencia.create({
       data: {
         idEstudiante: estudiante.idEstudiante,
-        idIe: userInfo.idIe || 1,
+        idHorarioClase: horarioClase.idHorarioClase,
         fecha: fechaAsistencia,
-        horaEntrada: ahora,
+        horaRegistro: ahora,
         idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
-        fuente: 'QR_DOCENTE',
-        observaciones: `Registrado por docente - ${estadoCodigo}`,
+        observaciones: `Registrado por docente en ${horarioClase.materia || 'clase'} - ${estadoCodigo}`,
         registradoPor: userInfo.userId
       }
     })

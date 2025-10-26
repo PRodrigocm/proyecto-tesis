@@ -60,19 +60,29 @@ export async function GET(
     })
 
     // Formatear la respuesta
-    const estudiantesFormateados = estudiantes.map(estudiante => ({
-      id: estudiante.idEstudiante,
-      dni: estudiante.usuario.dni,
-      nombres: estudiante.usuario.nombre,
-      apellidos: estudiante.usuario.apellido,
-      email: estudiante.usuario.email,
-      telefono: estudiante.usuario.telefono,
-      fechaNacimiento: estudiante.fechaNacimiento,
-      qr: estudiante.qr,
-      codigo: estudiante.codigo,
-      estado: estudiante.usuario.estado,
-      createdAt: estudiante.createdAt
-    }))
+    const estudiantesFormateados = estudiantes.map(estudiante => {
+      // @ts-ignore - Temporal workaround mientras se actualiza el cliente de Prisma
+      const codigoQR = estudiante.codigoQR || estudiante.codigo || ''
+      
+      console.log(`Estudiante ${estudiante.idEstudiante}:`, {
+        nombre: estudiante.usuario.nombre,
+        codigoQR: codigoQR,
+        tieneCodigoQR: !!codigoQR
+      })
+      
+      return {
+        id: estudiante.idEstudiante,
+        dni: estudiante.usuario.dni,
+        nombres: estudiante.usuario.nombre,
+        apellidos: estudiante.usuario.apellido,
+        email: estudiante.usuario.email,
+        telefono: estudiante.usuario.telefono,
+        fechaNacimiento: estudiante.fechaNacimiento,
+        codigoQR: codigoQR,
+        estado: estudiante.usuario.estado,
+        createdAt: estudiante.createdAt
+      }
+    })
 
     return NextResponse.json({
       salon: {
@@ -87,6 +97,101 @@ export async function GET(
 
   } catch (error) {
     console.error('Error al obtener estudiantes del salón:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const params = await context.params
+  try {
+    const salonId = parseInt(params.id)
+    
+    if (isNaN(salonId)) {
+      return NextResponse.json(
+        { error: 'ID de salón inválido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { estudiantesIds } = body
+
+    // Validar que estudiantesIds sea un array
+    if (!Array.isArray(estudiantesIds)) {
+      return NextResponse.json(
+        { error: 'estudiantesIds debe ser un array' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que el salón existe
+    const salon = await prisma.gradoSeccion.findUnique({
+      where: { idGradoSeccion: salonId }
+    })
+
+    if (!salon) {
+      return NextResponse.json(
+        { error: 'Salón no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Validar que todos los estudiantes existen
+    const estudiantes = await prisma.estudiante.findMany({
+      where: {
+        idEstudiante: {
+          in: estudiantesIds
+        }
+      }
+    })
+
+    if (estudiantes.length !== estudiantesIds.length) {
+      return NextResponse.json(
+        { error: 'Algunos estudiantes no existen' },
+        { status: 400 }
+      )
+    }
+
+    // Actualizar todos los estudiantes: quitar del salón actual
+    await prisma.estudiante.updateMany({
+      where: {
+        idGradoSeccion: salonId
+      },
+      data: {
+        idGradoSeccion: null
+      }
+    })
+
+    // Asignar los nuevos estudiantes al salón
+    if (estudiantesIds.length > 0) {
+      await prisma.estudiante.updateMany({
+        where: {
+          idEstudiante: {
+            in: estudiantesIds
+          }
+        },
+        data: {
+          idGradoSeccion: salonId
+        }
+      })
+    }
+
+    console.log(`✅ Salón ${salonId} actualizado con ${estudiantesIds.length} estudiantes`)
+
+    return NextResponse.json({
+      message: 'Estudiantes actualizados exitosamente',
+      salonId: salonId,
+      totalEstudiantes: estudiantesIds.length
+    })
+
+  } catch (error) {
+    console.error('Error al actualizar estudiantes del salón:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

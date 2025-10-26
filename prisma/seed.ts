@@ -1,466 +1,282 @@
-import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
+import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos...')
 
-  // 1. Modalidades
-  console.log('📚 Creando modalidades...')
-  const modalidades = await Promise.all([
-    prisma.modalidad.upsert({
-      where: { nombre: 'EBR - Educación Básica Regular' },
-      update: {},
-      create: { nombre: 'EBR - Educación Básica Regular' }
-    }),
-    prisma.modalidad.upsert({
-      where: { nombre: 'EBA - Educación Básica Alternativa' },
-      update: {},
-      create: { nombre: 'EBA - Educación Básica Alternativa' }
-    }),
-    prisma.modalidad.upsert({
-      where: { nombre: 'EBE - Educación Básica Especial' },
-      update: {},
-      create: { nombre: 'EBE - Educación Básica Especial' }
-    }),
-    prisma.modalidad.upsert({
-      where: { nombre: 'ETP - Educación Técnico Productiva' },
-      update: {},
-      create: { nombre: 'ETP - Educación Técnico Productiva' }
-    })
-  ])
+  // 1. ROLES
+  console.log('👤 Creando Roles...')
+  const roles = [
+    'ADMINISTRATIVO',
+    'DOCENTE',
+    'APODERADO',
+    'AUXILIAR',
 
-  // 2. Instituciones Educativas
-  console.log('🏫 Creando instituciones educativas...')
-  const ies = await Promise.all([
-    prisma.ie.upsert({
-      where: { codigoIe: 'IE001' },
-      update: {},
-      create: {
-        nombre: 'I.E. San José de Nazaret',
-        codigoIe: 'IE001',
-        idModalidad: modalidades[0].idModalidad
-      }
-    }),
-    prisma.ie.upsert({
-      where: { codigoIe: 'IE002' },
-      update: {},
-      create: {
-        nombre: 'I.E. María Auxiliadora',
-        codigoIe: 'IE002',
-        idModalidad: modalidades[0].idModalidad
-      }
-    }),
-    prisma.ie.upsert({
-      where: { codigoIe: 'IE003' },
-      update: {},
-      create: {
-        nombre: 'I.E. José Carlos Mariátegui',
-        codigoIe: 'IE003',
-        idModalidad: modalidades[0].idModalidad
-      }
-    })
-  ])
+  ]
 
-  // 3. Niveles
-  console.log('📖 Creando niveles educativos...')
-  const niveles: any[] = []
-  for (const ie of ies) {
-    const nivelesIe = await Promise.all([
-      prisma.nivel.upsert({
-        where: { uq_nivel_ie_nombre: { idIe: ie.idIe, nombre: 'Primaria' } },
-        update: {},
-        create: { idIe: ie.idIe, nombre: 'Primaria' }
-      })
-    ])
-    niveles.push(...nivelesIe)
+  for (const nombreRol of roles) {
+    await prisma.rol.upsert({
+      where: { nombre: nombreRol },
+      update: {},
+      create: { nombre: nombreRol }
+    })
   }
+  console.log('✅ Roles creados')
 
-  // 4. Grados
-  console.log('📝 Creando grados...')
-  const grados: any[] = []
-  for (const nivel of niveles) {
-    let gradosNivel: string[] = []
-    
-    if (nivel.nombre === 'Primaria') {
-      gradosNivel = ['1°', '2°', '3°', '4°', '5°', '6°']
-    }
+  // 2. MODALIDAD
+  console.log('📚 Creando Modalidades...')
+  const modalidades = [
+    'Educación Básica Regular',
+    'Educación Básica Especial',
+    'Educación Básica Alternativa'
+  ]
 
-    for (const nombreGrado of gradosNivel) {
-      const grado = await prisma.grado.upsert({
-        where: { uq_grado_nivel_nombre: { idNivel: nivel.idNivel, nombre: nombreGrado } },
-        update: {},
-        create: { idNivel: nivel.idNivel, nombre: nombreGrado }
-      })
-      grados.push(grado)
-    }
+  for (const nombreModalidad of modalidades) {
+    await prisma.modalidad.upsert({
+      where: { nombre: nombreModalidad },
+      update: {},
+      create: { nombre: nombreModalidad }
+    })
   }
+  console.log('✅ Modalidades creadas')
 
-  // 5. Secciones
-  console.log('📋 Creando secciones...')
-  const secciones = await Promise.all([
-    prisma.seccion.upsert({
-      where: { nombre: 'A' },
-      update: {},
-      create: { nombre: 'A' }
-    }),
-    prisma.seccion.upsert({
-      where: { nombre: 'B' },
-      update: {},
-      create: { nombre: 'B' }
-    }),
-    prisma.seccion.upsert({
-      where: { nombre: 'C' },
-      update: {},
-      create: { nombre: 'C' }
-    }),
-    prisma.seccion.upsert({
-      where: { nombre: 'D' },
-      update: {},
-      create: { nombre: 'D' }
-    }),
-    prisma.seccion.upsert({
-      where: { nombre: 'E' },
-      update: {},
-      create: { nombre: 'E' }
-    })
-  ])
-
-  // 6. Grado-Secciones
-  console.log('🔗 Creando grado-secciones...')
-  const gradoSecciones: any[] = []
-  for (const grado of grados) {
-    // Para cada grado (1°-6°), crear todas las secciones (A-E)
-    for (const seccion of secciones) {
-      try {
-        const gradoSeccion = await prisma.gradoSeccion.upsert({
-          where: { uq_grado_seccion: { idGrado: grado.idGrado, idSeccion: seccion.idSeccion } },
-          update: {},
-          create: { idGrado: grado.idGrado, idSeccion: seccion.idSeccion }
-        })
-        gradoSecciones.push(gradoSeccion)
-      } catch (error) {
-        console.log(`⚠️  Error creando grado-sección ${grado.nombre}-${seccion.nombre}:`, error)
-      }
-    }
-  }
-
-  // 7. Roles
-  console.log('👥 Creando roles...')
-
-  // Eliminar rol ADMIN si existiera (ya no se usa)
-  await prisma.usuarioRol.deleteMany({ where: { rol: { nombre: 'ADMIN' } } })
-  await prisma.rol.deleteMany({ where: { nombre: 'ADMIN' } })
-
-  const roles = await Promise.all([
-    prisma.rol.upsert({
-      where: { nombre: 'ADMINISTRATIVO' },
-      update: {},
-      create: { nombre: 'ADMINISTRATIVO' }
-    }),
-    prisma.rol.upsert({
-      where: { nombre: 'DOCENTE' },
-      update: {},
-      create: { nombre: 'DOCENTE' }
-    }),
-    prisma.rol.upsert({
-      where: { nombre: 'APODERADO' },
-      update: {},
-      create: { nombre: 'APODERADO' }
-    }),
-    prisma.rol.upsert({
-      where: { nombre: 'ESTUDIANTE' },
-      update: {},
-      create: { nombre: 'ESTUDIANTE' }
-    }),
-    prisma.rol.upsert({
-      where: { nombre: 'AUXILIAR' },
-      update: {},
-      create: { nombre: 'AUXILIAR' }
-    })
-  ])
-
-  // 8. Estados de Asistencia
-  console.log('✅ Creando estados de asistencia...')
-  const estadosAsistencia = await Promise.all([
-    prisma.estadoAsistencia.upsert({
-      where: { nombreEstado: 'PRESENTE' },
-      update: {},
-      create: { nombreEstado: 'PRESENTE' }
-    }),
-    prisma.estadoAsistencia.upsert({
-      where: { nombreEstado: 'AUSENTE' },
-      update: {},
-      create: { nombreEstado: 'AUSENTE' }
-    }),
-    prisma.estadoAsistencia.upsert({
-      where: { nombreEstado: 'TARDANZA' },
-      update: {},
-      create: { nombreEstado: 'TARDANZA' }
-    }),
-    prisma.estadoAsistencia.upsert({
-      where: { nombreEstado: 'JUSTIFICADO' },
-      update: {},
-      create: { nombreEstado: 'JUSTIFICADO' }
-    }),
-    prisma.estadoAsistencia.upsert({
-      where: { nombreEstado: 'RETIRADO' },
-      update: {},
-      create: { nombreEstado: 'RETIRADO' }
-    })
-  ])
-
-  // 9. Tipos de Retiro
-  console.log('🚪 Creando tipos de retiro...')
-  const tiposRetiro = await Promise.all([
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'MEDICO' },
-      update: {},
-      create: { nombre: 'MEDICO' }
-    }),
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'FAMILIAR' },
-      update: {},
-      create: { nombre: 'FAMILIAR' }
-    }),
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'PERSONAL' },
-      update: {},
-      create: { nombre: 'PERSONAL' }
-    }),
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'EMERGENCIA' },
-      update: {},
-      create: { nombre: 'EMERGENCIA' }
-    }),
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'DISCIPLINARIO' },
-      update: {},
-      create: { nombre: 'DISCIPLINARIO' }
-    }),
-    prisma.tipoRetiro.upsert({
-      where: { nombre: 'OTROS' },
-      update: {},
-      create: { nombre: 'OTROS' }
-    })
-  ])
-
-  // 10. Estados de Retiro
-  console.log('📊 Creando estados de retiro...')
-  const estadosRetiro = await Promise.all([
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'PENDIENTE' },
-      update: {},
-      create: { 
-        codigo: 'PENDIENTE', 
-        nombre: 'Pendiente de autorización', 
-        orden: 1, 
-        esFinal: false 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'CONTACTANDO' },
-      update: {},
-      create: { 
-        codigo: 'CONTACTANDO', 
-        nombre: 'Contactando apoderado', 
-        orden: 2, 
-        esFinal: false 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'AUTORIZADO' },
-      update: {},
-      create: { 
-        codigo: 'AUTORIZADO', 
-        nombre: 'Autorizado por apoderado', 
-        orden: 3, 
-        esFinal: false 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'EN_PROCESO' },
-      update: {},
-      create: { 
-        codigo: 'EN_PROCESO', 
-        nombre: 'En proceso de retiro', 
-        orden: 4, 
-        esFinal: false 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'COMPLETADO' },
-      update: {},
-      create: { 
-        codigo: 'COMPLETADO', 
-        nombre: 'Retiro completado', 
-        orden: 5, 
-        esFinal: true 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'RECHAZADO' },
-      update: {},
-      create: { 
-        codigo: 'RECHAZADO', 
-        nombre: 'Retiro rechazado', 
-        orden: 6, 
-        esFinal: true 
-      }
-    }),
-    prisma.estadoRetiro.upsert({
-      where: { codigo: 'CANCELADO' },
-      update: {},
-      create: { 
-        codigo: 'CANCELADO', 
-        nombre: 'Retiro cancelado', 
-        orden: 7, 
-        esFinal: true 
-      }
-    })
-  ])
-
-  // 11. Tipos de Asignación (para docentes)
-  console.log('📚 Creando tipos de asignación...')
-  const tiposAsignacion = await Promise.all([
-    prisma.tipoAsignacion.upsert({
-      where: { nombre: 'TUTOR' },
-      update: {},
-      create: { nombre: 'TUTOR' }
-    }),
-    prisma.tipoAsignacion.upsert({
-      where: { nombre: 'AUXILIAR' },
-      update: {},
-      create: { nombre: 'AUXILIAR' }
-    }),
-    prisma.tipoAsignacion.upsert({
-      where: { nombre: 'COORDINADOR' },
-      update: {},
-      create: { nombre: 'COORDINADOR' }
-    }),
-    prisma.tipoAsignacion.upsert({
-      where: { nombre: 'DOCENTE_AREA' },
-      update: {},
-      create: { nombre: 'DOCENTE_AREA' }
-    })
-  ])
-
-  // 12. Consecutivos para códigos automáticos
-  console.log('🔢 Creando consecutivos...')
-  for (const ie of ies) {
-    await Promise.all([
-      prisma.consecutivo.upsert({
-        where: { tabla_idIe: { tabla: 'estudiante', idIe: ie.idIe } },
-        update: {},
-        create: { 
-          tabla: 'estudiante', 
-          idIe: ie.idIe, 
-          ultimoNum: 0, 
-          ancho: 4, 
-          prefijoFijo: 'EST' 
-        }
-      }),
-      prisma.consecutivo.upsert({
-        where: { tabla_idIe: { tabla: 'apoderado', idIe: ie.idIe } },
-        update: {},
-        create: { 
-          tabla: 'apoderado', 
-          idIe: ie.idIe, 
-          ultimoNum: 0, 
-          ancho: 4, 
-          prefijoFijo: 'APO' 
-        }
-      }),
-      prisma.consecutivo.upsert({
-        where: { tabla_idIe: { tabla: 'docente', idIe: ie.idIe } },
-        update: {},
-        create: { 
-          tabla: 'docente', 
-          idIe: ie.idIe, 
-          ultimoNum: 0, 
-          ancho: 3, 
-          prefijoFijo: 'DOC' 
-        }
-      }),
-      prisma.consecutivo.upsert({
-        where: { tabla_idIe: { tabla: 'taller', idIe: ie.idIe } },
-        update: {},
-        create: { 
-          tabla: 'taller', 
-          idIe: ie.idIe, 
-          ultimoNum: 0, 
-          ancho: 3, 
-          prefijoFijo: 'TAL' 
-        }
-      })
-    ])
-  }
-
-  // Ya se crearon los consecutivos anteriormente, no duplicar
-
-  // 13. Usuario Administrador
-  console.log('👤 Creando usuario administrador...')
-  const bcrypt = require('bcrypt')
-  const passwordHash = await bcrypt.hash('admin123', 10)
-  
-  const adminUser = await prisma.usuario.upsert({
-    where: { dni: '12345678' },
-    update: {},
-    create: {
-      dni: '12345678',
-      nombre: 'Administrador',
-      apellido: 'Sistema',
-      email: 'admin@sistema.com',
-      telefono: '999999999',
-      passwordHash: passwordHash,
-      estado: 'ACTIVO'
-    }
+  // 3. INSTITUCIÓN EDUCATIVA
+  console.log('🏫 Creando Institución Educativa...')
+  const modalidadEBR = await prisma.modalidad.findFirst({
+    where: { nombre: 'Educación Básica Regular' }
   })
 
-  // Asignar rol ADMIN al usuario
-  const adminRole = roles.find((rol: any) => rol.nombre === 'ADMINISTRATIVO')
-  if (adminRole) {
-    await prisma.usuarioRol.upsert({
-      where: { 
-        idUsuario_idRol: { 
-          idUsuario: adminUser.idUsuario, 
-          idRol: adminRole.idRol 
-        } 
+  const ie = await prisma.ie.upsert({
+    where: { codigoIe: 'IEPM001' },
+    update: {},
+    create: {
+      nombre: 'I.E.P.M FRANCISCO BOLOGNESI',
+      codigoIe: 'IEPM001',
+      idModalidad: modalidadEBR!.idModalidad,
+      direccion: 'Dirección de ejemplo',
+      email: 'contacto@franciscobolognesi.edu.pe',
+      telefono: '999999999'
+    }
+  })
+  console.log('✅ Institución Educativa creada')
+
+  // 4. NIVEL
+  console.log('📖 Creando Nivel...')
+  const nivel = await prisma.nivel.upsert({
+    where: { 
+      uq_nivel_ie_nombre: {
+        idIe: ie.idIe,
+        nombre: 'Primaria'
+      }
+    },
+    update: {},
+    create: {
+      nombre: 'Primaria',
+      idIe: ie.idIe
+    }
+  })
+  console.log('✅ Nivel creado')
+
+  // 5. GRADOS
+  console.log('📝 Creando Grados...')
+  const grados = ['1°', '2°', '3°', '4°', '5°', '6°']
+  const gradosCreados = []
+
+  for (const nombreGrado of grados) {
+    const grado = await prisma.grado.upsert({
+      where: {
+        uq_grado_nivel_nombre: {
+          idNivel: nivel.idNivel,
+          nombre: nombreGrado
+        }
       },
       update: {},
       create: {
-        idUsuario: adminUser.idUsuario,
-        idRol: adminRole.idRol
+        nombre: nombreGrado,
+        idNivel: nivel.idNivel
+      }
+    })
+    gradosCreados.push(grado)
+  }
+  console.log('✅ Grados creados')
+
+  // 6. SECCIONES
+  console.log('📋 Creando Secciones...')
+  const secciones = ['A', 'B', 'C']
+  const seccionesCreadas = []
+
+  for (const nombreSeccion of secciones) {
+    const seccion = await prisma.seccion.upsert({
+      where: { nombre: nombreSeccion },
+      update: {},
+      create: { nombre: nombreSeccion }
+    })
+    seccionesCreadas.push(seccion)
+  }
+  console.log('✅ Secciones creadas')
+
+  // 7. GRADO-SECCIÓN (1° a 6° con A, B, C)
+  console.log('🔗 Creando relaciones Grado-Sección...')
+  const gradosConSecciones = gradosCreados // Todos los grados (1° a 6°)
+
+  for (const grado of gradosConSecciones) {
+    for (const seccion of seccionesCreadas) {
+      await prisma.gradoSeccion.upsert({
+        where: {
+          uq_grado_seccion: {
+            idGrado: grado.idGrado,
+            idSeccion: seccion.idSeccion
+          }
+        },
+        update: {},
+        create: {
+          idGrado: grado.idGrado,
+          idSeccion: seccion.idSeccion
+        }
+      })
+    }
+  }
+  console.log('✅ Relaciones Grado-Sección creadas')
+
+  // 8. TIPOS DE ASIGNACIÓN
+  console.log('👥 Creando Tipos de Asignación...')
+  const tiposAsignacion = [
+    'Tutor de aula',
+    'Docente temporal',
+    'Asistente de docente'
+  ]
+
+  for (const nombreTipo of tiposAsignacion) {
+    await prisma.tipoAsignacion.upsert({
+      where: { nombre: nombreTipo },
+      update: {},
+      create: { nombre: nombreTipo }
+    })
+  }
+  console.log('✅ Tipos de Asignación creados')
+
+  // 9. ESTADOS DE RETIRO
+  console.log('🚪 Creando Estados de Retiro...')
+  const estadosRetiro = [
+    { codigo: 'RETIRADO', nombre: 'Retirado' },
+    { codigo: 'PENDIENTE', nombre: 'Pendiente' },
+    { codigo: 'AUTORIZADO', nombre: 'Autorizado' },
+    { codigo: 'RECHAZADO', nombre: 'Rechazado' }
+  ]
+
+  for (const estado of estadosRetiro) {
+    await prisma.estadoRetiro.upsert({
+      where: { codigo: estado.codigo },
+      update: {},
+      create: {
+        codigo: estado.codigo,
+        nombre: estado.nombre
       }
     })
   }
+  console.log('✅ Estados de Retiro creados')
 
-  console.log('✅ Seed completado exitosamente!')
-  console.log('📊 Resumen:')
-  console.log(`   - ${modalidades.length} modalidades`)
-  console.log(`   - ${ies.length} instituciones educativas`)
-  console.log(`   - ${niveles.length} niveles`)
-  console.log(`   - ${grados.length} grados`)
-  console.log(`   - ${secciones.length} secciones`)
-  console.log(`   - ${gradoSecciones.length} grado-secciones`)
-  console.log(`   - ${roles.length} roles`)
-  console.log(`   - ${estadosAsistencia.length} estados de asistencia`)
-  console.log(`   - ${tiposRetiro.length} tipos de retiro`)
-  console.log(`   - ${estadosRetiro.length} estados de retiro`)
-  console.log(`   - ${tiposAsignacion.length} tipos de asignación`)
-  console.log(`   - 1 usuario administrador creado`)
-  console.log('👤 Credenciales del admin:')
-  console.log('   - Email: admin@sistema.com')
-  console.log('   - Contraseña: admin123')
+  // 10. TIPOS DE JUSTIFICACIÓN
+  console.log('📄 Creando Tipos de Justificación...')
+  const tiposJustificacion = [
+    { codigo: 'APROBADO', nombre: 'Aprobado' },
+    { codigo: 'RECHAZADO', nombre: 'Rechazado' },
+    { codigo: 'PENDIENTE', nombre: 'Pendiente' }
+  ]
+
+  for (const tipo of tiposJustificacion) {
+    await prisma.tipoJustificacion.upsert({
+      where: { codigo: tipo.codigo },
+      update: {},
+      create: {
+        codigo: tipo.codigo,
+        nombre: tipo.nombre
+      }
+    })
+  }
+  console.log('✅ Tipos de Justificación creados')
+
+  // 11. ESTADOS DE ASISTENCIA (Adicional - útil para el sistema)
+  console.log('✅ Creando Estados de Asistencia...')
+  const estadosAsistencia = [
+    { codigo: 'PRESENTE', nombre: 'Presente', afecta: true, requiere: false },
+    { codigo: 'TARDANZA', nombre: 'Tardanza', afecta: true, requiere: false },
+    { codigo: 'AUSENTE', nombre: 'Ausente', afecta: false, requiere: true },
+    { codigo: 'JUSTIFICADO', nombre: 'Justificado', afecta: true, requiere: false }
+  ]
+
+  for (const estado of estadosAsistencia) {
+    await prisma.estadoAsistencia.upsert({
+      where: { codigo: estado.codigo },
+      update: {},
+      create: {
+        codigo: estado.codigo,
+        nombreEstado: estado.nombre,
+        afectaAsistencia: estado.afecta,
+        requiereJustificacion: estado.requiere,
+        activo: true
+      }
+    })
+  }
+  console.log('✅ Estados de Asistencia creados')
+
+  // 12. USUARIO ADMINISTRATIVO
+  console.log('👨‍💼 Creando Usuario Administrativo...')
+  
+  // Buscar el rol administrativo
+  const rolAdministrativo = await prisma.rol.findFirst({
+    where: { nombre: 'ADMINISTRATIVO' }
+  })
+
+  // Verificar si ya existe un usuario administrativo
+  const adminExistente = await prisma.usuario.findUnique({
+    where: { dni: '12345678' }
+  })
+
+  if (!adminExistente) {
+    // Hashear contraseña
+    const passwordHash = await bcrypt.hash('admin123', 10)
+
+    // Crear usuario administrativo
+    const usuarioAdmin = await prisma.usuario.create({
+      data: {
+        nombre: 'Administrador',
+        apellido: 'Sistema',
+        dni: '12345678',
+        email: 'admin@franciscobolognesi.edu.pe',
+        telefono: '999999999',
+        passwordHash: passwordHash,
+        estado: 'ACTIVO',
+        idIe: ie.idIe
+      }
+    })
+
+    // Asignar rol administrativo
+    await prisma.usuarioRol.create({
+      data: {
+        idUsuario: usuarioAdmin.idUsuario,
+        idRol: rolAdministrativo!.idRol
+      }
+    })
+
+    console.log('✅ Usuario Administrativo creado')
+    console.log('📧 Email: admin@franciscobolognesi.edu.pe')
+    console.log('🔑 Contraseña: admin123')
+    console.log('📝 DNI: 12345678')
+  } else {
+    console.log('ℹ️  Usuario Administrativo ya existe')
+  }
+
+  console.log('🎉 Seed completado exitosamente!')
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect()
-  })
-  .catch(async (e) => {
+  .catch((e) => {
     console.error('❌ Error durante el seed:', e)
-    await prisma.$disconnect()
     process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
   })

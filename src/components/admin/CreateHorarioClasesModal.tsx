@@ -13,7 +13,10 @@ interface GradoSeccion {
   grado: {
     idGrado: number
     nombre: string
-    nivel: string
+    nivel: {
+      idNivel: number
+      nombre: string
+    }
   }
   seccion: {
     idSeccion: number
@@ -277,7 +280,7 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                     <option disabled>──────────────────────</option>
                     {gradosSecciones.map((gs) => (
                       <option key={`grado-seccion-${gs.idGradoSeccion}`} value={gs.idGradoSeccion}>
-                        {gs.grado.nivel} - {gs.grado.nombre}° {gs.seccion.nombre}
+                        {gs.grado.nivel.nombre} - {gs.grado.nombre}° {gs.seccion.nombre}
                       </option>
                     ))}
                   </>
@@ -301,19 +304,21 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Aula
-              </label>
-              <input
-                type="text"
-                name="aula"
-                value={formData.aula}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                placeholder="Ej: Aula 3A, Laboratorio, etc."
-              />
-            </div>
+            {formData.idGradoSeccion !== 'TODOS' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Aula
+                </label>
+                <input
+                  type="text"
+                  name="aula"
+                  value={formData.aula}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  placeholder="Ej: Aula 3A, Laboratorio, etc."
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -375,7 +380,11 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                       })()
                     : 'Ningún grado seleccionado'
               }</li>
-              <li>• <strong>Aula:</strong> {formData.aula || 'Sin especificar'}</li>
+              <li>• <strong>Aula:</strong> {
+                formData.idGradoSeccion === 'TODOS'
+                  ? '🏫 Se generará automáticamente: "Aula [Grado y Sección]"'
+                  : formData.aula || 'Sin especificar'
+              }</li>
               <li>• <strong>Tolerancia:</strong> {formData.toleranciaMin} minutos</li>
               <li>• <strong>Tipo:</strong> Clase Regular (horario base)</li>
             </ul>

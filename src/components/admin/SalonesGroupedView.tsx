@@ -6,6 +6,9 @@ import { useState } from 'react'
 interface SalonesGroupedViewProps {
   salones: Salon[]
   loading: boolean
+  onView?: (salonId: string) => void
+  onEdit?: (salonId: string) => void
+  onDelete?: (salonId: string) => void
 }
 
 interface GroupedSalones {
@@ -14,7 +17,7 @@ interface GroupedSalones {
   }
 }
 
-export default function SalonesGroupedView({ salones, loading }: SalonesGroupedViewProps) {
+export default function SalonesGroupedView({ salones, loading, onView, onEdit, onDelete }: SalonesGroupedViewProps) {
   const [expandedGrados, setExpandedGrados] = useState<Set<string>>(new Set())
 
   if (loading) {
@@ -150,8 +153,8 @@ export default function SalonesGroupedView({ salones, loading }: SalonesGroupedV
                             key={salon.id}
                             className="bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors"
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
                                 <h5 className="font-medium text-gray-900">
                                   {salon.nombre}
                                 </h5>
@@ -169,15 +172,32 @@ export default function SalonesGroupedView({ salones, loading }: SalonesGroupedV
                               </div>
                             </div>
                             
+                            {/* Docente asignado */}
+                            <div className="mb-2 pb-2 border-b border-gray-200">
+                              <p className="text-xs text-gray-500">Docente:</p>
+                              <p className="text-sm font-medium text-gray-700">
+                                {salon.docente || 'Sin asignar'}
+                              </p>
+                            </div>
+                            
                             {/* Acciones */}
                             <div className="flex justify-end space-x-2 mt-3 pt-2 border-t border-gray-200">
-                              <button className="text-xs text-indigo-600 hover:text-indigo-900">
+                              <button 
+                                onClick={() => onView?.(salon.id)}
+                                className="text-xs text-indigo-600 hover:text-indigo-900"
+                              >
                                 Ver
                               </button>
-                              <button className="text-xs text-green-600 hover:text-green-900">
+                              <button 
+                                onClick={() => onEdit?.(salon.id)}
+                                className="text-xs text-green-600 hover:text-green-900"
+                              >
                                 Editar
                               </button>
-                              <button className="text-xs text-red-600 hover:text-red-900">
+                              <button 
+                                onClick={() => onDelete?.(salon.id)}
+                                className="text-xs text-red-600 hover:text-red-900"
+                              >
                                 Eliminar
                               </button>
                             </div>

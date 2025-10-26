@@ -20,7 +20,7 @@ interface Estudiante {
   }
   estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO'
   fechaRegistro: string
-  qrCode: string
+  codigoQR: string
 }
 
 interface ViewEstudianteModalProps {
@@ -113,7 +113,7 @@ export default function ViewEstudianteModal({ isOpen, onClose, estudiante }: Vie
               <div>
                 <label className="block text-sm font-medium text-gray-600">Código QR</label>
                 <div className="mt-1">
-                  {estudiante.qrCode ? (
+                  {estudiante.codigoQR ? (
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       ✓ Generado
                     </span>

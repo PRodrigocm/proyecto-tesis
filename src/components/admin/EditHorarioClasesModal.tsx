@@ -13,6 +13,10 @@ interface GradoSeccion {
   grado: {
     idGrado: number
     nombre: string
+    nivel: {
+      idNivel: number
+      nombre: string
+    }
   }
   seccion: {
     idSeccion: number
@@ -56,6 +60,10 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
   const [aulas, setAulas] = useState<Aula[]>([])
   const [loadingDocentes, setLoadingDocentes] = useState(false)
   const [loadingAulas, setLoadingAulas] = useState(false)
+  const [selectedNivel, setSelectedNivel] = useState('')
+  const [selectedGradoInicio, setSelectedGradoInicio] = useState('')
+  const [selectedGradoFin, setSelectedGradoFin] = useState('')
+  const [modoSeleccion, setModoSeleccion] = useState<'individual' | 'rango' | 'todos'>('individual')
 
   const diasSemana = [
     { value: 1, label: 'Lunes' },
@@ -84,40 +92,67 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     setLoadingGrados(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/grados-secciones', {
+      const response = await fetch('/api/grados-secciones?ieId=1', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
       if (response.ok) {
         const data = await response.json()
-        console.log('📚 Grados y secciones cargados:', data.data)
+        console.log('📚 Grados y secciones cargados desde API:', data.data.length, 'registros')
+        console.log('📊 Primer elemento:', data.data?.[0])
         
-        // Filtrar duplicados y solo grados de primaria (1° a 6°)
+        // Listar TODOS los grados que vienen del API
+        console.log('📋 TODOS los grados del API:')
+        data.data.forEach((gs: any) => {
+          console.log(`  - ID: ${gs.idGradoSeccion} | ${gs.grado?.nivel?.nombre} ${gs.grado?.nombre}° ${gs.seccion?.nombre}`)
+        })
+        
+        // Verificar estructura de datos
+        if (data.data && data.data.length > 0) {
+          const primerGrado = data.data[0]
+          console.log('🔍 Estructura del primer grado:', {
+            idGradoSeccion: primerGrado.idGradoSeccion,
+            grado: primerGrado.grado,
+            nivel: primerGrado.grado?.nivel,
+            seccion: primerGrado.seccion
+          })
+        }
+        
+        // Filtrar duplicados basados en idGradoSeccion (único en BD)
         const gradosUnicos = (data.data || []).filter((gs: GradoSeccion, index: number, array: GradoSeccion[]) => {
-          // Verificar que sea grado de primaria (1° a 6°)
-          const gradoNumero = parseInt(gs.grado.nombre)
-          const esPrimaria = gradoNumero >= 1 && gradoNumero <= 6
-          
-          if (!esPrimaria) {
-            console.log(`🚫 Excluyendo grado no primario: ${gs.grado.nombre}° ${gs.seccion.nombre}`)
-            return false
-          }
-          
-          // Eliminar duplicados basados en grado y sección
+          // Usar idGradoSeccion que es único en la BD
           const isDuplicate = array.findIndex(item => 
-            item.grado.nombre === gs.grado.nombre && 
-            item.seccion.nombre === gs.seccion.nombre
+            item.idGradoSeccion === gs.idGradoSeccion
           ) !== index
           
           if (isDuplicate) {
-            console.log(`🔄 Eliminando duplicado: ${gs.grado.nombre}° ${gs.seccion.nombre}`)
+            console.log(`🔄 Eliminando duplicado: ID ${gs.idGradoSeccion} - ${gs.grado?.nivel?.nombre} - ${gs.grado?.nombre} ${gs.seccion?.nombre}`)
             return false
           }
           
           return true
         })
         
-        console.log('✅ Grados únicos de primaria:', gradosUnicos.length, 'registros')
+        console.log('📊 Total de grados-secciones después de filtrar:', gradosUnicos.length)
+        
+        console.log('✅ Grados únicos:', gradosUnicos.length, 'registros')
+        
+        // Extraer niveles únicos para debug
+        const nivelesUnicos = [...new Set(gradosUnicos
+          .map((gs: GradoSeccion) => gs.grado?.nivel?.nombre)
+          .filter((nombre: string | undefined) => nombre))]
+        console.log('📋 Niveles encontrados:', nivelesUnicos)
+        
+        // Extraer grados únicos por nivel para debug
+        nivelesUnicos.forEach(nivel => {
+          const gradosDelNivel = [...new Set(gradosUnicos
+            .filter((gs: GradoSeccion) => gs.grado?.nivel?.nombre === nivel)
+            .map((gs: GradoSeccion) => gs.grado?.nombre))]
+            .sort((a: any, b: any) => parseInt(a) - parseInt(b))
+          console.log(`📊 Grados de ${nivel}:`, gradosDelNivel)
+          console.log(`   Total: ${gradosDelNivel.length} grados`)
+        })
+        
         setGradosSecciones(gradosUnicos)
       }
     } catch (error) {
@@ -196,15 +231,123 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     }
   }
 
+  const loadHorariosByMode = async () => {
+    if (modoSeleccion === 'todos') {
+      // Modo todos: cargar horarios de todos los grados-secciones
+      console.log('🏫 Cargando horarios de TODOS los grados-secciones...')
+      
+      try {
+        const token = localStorage.getItem('token')
+        const todosHorarios: HorarioDetalle[] = []
+        
+        // Cargar horarios de cada grado-sección
+        for (const gs of gradosSecciones) {
+          const response = await fetch(`/api/horarios/anuales?idGradoSeccion=${gs.idGradoSeccion}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            const horariosGS = data.data.map((h: any) => ({
+              diaSemana: h.diaSemana,
+              horaInicio: h.horaInicio,
+              horaFin: h.horaFin,
+              docente: h.docente?.nombre || '',
+              aula: h.aula || `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`,
+              tipoActividad: h.tipoActividad
+            }))
+            todosHorarios.push(...horariosGS)
+          }
+        }
+        
+        console.log(`✅ Cargados ${todosHorarios.length} horarios de ${gradosSecciones.length} grados-secciones`)
+        setHorarios(todosHorarios)
+      } catch (error) {
+        console.error('Error cargando horarios masivos:', error)
+        setHorarios([])
+      }
+      
+      loadAulas()
+      
+    } else if (modoSeleccion === 'rango' && selectedNivel && selectedGradoInicio && selectedGradoFin) {
+      // Modo rango: cargar horarios del rango seleccionado
+      console.log(`📊 Cargando horarios del rango: ${selectedNivel} ${selectedGradoInicio}° a ${selectedGradoFin}°`)
+      
+      try {
+        const token = localStorage.getItem('token')
+        const todosHorarios: HorarioDetalle[] = []
+        
+        // Filtrar grados-secciones del rango
+        const gradosEnRango = gradosSecciones.filter(gs => {
+          const gradoNum = parseInt(gs.grado.nombre)
+          const inicioNum = parseInt(selectedGradoInicio)
+          const finNum = parseInt(selectedGradoFin)
+          return gs.grado.nivel.nombre === selectedNivel && 
+                 gradoNum >= inicioNum && 
+                 gradoNum <= finNum
+        })
+        
+        console.log(`📊 Grados en rango: ${gradosEnRango.length}`)
+        
+        // Cargar horarios de cada grado-sección en el rango
+        for (const gs of gradosEnRango) {
+          const response = await fetch(`/api/horarios/anuales?idGradoSeccion=${gs.idGradoSeccion}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            const horariosGS = data.data.map((h: any) => ({
+              diaSemana: h.diaSemana,
+              horaInicio: h.horaInicio,
+              horaFin: h.horaFin,
+              docente: h.docente?.nombre || '',
+              aula: h.aula || `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`,
+              tipoActividad: h.tipoActividad
+            }))
+            todosHorarios.push(...horariosGS)
+          }
+        }
+        
+        console.log(`✅ Cargados ${todosHorarios.length} horarios del rango`)
+        setHorarios(todosHorarios)
+      } catch (error) {
+        console.error('Error cargando horarios por rango:', error)
+        setHorarios([])
+      }
+      
+      loadAulas()
+    }
+  }
+
+  useEffect(() => {
+    // Limpiar horarios al cambiar de modo
+    setHorarios([])
+    setSelectedGradoSeccion('')
+    setSelectedNivel('')
+    setSelectedGradoInicio('')
+    setSelectedGradoFin('')
+    
+    // Cargar horarios según el modo
+    if (modoSeleccion === 'todos') {
+      loadHorariosByMode()
+    }
+  }, [modoSeleccion])
+
+  useEffect(() => {
+    // Cargar horarios cuando se complete la selección por rango
+    if (modoSeleccion === 'rango' && selectedNivel && selectedGradoInicio && selectedGradoFin) {
+      loadHorariosByMode()
+    }
+  }, [selectedNivel, selectedGradoInicio, selectedGradoFin])
+
   const handleGradoSeccionChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target
     setSelectedGradoSeccion(value)
     
     if (value) {
-      // Cargar horarios existentes
+      // Modo individual: cargar horarios de un grado-sección específico
       loadExistingHorarios(value)
-      
-      // Cargar aulas específicas para este grado-sección
       loadAulas(value)
       
       // Obtener información del grado-sección para determinar el aula y docente automáticos
@@ -256,11 +399,52 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
   }
 
   const agregarHorarioRecuperacion = async () => {
-    // Determinar el aula y docente automáticos basados en el grado-sección seleccionado
-    let aulaAutomatica = ''
-    let docenteAutomatico = ''
-    
-    if (selectedGradoSeccion) {
+    if (selectedGradoSeccion === 'TODOS') {
+      // Modo masivo: agregar recuperación para todos los grados-secciones
+      console.log('🏫 Agregando recuperación para TODOS los grados-secciones...')
+      
+      const nuevosHorarios: HorarioDetalle[] = []
+      
+      for (const gs of gradosSecciones) {
+        const aulaAutomatica = `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`
+        
+        // Buscar el docente asignado a este grado-sección
+        let docenteAutomatico = ''
+        try {
+          const token = localStorage.getItem('token')
+          const response = await fetch(`/api/docentes/asignacion?gradoSeccionId=${gs.idGradoSeccion}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data.docente) {
+              docenteAutomatico = `${data.docente.nombre} ${data.docente.apellido}`
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ No se pudo cargar el docente para ${gs.grado.nombre}° ${gs.seccion.nombre}:`, error)
+        }
+        
+        const nuevoHorario: HorarioDetalle = {
+          diaSemana: 6,
+          horaInicio: '09:00',
+          horaFin: '12:00',
+          docente: docenteAutomatico,
+          aula: aulaAutomatica,
+          tipoActividad: 'RECUPERACION'
+        }
+        nuevosHorarios.push(nuevoHorario)
+      }
+      
+      console.log(`✅ Agregadas ${nuevosHorarios.length} recuperaciones`)
+      setHorarios(prev => [...prev, ...nuevosHorarios])
+      
+    } else if (selectedGradoSeccion) {
+      // Modo individual: agregar recuperación para un grado-sección específico
+      let aulaAutomatica = ''
+      let docenteAutomatico = ''
+      
       const gradoSeccionSeleccionado = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === selectedGradoSeccion)
       if (gradoSeccionSeleccionado) {
         aulaAutomatica = `Aula ${gradoSeccionSeleccionado.grado.nombre}° ${gradoSeccionSeleccionado.seccion.nombre}`
@@ -282,17 +466,17 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
           console.log('⚠️ No se pudo cargar el docente automático para recuperación:', error)
         }
       }
-    }
 
-    const nuevoHorario: HorarioDetalle = {
-      diaSemana: 6,
-      horaInicio: '09:00',
-      horaFin: '12:00',
-      docente: docenteAutomatico, // Usar docente automático
-      aula: aulaAutomatica, // Usar aula automática
-      tipoActividad: 'RECUPERACION'
+      const nuevoHorario: HorarioDetalle = {
+        diaSemana: 6,
+        horaInicio: '09:00',
+        horaFin: '12:00',
+        docente: docenteAutomatico,
+        aula: aulaAutomatica,
+        tipoActividad: 'RECUPERACION'
+      }
+      setHorarios(prev => [...prev, nuevoHorario])
     }
-    setHorarios(prev => [...prev, nuevoHorario])
   }
 
   const eliminarHorario = (index: number) => {
@@ -383,34 +567,158 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Modo de Selección */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Grado y Sección *
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Modo de Selección *
             </label>
-            <select
-              value={selectedGradoSeccion}
-              onChange={handleGradoSeccionChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-              required
-              disabled={loadingGrados}
-            >
-              <option value="">Seleccionar grado y sección...</option>
-              {gradosSecciones.map((gs, gsIndex) => (
-                <option key={`grado-seccion-${gs.idGradoSeccion || gsIndex}`} value={gs.idGradoSeccion}>
-                  {gs.grado.nombre}° {gs.seccion.nombre}
-                </option>
-              ))}
-            </select>
-            {loadingGrados && (
-              <p className="text-sm text-gray-500 mt-1">Cargando grados y secciones...</p>
-            )}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setModoSeleccion('individual')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  modoSeleccion === 'individual'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📚 Individual
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoSeleccion('rango')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  modoSeleccion === 'rango'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📊 Por Rango
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoSeleccion('todos')}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  modoSeleccion === 'todos'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                🏫 Todos
+              </button>
+            </div>
           </div>
+
+          {/* Selección Individual */}
+          {modoSeleccion === 'individual' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Grado y Sección *
+              </label>
+              <select
+                value={selectedGradoSeccion}
+                onChange={handleGradoSeccionChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                required
+                disabled={loadingGrados}
+              >
+                <option value="">Seleccionar grado y sección...</option>
+                {gradosSecciones.map((gs, gsIndex) => (
+                  <option key={`grado-seccion-${gs.idGradoSeccion || gsIndex}`} value={gs.idGradoSeccion}>
+                    {gs.grado.nivel.nombre} - {gs.grado.nombre}° {gs.seccion.nombre}
+                  </option>
+                ))}
+              </select>
+              {loadingGrados && (
+                <p className="text-sm text-gray-500 mt-1">Cargando grados y secciones...</p>
+              )}
+            </div>
+          )}
+
+          {/* Selección por Rango */}
+          {modoSeleccion === 'rango' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nivel *
+                </label>
+                <select
+                  value={selectedNivel}
+                  onChange={(e) => setSelectedNivel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  required
+                >
+                  <option value="">Seleccionar nivel...</option>
+                  {[...new Set(gradosSecciones
+                    .map(gs => gs.grado?.nivel?.nombre)
+                    .filter(nombre => nombre && nombre.trim() !== ''))]
+                    .map((nivel, index) => (
+                      <option key={`nivel-${nivel}-${index}`} value={nivel}>{nivel}</option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grado Inicio *
+                </label>
+                <select
+                  value={selectedGradoInicio}
+                  onChange={(e) => setSelectedGradoInicio(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  required
+                  disabled={!selectedNivel}
+                >
+                  <option value="">Desde...</option>
+                  {[...new Set(gradosSecciones
+                    .filter(gs => gs.grado?.nivel?.nombre === selectedNivel)
+                    .map(gs => gs.grado?.nombre)
+                    .filter(nombre => nombre))]
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .map((grado, index) => (
+                      <option key={`grado-inicio-${grado}-${index}`} value={grado}>{grado}°</option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grado Fin *
+                </label>
+                <select
+                  value={selectedGradoFin}
+                  onChange={(e) => setSelectedGradoFin(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  required
+                  disabled={!selectedGradoInicio}
+                >
+                  <option value="">Hasta...</option>
+                  {[...new Set(gradosSecciones
+                    .filter(gs => gs.grado?.nivel?.nombre === selectedNivel)
+                    .map(gs => gs.grado?.nombre)
+                    .filter(nombre => nombre))]
+                    .filter(grado => parseInt(grado) >= parseInt(selectedGradoInicio))
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .map((grado, index) => (
+                      <option key={`grado-fin-${grado}-${index}`} value={grado}>{grado}°</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {selectedGradoSeccion && (
             <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-700">
-                ✏️ <strong>Modo Edición:</strong> Editando horarios existentes para el grado-sección seleccionado.
-                Los cambios se aplicarán a todos los horarios de esta sección.
+                {selectedGradoSeccion === 'TODOS' ? (
+                  <>
+                    🏫 <strong>Modo Masivo:</strong> Editando horarios para TODOS los grados y secciones ({gradosSecciones.length} grados).
+                    Los cambios se aplicarán a todos los horarios existentes.
+                  </>
+                ) : (
+                  <>
+                    ✏️ <strong>Modo Edición:</strong> Editando horarios existentes para el grado-sección seleccionado.
+                    Los cambios se aplicarán a todos los horarios de esta sección.
+                  </>
+                )}
               </p>
             </div>
           )}

@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         },
         estado: estudiante.usuario.estado as 'ACTIVO' | 'INACTIVO' | 'RETIRADO',
         fechaRegistro: estudiante.usuario.createdAt.toISOString(),
-        qrCode: estudiante.qr || ''
+        codigoQR: estudiante.codigoQR || ''
       }
     })
 
@@ -155,8 +155,8 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Generar código único para el estudiante
-    const codigoEstudiante = `EST${String(newUser.idUsuario).padStart(4, '0')}`
+    // Generar código QR único para el estudiante
+    const codigoQR = `EST${String(newUser.idUsuario).padStart(4, '0')}`
     
     // Crear registro de estudiante
     const newEstudiante = await prisma.estudiante.create({
@@ -164,9 +164,8 @@ export async function POST(request: NextRequest) {
         idUsuario: newUser.idUsuario,
         idIe: ieId,
         idGradoSeccion: gradoSeccion.idGradoSeccion,
-        codigo: codigoEstudiante,
-        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        qr: `EST-${newUser.idUsuario}-${Date.now()}` // Generar QR único
+        codigoQR: codigoQR,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null
       }
     })
 
@@ -183,9 +182,9 @@ export async function POST(request: NextRequest) {
     
     if (relacionesACrear && relacionesACrear.length > 0) {
       for (const relacion of relacionesACrear) {
-        // Verificar que el apoderado existe
-        const apoderado = await prisma.apoderado.findFirst({
-          where: { idUsuario: relacion.apoderadoId }
+        // Verificar que el apoderado existe (buscar por idApoderado directamente)
+        const apoderado = await prisma.apoderado.findUnique({
+          where: { idApoderado: relacion.apoderadoId }
         })
 
         if (apoderado) {
@@ -198,6 +197,9 @@ export async function POST(request: NextRequest) {
               puedeRetirar: relacion.esTitular || false
             }
           })
+          console.log(`✅ Apoderado ${apoderado.idApoderado} asignado al estudiante ${newEstudiante.idEstudiante}`)
+        } else {
+          console.log(`⚠️ Apoderado con ID ${relacion.apoderadoId} no encontrado`)
         }
       }
     }

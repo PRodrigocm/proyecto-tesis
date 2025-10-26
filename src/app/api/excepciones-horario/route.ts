@@ -76,14 +76,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📋 Body recibido:', body)
     const { 
-      fecha, 
-      fechaFin, 
+      fecha,
+      fechaInicio,
+      fechaFin,
+      horaInicio,
+      horaFin,
       tipoExcepcion, 
       tipoHorario, 
       motivo, 
       descripcion,
       horaInicioAlt,
-      horaFinAlt
+      horaFinAlt,
+      idHorarioClase
     } = body
 
     // Verificar token
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
     const excepcionData: any = {
       idIe: ieId,
       fecha: new Date(fecha),
+      fechaInicio: fechaInicio ? new Date(fechaInicio) : new Date(fecha),
       tipoExcepcion,
       tipoHorario,
       motivo: motivo || null,
@@ -122,12 +127,19 @@ export async function POST(request: NextRequest) {
       excepcionData.fechaFin = new Date(fechaFin)
     }
 
-    // Agregar horas alternativas si se proporcionan
-    if (horaInicioAlt) {
-      excepcionData.horaInicioAlt = new Date(`1970-01-01T${horaInicioAlt}:00`)
+    // Agregar ID de horario clase si se proporciona
+    if (idHorarioClase) {
+      excepcionData.idHorarioClase = idHorarioClase
     }
-    if (horaFinAlt) {
-      excepcionData.horaFinAlt = new Date(`1970-01-01T${horaFinAlt}:00`)
+
+    // Agregar horas alternativas si se proporcionan (desde horaInicio/horaFin o horaInicioAlt/horaFinAlt)
+    if (horaInicio || horaInicioAlt) {
+      const hora = horaInicio || horaInicioAlt
+      excepcionData.horaInicioAlt = new Date(`1970-01-01T${hora}:00`)
+    }
+    if (horaFin || horaFinAlt) {
+      const hora = horaFin || horaFinAlt
+      excepcionData.horaFinAlt = new Date(`1970-01-01T${hora}:00`)
     }
 
     console.log('📝 Creando excepción de horario:', excepcionData)

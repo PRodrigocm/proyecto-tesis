@@ -96,8 +96,19 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
 
   const registrarEvento = async (eventoData: {
     fecha: Date
-    tipo: 'LECTIVO' | 'FERIADO' | 'SUSPENSION' | 'VACACIONES'
+    fechaInicio: Date
+    fechaFin?: Date
+    horaInicio?: string
+    horaFin?: string
+    tipo: 'LECTIVO' | 'FERIADO' | 'SUSPENSION' | 'VACACIONES' | 'EVENTO'
     descripcion?: string
+    alcance?: string
+    nivel?: string
+    gradoInicio?: string
+    gradoFin?: string
+    idGradoSeccion?: number
+    idHorarioClase?: number
+    notificarPadres?: boolean
   }) => {
     console.log('🎯 Iniciando registro de evento:', eventoData)
     try {
@@ -140,13 +151,29 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
             motivoAutomatico = eventoData.tipo
         }
 
-        const requestBody = {
+        const requestBody: any = {
           fecha: eventoData.fecha.toISOString().split('T')[0],
+          fechaInicio: eventoData.fechaInicio.toISOString().split('T')[0],
           tipoExcepcion,
           tipoHorario: 'AMBOS',
           motivo: motivoAutomatico,
           descripcion: eventoData.descripcion
         }
+
+        // Agregar campos opcionales si existen
+        if (eventoData.fechaFin) {
+          requestBody.fechaFin = eventoData.fechaFin.toISOString().split('T')[0]
+        }
+        if (eventoData.horaInicio) {
+          requestBody.horaInicio = eventoData.horaInicio
+        }
+        if (eventoData.horaFin) {
+          requestBody.horaFin = eventoData.horaFin
+        }
+        if (eventoData.idHorarioClase) {
+          requestBody.idHorarioClase = eventoData.idHorarioClase
+        }
+
         console.log('⚠️ Enviando a /api/excepciones-horario:', requestBody)
         
         const response = await fetch('/api/excepciones-horario', {

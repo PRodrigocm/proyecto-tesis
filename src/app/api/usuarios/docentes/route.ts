@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
       email, 
       telefono, 
       especialidad, 
-      codigo,
       fechaIngreso,
       password 
     } = body
@@ -123,12 +122,15 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Generar código único para el docente
+    const codigoDocente = `DOC${String(newUser.idUsuario).padStart(4, '0')}`
+
     // Crear registro de docente
     await prisma.docente.create({
       data: {
         idUsuario: newUser.idUsuario,
         especialidad,
-        codigo
+        codigo: codigoDocente
       }
     })
 

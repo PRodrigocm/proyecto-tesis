@@ -357,40 +357,6 @@ export default function EditApoderadoModal({
                     Buscar Estudiantes
                   </label>
                   <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={loadAvailableEstudiantes}
-                      disabled={loadingEstudiantes}
-                      className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                    >
-                      {loadingEstudiantes ? 'Cargando...' : '🔄 Recargar'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const userStr = localStorage.getItem('user')
-                        const user = userStr ? JSON.parse(userStr) : null
-                        console.log('User data:', user)
-                        
-                        // Intentar diferentes campos posibles para ieId (mismo patrón que en estudiantes page)
-                        const ieId = user?.idIe || user?.institucionId || 1
-                        
-                        console.log('Using ieId:', ieId)
-                        
-                        try {
-                          const response = await fetch(`/api/estudiantes?ieId=${ieId}`)
-                          const data = await response.json()
-                          console.log('Direct API test:', { status: response.status, data })
-                          alert(`API Response: ${response.status} - Total estudiantes: ${data.total || 0}\n\nPrimeros estudiantes: ${JSON.stringify(data.data?.slice(0, 2), null, 2)}`)
-                        } catch (error) {
-                          console.error('Direct API test error:', error)
-                          alert(`Error: ${error}`)
-                        }
-                      }}
-                      className="text-xs text-green-600 hover:text-green-800"
-                    >
-                      🧪 Test API
-                    </button>
                   </div>
                 </div>
                 <input
@@ -498,88 +464,6 @@ export default function EditApoderadoModal({
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Botones de prueba temporal */}
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              type="button"
-              onClick={async () => {
-                if (apoderado) {
-                  console.log('Testing GET API route for ID:', apoderado.id)
-                  try {
-                    const response = await fetch(`/api/apoderados/${apoderado.id}`, {
-                      method: 'GET'
-                    })
-                    console.log('Test GET Response status:', response.status)
-                    const data = await response.json()
-                    console.log('Test GET Response data:', data)
-                    alert(`GET Test: ${response.status} - ${JSON.stringify(data)}`)
-                  } catch (error) {
-                    console.error('Test GET Error:', error)
-                    alert(`GET Test Error: ${error}`)
-                  }
-                }
-              }}
-              className="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
-            >
-              🧪 Test GET
-            </button>
-            
-            <button
-              type="button"
-              onClick={async () => {
-                if (apoderado) {
-                  console.log('Testing PUT API route for ID:', apoderado.id)
-                  try {
-                    const testData = {
-                      id: apoderado.id,
-                      test: true,
-                      timestamp: new Date().toISOString()
-                    }
-                    const response = await fetch(`/api/apoderados/${apoderado.id}`, {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(testData)
-                    })
-                    console.log('Test PUT Response status:', response.status)
-                    const data = await response.json()
-                    console.log('Test PUT Response data:', data)
-                    alert(`PUT Test: ${response.status} - ${JSON.stringify(data)}`)
-                  } catch (error) {
-                    console.error('Test PUT Error:', error)
-                    alert(`PUT Test Error: ${error}`)
-                  }
-                }
-              }}
-              className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              🧪 Test PUT
-            </button>
-            
-            <button
-              type="button"
-              onClick={async () => {
-                console.log('Verificando apoderados existentes')
-                console.log('Apoderado actual en modal:', apoderado)
-                try {
-                  const response = await fetch('/api/apoderados', {
-                    method: 'GET'
-                  })
-                  console.log('Apoderados Response status:', response.status)
-                  const data = await response.json()
-                  console.log('Apoderados disponibles completos:', data.data)
-                  console.log('IDs de apoderados:', data.data?.map((a: any) => ({ id: a.id, nombre: a.nombre, apellido: a.apellido })))
-                  alert(`Apoderado actual: ID="${apoderado?.id}"\n\nApoderados en BD: ${JSON.stringify(data.data?.map((a: any) => ({ id: a.id, nombre: a.nombre })), null, 2)}`)
-                } catch (error) {
-                  console.error('Error verificando apoderados:', error)
-                  alert(`Error: ${error}`)
-                }
-              }}
-              className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              🔍 Ver Apoderados BD
-            </button>
           </div>
 
           {/* Botones de acción */}

@@ -47,6 +47,26 @@ export async function GET(request: NextRequest) {
           select: {
             _count: true
           }
+        },
+        docenteAulas: {
+          include: {
+            docente: {
+              include: {
+                usuario: {
+                  select: {
+                    nombre: true,
+                    apellido: true
+                  }
+                }
+              }
+            },
+            tipoAsignacion: {
+              select: {
+                nombre: true
+              }
+            }
+          },
+          take: 1
         }
       },
       orderBy: [
@@ -56,15 +76,32 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    const transformedSalones = salones.map(salon => ({
-      id: salon.idGradoSeccion,
-      nivel: salon.grado.nivel.nombre,
-      grado: salon.grado.nombre,
-      seccion: salon.seccion.nombre,
-      nombre: `${salon.grado.nivel.nombre} - ${salon.grado.nombre} "${salon.seccion.nombre}"`,
-      cantidadEstudiantes: salon.estudiantes.length,
-      createdAt: salon.createdAt
-    }))
+    const transformedSalones = salones.map(salon => {
+      const docenteTutor = salon.docenteAulas[0]
+      const docenteNombre = docenteTutor 
+        ? `${docenteTutor.docente.usuario.nombre} ${docenteTutor.docente.usuario.apellido}`
+        : undefined
+      
+      console.log(`Salón ${salon.idGradoSeccion}:`, {
+        nombre: `${salon.grado.nombre} ${salon.seccion.nombre}`,
+        docenteAulas: salon.docenteAulas.length,
+        docenteTutor: docenteTutor ? {
+          nombre: docenteNombre,
+          tipoAsignacion: docenteTutor.tipoAsignacion?.nombre || 'Sin tipo'
+        } : 'Sin docente'
+      })
+      
+      return {
+        id: salon.idGradoSeccion,
+        nivel: salon.grado.nivel.nombre,
+        grado: salon.grado.nombre,
+        seccion: salon.seccion.nombre,
+        nombre: `${salon.grado.nivel.nombre} - ${salon.grado.nombre} "${salon.seccion.nombre}"`,
+        cantidadEstudiantes: salon.estudiantes.length,
+        docente: docenteNombre,
+        createdAt: salon.createdAt
+      }
+    })
 
     return NextResponse.json(transformedSalones)
 

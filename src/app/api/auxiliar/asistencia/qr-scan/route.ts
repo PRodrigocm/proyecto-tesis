@@ -47,14 +47,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Acción requerida (entrada o salida)' }, { status: 400 })
     }
 
-    console.log('🔍 Buscando estudiante con DNI:', qrCode)
+    console.log('🔍 Buscando estudiante con código QR:', qrCode)
 
-    // Buscar estudiante por DNI (el QR contiene el DNI)
+    // Buscar estudiante por código QR
     const estudiante = await prisma.estudiante.findFirst({
       where: {
+        codigoQR: qrCode,
+        idIe: userInfo.idIe,
         usuario: {
-          dni: qrCode,
-          idIe: userInfo.idIe,
           estado: 'ACTIVO'
         }
       },
@@ -77,20 +77,16 @@ export async function POST(request: NextRequest) {
 
     // Obtener fecha actual
     const ahora = new Date()
-    const fechaHoy = new Date(ahora.toISOString().split('T')[0])
+    const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
-    // Verificar estado actual del estudiante
-    const asistenciaHoy = await prisma.asistencia.findFirst({
+    // Verificar estado actual del estudiante en AsistenciaIE
+    const asistenciaIEHoy = await prisma.asistenciaIE.findFirst({
       where: {
         idEstudiante: estudiante.idEstudiante,
-        fecha: fechaHoy
-      }
-    })
-
-    const retiroHoy = await prisma.retiro.findFirst({
-      where: {
-        idEstudiante: estudiante.idEstudiante,
-        fecha: fechaHoy
+        fecha: {
+          gte: fechaHoy,
+          lt: new Date(fechaHoy.getTime() + 24 * 60 * 60 * 1000)
+        }
       }
     })
 
@@ -100,131 +96,98 @@ export async function POST(request: NextRequest) {
     // Procesar según la acción seleccionada
     if (tipoAccion === 'entrada') {
       // Validar que no tenga entrada ya registrada
-      if (asistenciaHoy) {
+      if (asistenciaIEHoy && asistenciaIEHoy.horaIngreso) {
+        console.log('⚠️ Estudiante ya tiene entrada registrada, omitiendo silenciosamente')
         return NextResponse.json({ 
-          error: 'El estudiante ya tiene entrada registrada hoy' 
-        }, { status: 400 })
-      }
-      // Registrar entrada
-      console.log('📥 Registrando entrada automática por QR')
-      
-      // Obtener horario para determinar si es tardanza
-      let horarioClase = null
-      if (estudiante.idGradoSeccion) {
-        horarioClase = await prisma.horarioClase.findFirst({
-          where: {
-            idGradoSeccion: estudiante.idGradoSeccion,
-            diaSemana: ahora.getDay() === 0 ? 7 : ahora.getDay(),
-            activo: true
+          duplicado: true,
+          mensaje: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido} ya tiene entrada registrada`,
+          estudiante: {
+            id: estudiante.idEstudiante,
+            nombre: estudiante.usuario.nombre,
+            apellido: estudiante.usuario.apellido,
+            dni: estudiante.usuario.dni,
+            grado: estudiante.gradoSeccion?.grado?.nombre,
+            seccion: estudiante.gradoSeccion?.seccion?.nombre
           }
-        })
+        }, { status: 200 })
       }
-
-      let estado = 'PRESENTE'
-      let toleranciaMin = 10
-
-      if (horarioClase) {
-        toleranciaMin = horarioClase.toleranciaMin || 10
-        
-        const horaInicioHorario = new Date(fechaHoy)
-        const [horas, minutos] = horarioClase.horaInicio.toTimeString().slice(0, 5).split(':')
-        horaInicioHorario.setHours(parseInt(horas), parseInt(minutos), 0, 0)
-        
-        const horaLimiteTolerancia = new Date(horaInicioHorario.getTime() + (toleranciaMin * 60 * 1000))
-        
-        if (ahora > horaLimiteTolerancia) {
-          estado = 'TARDANZA'
-        }
-      }
-
-      // Buscar el estado de asistencia correspondiente
-      let estadoAsistencia = await prisma.estadoAsistencia.findFirst({
-        where: { codigo: estado }
-      })
-
-      // Si no existe el estado, crearlo
-      if (!estadoAsistencia) {
-        console.log('⚠️ Estado no encontrado, creando estados básicos...')
-        
-        const estadosBasicos = [
-          { codigo: 'PRESENTE', nombreEstado: 'Presente', requiereJustificacion: false, afectaAsistencia: true },
-          { codigo: 'TARDANZA', nombreEstado: 'Tardanza', requiereJustificacion: false, afectaAsistencia: true },
-          { codigo: 'INASISTENCIA', nombreEstado: 'Inasistencia', requiereJustificacion: true, afectaAsistencia: false }
-        ]
-        
-        for (const estadoBasico of estadosBasicos) {
-          await prisma.estadoAsistencia.upsert({
-            where: { codigo: estadoBasico.codigo },
-            update: {},
-            create: estadoBasico
-          })
-        }
-        
-        // Buscar nuevamente el estado
-        estadoAsistencia = await prisma.estadoAsistencia.findFirst({
-          where: { codigo: estado }
-        })
-      }
-
-      console.log('🔍 Estado buscado:', estado)
-      console.log('📋 Estado encontrado:', estadoAsistencia)
-
-      const nuevaAsistencia = await prisma.asistencia.create({
+      
+      // Registrar entrada en AsistenciaIE
+      console.log('📥 Registrando entrada a la IE por QR')
+      
+      const nuevaAsistenciaIE = await prisma.asistenciaIE.create({
         data: {
           idEstudiante: estudiante.idEstudiante,
           idIe: userInfo.idIe!,
           fecha: fechaHoy,
-          horaEntrada: ahora,
-          sesion: 'MAÑANA',
-          idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
-          fuente: fuenteRegistro,
-          observaciones: `Entrada por QR - Auxiliar: ${userInfo.nombre} ${userInfo.apellido} - Estado: ${estado}`,
-          registradoPor: userInfo.idUsuario
+          horaIngreso: ahora,
+          estado: 'INGRESADO',
+          registradoIngresoPor: userInfo.idUsuario
         }
       })
 
-      accion = `Entrada registrada (${estado})`
+      accion = 'Entrada registrada'
       resultado = {
         tipo: 'entrada',
-        estado: estado,
-        horaEntrada: nuevaAsistencia.horaEntrada?.toTimeString().slice(0, 5),
-        toleranciaMin
+        horaIngreso: nuevaAsistenciaIE.horaIngreso?.toTimeString().slice(0, 5),
+        estado: nuevaAsistenciaIE.estado
       }
 
     } else if (tipoAccion === 'salida') {
       // Validar que tenga entrada registrada
-      if (!asistenciaHoy || !asistenciaHoy.horaEntrada) {
+      if (!asistenciaIEHoy || !asistenciaIEHoy.horaIngreso) {
+        console.log('⚠️ Estudiante no tiene entrada registrada, omitiendo silenciosamente')
         return NextResponse.json({ 
-          error: 'El estudiante debe tener entrada registrada para poder registrar salida' 
-        }, { status: 400 })
+          duplicado: true,
+          mensaje: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido} no tiene entrada registrada`,
+          estudiante: {
+            id: estudiante.idEstudiante,
+            nombre: estudiante.usuario.nombre,
+            apellido: estudiante.usuario.apellido,
+            dni: estudiante.usuario.dni,
+            grado: estudiante.gradoSeccion?.grado?.nombre,
+            seccion: estudiante.gradoSeccion?.seccion?.nombre
+          }
+        }, { status: 200 })
       }
 
       // Validar que no tenga salida ya registrada
-      if (retiroHoy) {
+      if (asistenciaIEHoy.horaSalida) {
+        console.log('⚠️ Estudiante ya tiene salida registrada, omitiendo silenciosamente')
         return NextResponse.json({ 
-          error: 'El estudiante ya tiene salida registrada hoy' 
-        }, { status: 400 })
+          duplicado: true,
+          mensaje: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido} ya tiene salida registrada`,
+          estudiante: {
+            id: estudiante.idEstudiante,
+            nombre: estudiante.usuario.nombre,
+            apellido: estudiante.usuario.apellido,
+            dni: estudiante.usuario.dni,
+            grado: estudiante.gradoSeccion?.grado?.nombre,
+            seccion: estudiante.gradoSeccion?.seccion?.nombre
+          }
+        }, { status: 200 })
       }
 
-      // Registrar salida
-      console.log('📤 Registrando salida por QR')
+      // Registrar salida - Actualizar horaSalida en AsistenciaIE
+      console.log('📤 Registrando salida de la IE por QR - Actualizando horaSalida')
       
-      const nuevoRetiro = await prisma.retiro.create({
+      const asistenciaIEActualizada = await prisma.asistenciaIE.update({
+        where: {
+          idAsistenciaIE: asistenciaIEHoy.idAsistenciaIE
+        },
         data: {
-          idEstudiante: estudiante.idEstudiante,
-          idIe: userInfo.idIe!,
-          fecha: fechaHoy,
-          hora: ahora.toTimeString().slice(0, 5),
-          origen: fuenteRegistro,
-          observaciones: `Salida por QR - Auxiliar: ${userInfo.nombre} ${userInfo.apellido}`
+          horaSalida: ahora,
+          estado: 'RETIRADO',
+          registradoSalidaPor: userInfo.idUsuario
         }
       })
 
       accion = 'Salida registrada'
       resultado = {
         tipo: 'salida',
-        hora: nuevoRetiro.hora,
-        fecha: nuevoRetiro.fecha.toISOString().split('T')[0]
+        horaSalida: asistenciaIEActualizada.horaSalida?.toTimeString().slice(0, 5),
+        fecha: asistenciaIEActualizada.fecha.toISOString().split('T')[0],
+        estado: asistenciaIEActualizada.estado
       }
 
     } else {

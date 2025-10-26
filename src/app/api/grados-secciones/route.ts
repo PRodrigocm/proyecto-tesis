@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
           include: {
             nivel: {
               select: {
+                idNivel: true,
                 nombre: true
               }
             }
@@ -46,12 +47,18 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    console.log('🔍 API: Total de grados-secciones encontrados en BD:', gradosSecciones.length)
+    console.log('📊 API: Grados únicos en BD:', [...new Set(gradosSecciones.map(gs => `${gs.grado.nivel.nombre} ${gs.grado.nombre}°`))])
+
     const transformedData = gradosSecciones.map(gs => ({
       idGradoSeccion: gs.idGradoSeccion,
       grado: {
         idGrado: gs.grado.idGrado,
         nombre: gs.grado.nombre,
-        nivel: gs.grado.nivel.nombre
+        nivel: {
+          idNivel: gs.grado.nivel.idNivel,
+          nombre: gs.grado.nivel.nombre
+        }
       },
       seccion: {
         idSeccion: gs.seccion.idSeccion,

@@ -146,8 +146,8 @@ export default function EstudiantesTable({ estudiantes, onEstadoChange, onGenera
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex flex-col items-center space-y-2">
-                  {estudiante.qrCode ? (
-                    <QRCodeDisplay qrCode={estudiante.qrCode} />
+                  {estudiante.codigoQR ? (
+                    <QRCodeDisplay qrCode={estudiante.codigoQR} />
                   ) : (
                     <button
                       onClick={() => onGenerateQR(estudiante.id)}

@@ -26,7 +26,7 @@ interface Estudiante {
   }
   estado: 'ACTIVO' | 'INACTIVO' | 'RETIRADO'
   fechaRegistro: string
-  qrCode: string
+  codigoQR: string
 }
 
 export default function EstudiantesPage() {

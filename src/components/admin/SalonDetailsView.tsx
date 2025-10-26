@@ -269,14 +269,23 @@ function EstudiantesTable({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {estudiantes.map((estudiante) => (
+          {estudiantes.map((estudiante) => {
+            console.log('🔍 Frontend - Estudiante:', estudiante.nombres, {
+              codigoQR: estudiante.codigoQR,
+              tipo: typeof estudiante.codigoQR,
+              valor: JSON.stringify(estudiante.codigoQR),
+              esVerdadero: !!estudiante.codigoQR,
+              objetoCompleto: estudiante
+            })
+            
+            return (
             <tr key={estudiante.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
                   {estudiante.apellidos}, {estudiante.nombres}
                 </div>
-                {estudiante.codigo && (
-                  <div className="text-sm text-gray-500">Código: {estudiante.codigo}</div>
+                {estudiante.codigoQR && (
+                  <div className="text-sm text-gray-500">Código: {estudiante.codigoQR}</div>
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -293,9 +302,18 @@ function EstudiantesTable({
                 <div className="text-gray-500">{estudiante.telefono || 'Sin teléfono'}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 font-mono">
-                  {estudiante.qr.substring(0, 8)}...
-                </span>
+                {estudiante.codigoQR && estudiante.codigoQR.trim() !== '' ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 font-mono">
+                    {estudiante.codigoQR}
+                  </span>
+                ) : (
+                  <button
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                    title="Este estudiante no tiene código QR asignado"
+                  >
+                    Sin QR
+                  </button>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -307,7 +325,8 @@ function EstudiantesTable({
                 </span>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

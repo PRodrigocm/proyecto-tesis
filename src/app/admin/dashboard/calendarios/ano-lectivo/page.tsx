@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react'
 import CalendarioAnual from '@/components/admin/CalendarioAnual'
 import RegistrarEventoModal from '@/components/admin/RegistrarEventoModal'
+import ProgramarReunionModal from '@/components/admin/ProgramarReunionModal'
 import { useAnoLectivo } from '@/hooks/useAnoLectivo'
 
 export default function AnoLectivoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isReunionModalOpen, setIsReunionModalOpen] = useState(false)
+  const [isReunionesListModalOpen, setIsReunionesListModalOpen] = useState(false)
+  const [isEventosListModalOpen, setIsEventosListModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedEvento, setSelectedEvento] = useState<any | null>(null)
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+  const [reuniones, setReuniones] = useState<any[]>([])
   
   const {
     calendarioEscolar,
@@ -20,8 +26,9 @@ export default function AnoLectivoPage() {
     stats
   } = useAnoLectivo(currentYear)
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = (date: Date, evento?: any) => {
     setSelectedDate(date)
+    setSelectedEvento(evento || null)
     setIsModalOpen(true)
   }
 
@@ -29,7 +36,67 @@ export default function AnoLectivoPage() {
     await registrarEvento(eventoData)
     setIsModalOpen(false)
     setSelectedDate(null)
+    setSelectedEvento(null)
   }
+
+  const handleEliminarEvento = async (idExcepcion: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este evento?')) {
+      await eliminarEvento(idExcepcion)
+      setIsModalOpen(false)
+      setSelectedDate(null)
+      setSelectedEvento(null)
+    }
+  }
+
+  const loadReuniones = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      console.log('🔍 Cargando reuniones para año:', currentYear)
+      const response = await fetch(`/api/reuniones?year=${currentYear}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📅 Reuniones cargadas:', data.data?.length || 0, data.data)
+        setReuniones(data.data || [])
+      } else {
+        console.error('❌ Error al cargar reuniones:', response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Error loading reuniones:', error)
+    }
+  }
+
+  const handleProgramarReunion = async (reunionData: any) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/reuniones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(reunionData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al programar reunión')
+      }
+
+      setIsReunionModalOpen(false)
+      await loadReuniones() // Recargar reuniones
+      alert('Reunión programada exitosamente')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al programar la reunión')
+    }
+  }
+
+  // Cargar reuniones cuando cambie el año
+  useEffect(() => {
+    loadReuniones()
+  }, [currentYear])
 
   // Asegurar que siempre inicie en el año actual
   useEffect(() => {
@@ -65,7 +132,7 @@ export default function AnoLectivoPage() {
             Gestiona el calendario escolar anual, días lectivos, feriados y suspensiones de clases
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
+        <div className="mt-4 sm:mt-0 flex flex-wrap gap-3">
           <select
             value={currentYear}
             onChange={(e) => setCurrentYear(parseInt(e.target.value))}
@@ -81,6 +148,41 @@ export default function AnoLectivoPage() {
               )
             })}
           </select>
+          
+          {/* Botones de Ver */}
+          <button
+            type="button"
+            onClick={() => setIsReunionesListModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-orange-300 rounded-md shadow-sm text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Ver Reuniones ({reuniones.length})
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setIsEventosListModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Ver Eventos ({excepciones.length})
+          </button>
+          
+          {/* Botones de Crear */}
+          <button
+            type="button"
+            onClick={() => setIsReunionModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Programar Reunión
+          </button>
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
@@ -192,6 +294,7 @@ export default function AnoLectivoPage() {
             year={currentYear}
             calendarioEscolar={calendarioEscolar}
             excepciones={excepciones}
+            reuniones={reuniones}
             onDateClick={handleDateClick}
           />
         </div>
@@ -200,7 +303,7 @@ export default function AnoLectivoPage() {
       {/* Leyenda */}
       <div className="bg-white shadow rounded-lg p-6">
         <h4 className="text-lg font-medium text-gray-900 mb-4">Leyenda</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
             <span className="text-sm text-gray-700">Día Lectivo</span>
@@ -212,6 +315,10 @@ export default function AnoLectivoPage() {
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-yellow-200 border border-yellow-400 rounded"></div>
             <span className="text-sm text-gray-700">Suspensión</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-orange-200 border border-orange-400 rounded"></div>
+            <span className="text-sm text-gray-700">Reunión</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-gray-200 border border-gray-400 rounded"></div>
@@ -226,10 +333,177 @@ export default function AnoLectivoPage() {
         onClose={() => {
           setIsModalOpen(false)
           setSelectedDate(null)
+          setSelectedEvento(null)
         }}
         onSubmit={handleRegistrarEvento}
         selectedDate={selectedDate}
+        selectedEvento={selectedEvento}
+        onDelete={handleEliminarEvento}
       />
+
+      {/* Modal para programar reunión */}
+      <ProgramarReunionModal
+        isOpen={isReunionModalOpen}
+        onClose={() => setIsReunionModalOpen(false)}
+        onSubmit={handleProgramarReunion}
+      />
+
+      {/* Modal para ver lista de reuniones */}
+      {isReunionesListModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setIsReunionesListModalOpen(false)}></div>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Reuniones del Año {currentYear}
+                  </h3>
+                  <button
+                    onClick={() => setIsReunionesListModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mt-4 max-h-96 overflow-y-auto">
+                  {reuniones.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No hay reuniones programadas para este año</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {reuniones.map((reunion: any) => (
+                        <div key={reunion.idReunion} className="border border-orange-200 rounded-lg p-4 hover:bg-orange-50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="text-md font-semibold text-gray-900">{reunion.titulo}</h4>
+                              <div className="mt-2 space-y-1">
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">📅 Fecha:</span> {new Date(reunion.fecha).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">🕐 Hora:</span> {new Date(reunion.horaInicio).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                {reunion.descripcion && (
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">📝 Descripción:</span> {reunion.descripcion}
+                                  </p>
+                                )}
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">👥 Tipo:</span> {reunion.tipoReunion === 'GENERAL' ? 'General' : reunion.tipoReunion === 'POR_GRADO' ? 'Por Grado' : 'Por Aula'}
+                                </p>
+                                {reunion.grado && (
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">🎓 Grado:</span> {reunion.grado.nivel?.nombre} - {reunion.grado.nombre}° {reunion.seccion?.nombre || ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`ml-4 px-3 py-1 text-xs font-medium rounded-full ${
+                              reunion.estado === 'PROGRAMADA' ? 'bg-blue-100 text-blue-800' :
+                              reunion.estado === 'REALIZADA' ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {reunion.estado}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={() => setIsReunionesListModalOpen(false)}
+                  className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para ver lista de eventos */}
+      {isEventosListModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setIsEventosListModalOpen(false)}></div>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Eventos del Año {currentYear}
+                  </h3>
+                  <button
+                    onClick={() => setIsEventosListModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mt-4 max-h-96 overflow-y-auto">
+                  {excepciones.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No hay eventos registrados para este año</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {excepciones.map((evento: any) => (
+                        <div key={evento.idExcepcion} className={`border rounded-lg p-4 transition-colors ${
+                          evento.tipoEvento === 'FERIADO' ? 'border-red-200 hover:bg-red-50' :
+                          evento.tipoEvento === 'SUSPENSION' ? 'border-yellow-200 hover:bg-yellow-50' :
+                          'border-blue-200 hover:bg-blue-50'
+                        }`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="text-md font-semibold text-gray-900">{evento.motivo}</h4>
+                              <div className="mt-2 space-y-1">
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">📅 Fecha:</span> {new Date(evento.fecha).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                </p>
+                                {evento.descripcion && (
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">📝 Descripción:</span> {evento.descripcion}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`ml-4 px-3 py-1 text-xs font-medium rounded-full ${
+                              evento.tipoEvento === 'FERIADO' ? 'bg-red-100 text-red-800' :
+                              evento.tipoEvento === 'SUSPENSION' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {evento.tipoEvento}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={() => setIsEventosListModalOpen(false)}
+                  className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

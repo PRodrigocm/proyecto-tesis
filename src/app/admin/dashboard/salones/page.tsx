@@ -7,13 +7,43 @@ import SalonesGroupedView from '@/components/admin/SalonesGroupedView'
 import SalonesSidebar from '@/components/admin/SalonesSidebar'
 import SalonesFilteredView from '@/components/admin/SalonesFilteredView'
 import CreateSalonForm from '@/components/admin/CreateSalonForm'
+import ViewSalonModal from '@/components/modals/ViewSalonModal'
+import EditSalonModal from '@/components/modals/EditSalonModal'
 
 export default function SalonesPage() {
-  const { salones, loading, error } = useSalones()
+  const { salones, loading, error, refetch } = useSalones()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [viewMode, setViewMode] = useState<'grouped' | 'table' | 'sidebar'>('sidebar')
   const [selectedGrado, setSelectedGrado] = useState<string | null>(null)
   const [selectedSeccion, setSelectedSeccion] = useState<string | null>(null)
+  const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  const handleView = (salonId: string) => {
+    setSelectedSalonId(salonId)
+    setShowViewModal(true)
+  }
+
+  const handleEdit = (salonId: string) => {
+    setSelectedSalonId(salonId)
+    setShowEditModal(true)
+  }
+
+  const handleDelete = (salonId: string) => {
+    setSelectedSalonId(salonId)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (selectedSalonId) {
+      // TODO: Implementar eliminación del salón con API
+      alert(`Eliminando salón ${selectedSalonId}`)
+      setShowDeleteModal(false)
+      setSelectedSalonId(null)
+    }
+  }
 
   if (error) {
     return (
@@ -129,14 +159,82 @@ export default function SalonesPage() {
                     selectedSeccion={selectedSeccion}
                   />
                 ) : viewMode === 'grouped' ? (
-                  <SalonesGroupedView salones={salones} loading={loading} />
+                  <SalonesGroupedView 
+                    salones={salones} 
+                    loading={loading}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ) : (
-                  <SalonesTable salones={salones} loading={loading} />
+                  <SalonesTable 
+                    salones={salones} 
+                    loading={loading}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 )}
               </div>
             </div>
         </div>
       </div>
+
+      {/* Modal Ver Salón */}
+      <ViewSalonModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false)
+          setSelectedSalonId(null)
+        }}
+        salonId={selectedSalonId || ''}
+      />
+
+      {/* Modal Editar Salón */}
+      <EditSalonModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setSelectedSalonId(null)
+        }}
+        salonId={selectedSalonId || ''}
+        onSave={() => {
+          // Recargar datos
+          refetch()
+        }}
+      />
+
+      {/* Modal Eliminar Salón */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4 text-red-600">Eliminar Salón</h2>
+            <p className="text-gray-600 mb-4">
+              ¿Estás seguro de que deseas eliminar este salón?
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Esta acción no se puede deshacer. Salón ID: {selectedSalonId}
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setSelectedSalonId(null)
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

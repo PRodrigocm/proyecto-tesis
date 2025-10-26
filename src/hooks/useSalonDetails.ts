@@ -8,8 +8,7 @@ export interface EstudianteSalon {
   email?: string
   telefono?: string
   fechaNacimiento?: string
-  qr: string
-  codigo?: string
+  codigoQR?: string
   estado?: string
   createdAt: string
 }

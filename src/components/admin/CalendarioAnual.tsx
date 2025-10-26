@@ -14,11 +14,18 @@ interface ExcepcionItem {
   descripcion?: string
 }
 
+interface ReunionItem {
+  fecha: string
+  titulo: string
+  tipoReunion: string
+}
+
 interface CalendarioAnualProps {
   year: number
   calendarioEscolar: CalendarioEscolarItem[]
   excepciones: ExcepcionItem[]
-  onDateClick: (date: Date) => void
+  reuniones?: ReunionItem[]
+  onDateClick: (date: Date, evento?: ExcepcionItem) => void
 }
 
 const meses = [
@@ -28,14 +35,24 @@ const meses = [
 
 const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
-export default function CalendarioAnual({ year, calendarioEscolar, excepciones, onDateClick }: CalendarioAnualProps) {
+export default function CalendarioAnual({ year, calendarioEscolar, excepciones, reuniones = [], onDateClick }: CalendarioAnualProps) {
   
-  const getDayType = (date: Date): 'lectivo' | 'feriado' | 'suspension' | 'vacaciones' | 'weekend' | 'normal' => {
+  const getDayType = (date: Date): 'lectivo' | 'feriado' | 'suspension' | 'vacaciones' | 'reunion' | 'weekend' | 'normal' => {
     const dateStr = date.toISOString().split('T')[0]
     
     // Verificar si es fin de semana
     if (date.getDay() === 0 || date.getDay() === 6) {
       return 'weekend'
+    }
+    
+    // Verificar si hay reunión en esta fecha
+    const reunion = reuniones.find(r => {
+      const reunionFecha = new Date(r.fecha)
+      return reunionFecha.toISOString().split('T')[0] === dateStr
+    })
+    
+    if (reunion) {
+      return 'reunion'
     }
     
     // Debug logging para todas las fechas cuando hay excepciones
@@ -106,6 +123,8 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
         return `${baseClass} bg-yellow-200 text-yellow-900 hover:bg-yellow-300 font-semibold`
       case 'vacaciones':
         return `${baseClass} bg-blue-200 text-blue-900 hover:bg-blue-300 font-semibold`
+      case 'reunion':
+        return `${baseClass} bg-orange-200 text-orange-900 hover:bg-orange-300 font-semibold`
       case 'weekend':
         return `${baseClass} bg-gray-200 text-gray-800 hover:bg-gray-300 font-semibold`
       default:
@@ -121,6 +140,11 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
       day: 'numeric' 
     })
     
+    const reunion = reuniones.find(r => {
+      const reunionFecha = new Date(r.fecha)
+      return reunionFecha.toISOString().split('T')[0] === date.toISOString().split('T')[0]
+    })
+    
     const excepcion = excepciones.find(exc => {
       const excFecha = new Date(exc.fecha)
       const excFechaFin = exc.fechaFin ? new Date(exc.fechaFin) : excFecha
@@ -133,7 +157,9 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
     
     let tooltip = dateStr
     
-    if (excepcion) {
+    if (reunion) {
+      tooltip += `\n📅 Reunión: ${reunion.titulo}`
+    } else if (excepcion) {
       tooltip += `\n${excepcion.tipoExcepcion}`
       if (excepcion.motivo) tooltip += `\n${excepcion.motivo}`
     } else if (calendarioItem && calendarioItem.motivo) {
@@ -160,13 +186,24 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
       const isToday = currentDate.toDateString() === today.toDateString()
       const dayType = getDayType(currentDate)
       
+      // Buscar si hay un evento en esta fecha
+      const dateStr = currentDate.toISOString().split('T')[0]
+      const eventoEnFecha = excepciones.find(exc => {
+        const excFecha = new Date(exc.fecha)
+        const excFechaFin = exc.fechaFin ? new Date(exc.fechaFin) : excFecha
+        const dateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
+        const excFechaOnly = new Date(excFecha.getFullYear(), excFecha.getMonth(), excFecha.getDate())
+        const excFechaFinOnly = new Date(excFechaFin.getFullYear(), excFechaFin.getMonth(), excFechaFin.getDate())
+        return dateOnly >= excFechaOnly && dateOnly <= excFechaFinOnly
+      })
+      
       days.push(
         <div
           key={i}
           className={`${getDayClass(dayType, isToday)} ${
             !isCurrentMonth ? 'opacity-50 text-gray-500' : ''
           }`}
-          onClick={() => isCurrentMonth && onDateClick(currentDate)}
+          onClick={() => isCurrentMonth && onDateClick(currentDate, eventoEnFecha)}
           title={getTooltipText(currentDate, dayType)}
         >
           {currentDate.getDate()}

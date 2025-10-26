@@ -261,9 +261,12 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
                 value={formData.dni}
                 onChange={handleChange}
                 required
+                maxLength={8}
+                pattern="[0-9]{8}"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="12345678"
               />
+              <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
             </div>
 
 
