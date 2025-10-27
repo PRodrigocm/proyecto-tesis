@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth'
 // GET /api/justificaciones/[id] - Obtener justificación específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -19,6 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const id = parseInt(params.id)
     
     const justificacion = await prisma.justificacion.findUnique({
@@ -77,7 +78,7 @@ export async function GET(
 // PUT /api/justificaciones/[id] - Actualizar justificación
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -91,6 +92,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const id = parseInt(params.id)
     const body = await request.json()
 
@@ -150,7 +152,7 @@ export async function PUT(
 // DELETE /api/justificaciones/[id] - Eliminar justificación
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -164,6 +166,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const id = parseInt(params.id)
 
     // Verificar que la justificación existe

@@ -156,6 +156,9 @@ export async function GET(request: NextRequest) {
             idEstudiante: estudiante.idEstudiante,
             fecha: fechaBusqueda
           },
+          include: {
+            estadoAsistencia: true
+          },
           orderBy: {
             createdAt: 'desc'
           }
@@ -192,21 +195,10 @@ export async function GET(request: NextRequest) {
         // Determinar estado
         if (retiro) {
           estadoFinal = 'RETIRADO'
-          horaSalida = retiro.hora || ''
-          if (asistencia && asistencia.horaEntrada) {
-            horaEntrada = asistencia.horaEntrada.toTimeString().slice(0, 5)
-          }
+          horaSalida = retiro.hora?.toTimeString().slice(0, 5) || ''
         } else if (asistencia) {
           // Determinar estado basado en asistencia
-          if (asistencia.horaEntrada) {
-            estadoFinal = 'PRESENTE'
-          }
-          if (asistencia.horaEntrada) {
-            horaEntrada = asistencia.horaEntrada.toTimeString().slice(0, 5)
-          }
-          if (asistencia.horaSalida) {
-            horaSalida = asistencia.horaSalida.toTimeString().slice(0, 5)
-          }
+          estadoFinal = asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE'
         }
 
         return {
@@ -217,13 +209,13 @@ export async function GET(request: NextRequest) {
           grado: estudiante.gradoSeccion?.grado?.nombre || '',
           seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
           nivel: estudiante.gradoSeccion?.grado?.nivel?.nombre || '',
-          codigoQR: estudiante.qr || '',
+          qr: estudiante.codigoQR || '',
           estado: estadoFinal,
           horaEntrada,
           horaSalida,
           horarioClase: horarioClase ? {
-            horaInicio: horarioClase.horaInicio.toTimeString().slice(0, 5),
-            horaFin: horarioClase.horaFin.toTimeString().slice(0, 5),
+            horaInicio: horarioClase.horaInicio?.toTimeString().slice(0, 5) || '',
+            horaFin: horarioClase.horaFin?.toTimeString().slice(0, 5) || '',
             materia: horarioClase.materia || 'Clases generales'
           } : null
         }

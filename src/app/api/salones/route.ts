@@ -98,8 +98,7 @@ export async function GET(request: NextRequest) {
         seccion: salon.seccion.nombre,
         nombre: `${salon.grado.nivel.nombre} - ${salon.grado.nombre} "${salon.seccion.nombre}"`,
         cantidadEstudiantes: salon.estudiantes.length,
-        docente: docenteNombre,
-        createdAt: salon.createdAt
+        docente: docenteNombre
       }
     })
 

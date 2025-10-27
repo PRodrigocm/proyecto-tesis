@@ -52,12 +52,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Obtener el rol del usuario
+    const userRole = user.roles[0]?.rol?.nombre || 'ADMIN'
+
     // Generar JWT
     const token = jwt.sign(
       { 
         userId: user.idUsuario, 
         email: user.email, 
-        rol: user.rol,
+        rol: userRole,
         ieId: user.idIe
       },
       process.env.JWT_SECRET || 'fallback-secret',

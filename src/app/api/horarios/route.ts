@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
     if (sesion && sesion !== 'TODOS') whereClause.sesiones = sesion
 
-    const horarios = await prisma.horarioGradoSeccion.findMany({
+    const horarios = await prisma.horarioClase.findMany({
       where: whereClause,
       include: {
         gradoSeccion: {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [
         { diaSemana: 'asc' },
-        { horaEntrada: 'asc' }
+        { horaInicio: 'asc' }
       ]
     })
 
@@ -185,19 +185,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const nuevoHorario = await prisma.horarioGradoSeccion.create({
+    const horarioCreado = await prisma.horarioClase.create({
       data: {
         idGradoSeccion: gradoSeccion.idGradoSeccion,
         diaSemana: parseInt(diaSemana),
-        horaEntrada: new Date(`1970-01-01T${horaInicio}:00`),
-        horaSalida: new Date(`1970-01-01T${horaFin}:00`),
+        horaInicio: new Date(`1970-01-01T${horaInicio}:00`),
+        horaFin: new Date(`1970-01-01T${horaFin}:00`),
         sesiones: sesion
       }
     })
 
     return NextResponse.json({
       message: 'Horario creado exitosamente',
-      id: nuevoHorario.idHorario
+      id: horarioCreado.idHorarioClase
     })
 
   } catch (error) {

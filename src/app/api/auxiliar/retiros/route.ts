@@ -60,20 +60,17 @@ export async function GET(request: NextRequest) {
           }
         },
         tipoRetiro: true,
-        apoderadoQueRetira: {
+        estadoRetiro: true,
+        apoderadoRetira: {
           include: {
             usuario: true
           }
         },
-        autorizadoPorUsuario: {
-          include: {
-            usuario: true
-          }
-        }
+        usuarioVerificador: true
       },
       orderBy: [
-        { fechaRetiro: 'desc' },
-        { horaRetiro: 'desc' }
+        { fecha: 'desc' },
+        { hora: 'desc' }
       ]
     })
 
@@ -88,15 +85,14 @@ export async function GET(request: NextRequest) {
         seccion: retiro.estudiante.gradoSeccion?.seccion?.nombre || ''
       },
       tipoRetiro: retiro.tipoRetiro?.nombre || 'Sin especificar',
-      fechaRetiro: retiro.fechaRetiro.toISOString().split('T')[0],
-      horaRetiro: retiro.horaRetiro || '',
-      motivo: retiro.motivo || '',
-      estado: retiro.estado,
-      apoderadoQueRetira: retiro.apoderadoQueRetira 
-        ? `${retiro.apoderadoQueRetira.usuario.nombre} ${retiro.apoderadoQueRetira.usuario.apellido}`
+      fecha: retiro.fecha.toISOString().split('T')[0],
+      hora: retiro.hora.toTimeString().slice(0, 5),
+      estado: retiro.estadoRetiro?.nombre || 'Pendiente',
+      apoderadoQueRetira: retiro.apoderadoRetira 
+        ? `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
         : undefined,
-      autorizadoPor: retiro.autorizadoPorUsuario
-        ? `${retiro.autorizadoPorUsuario.usuario.nombre} ${retiro.autorizadoPorUsuario.usuario.apellido}`
+      verificadoPor: retiro.usuarioVerificador
+        ? `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}`
         : undefined,
       observaciones: retiro.observaciones
     }))
@@ -183,14 +179,12 @@ export async function POST(request: NextRequest) {
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteId),
+        idIe: userInfo.idIe || 1,
         idTipoRetiro: parseInt(tipoRetiroId),
-        fechaRetiro: new Date(fechaRetiro),
-        horaRetiro,
-        motivo,
+        fecha: new Date(fechaRetiro),
+        hora: new Date(`1970-01-01T${horaRetiro}`),
         observaciones,
-        estado: 'PENDIENTE',
-        idApoderadoQueRetira: apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null,
-        creadoPor: userId
+        apoderadoQueRetira: apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null
       },
       include: {
         estudiante: {
@@ -222,9 +216,9 @@ export async function POST(request: NextRequest) {
           seccion: nuevoRetiro.estudiante.gradoSeccion?.seccion?.nombre
         },
         tipoRetiro: nuevoRetiro.tipoRetiro?.nombre,
-        fechaRetiro: nuevoRetiro.fechaRetiro.toISOString().split('T')[0],
-        horaRetiro: nuevoRetiro.horaRetiro,
-        estado: nuevoRetiro.estado
+        fecha: nuevoRetiro.fecha.toISOString().split('T')[0],
+        hora: nuevoRetiro.hora.toTimeString().slice(0, 5),
+        observaciones: nuevoRetiro.observaciones
       }
     })
 

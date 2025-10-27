@@ -176,9 +176,7 @@ export async function POST(request: NextRequest) {
             where: { idAsistencia: asistenciaExistente.idAsistencia },
             data: {
               idEstadoAsistencia: estadoRetirado.idEstadoAsistencia,
-              horaSalida: new Date(`${retiro.fecha.toISOString().split('T')[0]}T${retiro.hora}:00`),
-              observaciones: `${asistenciaExistente.observaciones || ''} - RETIRADO: ${retiro.observaciones || 'Retiro autorizado'}`.trim(),
-              fuente: 'RETIRO_AUTORIZADO'
+              observaciones: `${asistenciaExistente.observaciones || ''} - RETIRADO: ${retiro.observaciones || 'Retiro autorizado'}`.trim()
             }
           })
           console.log('✅ Asistencia existente actualizada como RETIRADO')
@@ -187,13 +185,9 @@ export async function POST(request: NextRequest) {
           await prisma.asistencia.create({
             data: {
               idEstudiante: retiro.idEstudiante,
-              idIe: retiro.idIe,
               fecha: fechaRetiro,
-              sesion: 'MAÑANA',
               idEstadoAsistencia: estadoRetirado.idEstadoAsistencia,
-              horaSalida: new Date(`${retiro.fecha.toISOString().split('T')[0]}T${retiro.hora}:00`),
               observaciones: `RETIRADO: ${retiro.observaciones || 'Retiro autorizado'}`,
-              fuente: 'RETIRO_AUTORIZADO',
               registradoPor: user.userId
             }
           })

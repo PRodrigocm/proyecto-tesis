@@ -71,10 +71,7 @@ export async function GET(request: NextRequest) {
       id: asistencia.idAsistencia.toString(),
       fecha: asistencia.fecha.toISOString(),
       estado: asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE',
-      horaEntrada: asistencia.horaEntrada?.toTimeString().slice(0, 5) || '',
-      horaSalida: asistencia.horaSalida?.toTimeString().slice(0, 5) || '',
       observaciones: asistencia.observaciones || '',
-      sesion: asistencia.sesion,
       estudiante: {
         id: asistencia.estudiante.idEstudiante.toString(),
         nombre: asistencia.estudiante.usuario.nombre,
@@ -116,18 +113,24 @@ export async function POST(request: NextRequest) {
     })
 
     if (!estadoAsistencia) {
-      // Crear estado si no existe
-      estadoAsistencia = await prisma.estadoAsistencia.create({
-        data: { nombreEstado: estado }
+      // Si no existe el estado, usar el estado por defecto "PRESENTE"
+      estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+        where: { codigo: 'PRESENTE' }
       })
+      
+      if (!estadoAsistencia) {
+        return NextResponse.json(
+          { error: 'Estado de asistencia no configurado en el sistema' },
+          { status: 500 }
+        )
+      }
     }
 
     // Verificar si ya existe asistencia para este estudiante en esta fecha
     const existingAsistencia = await prisma.asistencia.findFirst({
       where: {
         idEstudiante: parseInt(estudianteId),
-        fecha: new Date(fecha),
-        sesion
+        fecha: new Date(fecha)
       }
     })
 
@@ -137,9 +140,7 @@ export async function POST(request: NextRequest) {
         where: { idAsistencia: existingAsistencia.idAsistencia },
         data: {
           idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
-          observaciones,
-          horaEntrada: estado === 'PRESENTE' || estado === 'TARDANZA' ? 
-            new Date().toTimeString().slice(0, 8) : null
+          observaciones
         }
       })
 
@@ -154,11 +155,7 @@ export async function POST(request: NextRequest) {
           idEstudiante: parseInt(estudianteId),
           fecha: new Date(fecha),
           idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
-          observaciones,
-          sesion,
-          horaEntrada: estado === 'PRESENTE' || estado === 'TARDANZA' ? 
-            new Date().toTimeString().slice(0, 8) : null,
-          idIe: 1 // IE por defecto
+          observaciones
         }
       })
 

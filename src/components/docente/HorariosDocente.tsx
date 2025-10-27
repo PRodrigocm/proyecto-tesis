@@ -390,8 +390,8 @@ export default function HorariosDocente() {
             <div className="text-sm text-black">Total Horarios</div>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.activos}</div>
-            <div className="text-sm text-black">Activos</div>
+            <div className="text-2xl font-bold text-green-600">{stats.total}</div>
+            <div className="text-sm text-black">Total</div>
           </div>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-gray-600">{stats.grados}</div>

@@ -17,8 +17,8 @@ export async function PATCH(
       )
     }
 
-    const horarioActualizado = await prisma.horarioGradoSeccion.update({
-      where: { idHorario: horarioId },
+    const horarioActualizado = await prisma.horarioClase.update({
+      where: { idHorarioClase: horarioId },
       data: {
         ...(body.diaSemana && { diaSemana: parseInt(body.diaSemana) }),
         ...(body.horaInicio && { horaEntrada: new Date(`1970-01-01T${body.horaInicio}:00`) }),
@@ -43,10 +43,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { params } = context
+    const params = await context.params
     const horarioId = parseInt(params.id)
 
     if (isNaN(horarioId)) {
@@ -56,8 +56,8 @@ export async function DELETE(
       )
     }
 
-    await prisma.horarioGradoSeccion.delete({
-      where: { idHorario: horarioId }
+    await prisma.horarioClase.delete({
+      where: { idHorarioClase: horarioId }
     })
 
     return NextResponse.json({

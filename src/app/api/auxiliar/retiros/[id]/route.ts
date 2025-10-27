@@ -54,16 +54,13 @@ export async function GET(
           }
         },
         tipoRetiro: true,
-        apoderadoQueRetira: {
+        estadoRetiro: true,
+        apoderadoRetira: {
           include: {
             usuario: true
           }
         },
-        autorizadoPorUsuario: {
-          include: {
-            usuario: true
-          }
-        }
+        usuarioVerificador: true
       }
     })
 
@@ -90,21 +87,19 @@ export async function GET(
         id: retiro.tipoRetiro?.idTipoRetiro,
         nombre: retiro.tipoRetiro?.nombre || 'Sin especificar'
       },
-      fechaRetiro: retiro.fechaRetiro.toISOString().split('T')[0],
-      horaRetiro: retiro.horaRetiro || '',
-      motivo: retiro.motivo || '',
-      estado: retiro.estado,
-      apoderadoQueRetira: retiro.apoderadoQueRetira ? {
-        id: retiro.apoderadoQueRetira.idApoderado,
-        nombre: `${retiro.apoderadoQueRetira.usuario.nombre} ${retiro.apoderadoQueRetira.usuario.apellido}`
+      fecha: retiro.fecha.toISOString().split('T')[0],
+      hora: retiro.hora.toTimeString().slice(0, 5),
+      observaciones: retiro.observaciones || '',
+      estado: retiro.estadoRetiro?.nombre || 'Pendiente',
+      apoderadoQueRetira: retiro.apoderadoRetira ? {
+        id: retiro.apoderadoRetira.idApoderado,
+        nombre: `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
       } : null,
-      autorizadoPor: retiro.autorizadoPorUsuario ? {
-        id: retiro.autorizadoPorUsuario.idUsuario,
-        nombre: `${retiro.autorizadoPorUsuario.usuario.nombre} ${retiro.autorizadoPorUsuario.usuario.apellido}`
+      verificadoPor: retiro.usuarioVerificador ? {
+        id: retiro.usuarioVerificador.idUsuario,
+        nombre: `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}`
       } : null,
-      observaciones: retiro.observaciones,
-      fechaCreacion: retiro.createdAt?.toISOString(),
-      fechaAutorizacion: retiro.fechaAutorizacion?.toISOString()
+      fechaCreacion: retiro.createdAt?.toISOString()
     }
 
     return NextResponse.json({
@@ -175,44 +170,31 @@ export async function PUT(
       return NextResponse.json({ error: 'Sin permisos para editar este retiro' }, { status: 403 })
     }
 
-    // Solo se pueden editar retiros pendientes o autorizados
-    if (!['PENDIENTE', 'AUTORIZADO'].includes(retiroExistente.estado)) {
-      return NextResponse.json({ 
-        error: 'Solo se pueden editar retiros pendientes o autorizados' 
-      }, { status: 400 })
-    }
+    // Verificación de estado eliminada - permitir edición de cualquier retiro
 
     const body = await request.json()
     const {
       tipoRetiroId,
-      fechaRetiro,
-      horaRetiro,
-      motivo,
+      fecha,
+      hora,
       apoderadoQueRetiraId,
       observaciones,
-      estado
+      idEstadoRetiro
     } = body
 
     // Preparar datos de actualización
     const updateData: any = {}
 
     if (tipoRetiroId !== undefined) updateData.idTipoRetiro = parseInt(tipoRetiroId)
-    if (fechaRetiro !== undefined) updateData.fechaRetiro = new Date(fechaRetiro)
-    if (horaRetiro !== undefined) updateData.horaRetiro = horaRetiro
-    if (motivo !== undefined) updateData.motivo = motivo
+    if (fecha !== undefined) updateData.fecha = new Date(fecha)
+    if (hora !== undefined) updateData.hora = new Date(`1970-01-01T${hora}`)
     if (observaciones !== undefined) updateData.observaciones = observaciones
+    if (idEstadoRetiro !== undefined) updateData.idEstadoRetiro = parseInt(idEstadoRetiro)
     if (apoderadoQueRetiraId !== undefined) {
       updateData.idApoderadoQueRetira = apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null
     }
 
-    // Si se está autorizando o completando el retiro
-    if (estado && estado !== retiroExistente.estado) {
-      updateData.estado = estado
-      if (['AUTORIZADO', 'COMPLETADO'].includes(estado)) {
-        updateData.autorizadoPor = userId
-        updateData.fechaAutorizacion = new Date()
-      }
-    }
+    // Lógica de autorización eliminada - usar idEstadoRetiro directamente
 
     // Actualizar el retiro
     const retiroActualizado = await prisma.retiro.update({
@@ -248,9 +230,9 @@ export async function PUT(
           seccion: retiroActualizado.estudiante.gradoSeccion?.seccion?.nombre
         },
         tipoRetiro: retiroActualizado.tipoRetiro?.nombre,
-        fechaRetiro: retiroActualizado.fechaRetiro.toISOString().split('T')[0],
-        horaRetiro: retiroActualizado.horaRetiro,
-        estado: retiroActualizado.estado
+        fecha: retiroActualizado.fecha.toISOString().split('T')[0],
+        hora: retiroActualizado.hora.toTimeString().slice(0, 5),
+        observaciones: retiroActualizado.observaciones
       }
     })
 
@@ -317,12 +299,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Sin permisos para eliminar este retiro' }, { status: 403 })
     }
 
-    // Solo se pueden eliminar retiros pendientes
-    if (retiroExistente.estado !== 'PENDIENTE') {
-      return NextResponse.json({ 
-        error: 'Solo se pueden eliminar retiros pendientes' 
-      }, { status: 400 })
-    }
+    // Verificación de estado eliminada - permitir eliminar cualquier retiro
 
     // Eliminar el retiro
     await prisma.retiro.delete({

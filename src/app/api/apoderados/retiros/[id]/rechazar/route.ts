@@ -42,7 +42,7 @@ export async function PUT(
       include: {
         estudiante: {
           include: {
-            estudianteApoderados: {
+            apoderados: {
               where: {
                 idApoderado: decoded.userId,
                 esTitular: true // Solo apoderados titulares pueden rechazar
@@ -60,17 +60,10 @@ export async function PUT(
       )
     }
 
-    if (retiro.estudiante.estudianteApoderados.length === 0) {
+    if (retiro.estudiante.apoderados.length === 0) {
       return NextResponse.json(
         { error: 'No tiene permisos para rechazar este retiro' },
         { status: 403 }
-      )
-    }
-
-    if (retiro.estado !== 'SOLICITADO' && retiro.estado !== 'EN_REVISION') {
-      return NextResponse.json(
-        { error: 'Este retiro ya ha sido procesado' },
-        { status: 400 }
       )
     }
 
@@ -80,9 +73,6 @@ export async function PUT(
         idRetiro: retiroId
       },
       data: {
-        estado: 'RECHAZADO',
-        fechaAprobacion: new Date(),
-        idAprobadoPor: decoded.userId,
         observaciones: `${retiro.observaciones || ''}\n\nMotivo del rechazo: ${motivo}`.trim()
       },
       include: {
@@ -105,10 +95,8 @@ export async function PUT(
       message: 'Retiro rechazado',
       retiro: {
         id: retiroRechazado.idRetiro.toString(),
-        estudiante: `${retiroRechazado.estudiante.usuario.apellido}, ${retiroRechazado.estudiante.usuario.nombre}`,
         fecha: retiroRechazado.fecha.toISOString().split('T')[0],
-        hora: retiroRechazado.hora,
-        estado: retiroRechazado.estado,
+        hora: retiroRechazado.hora.toTimeString().slice(0, 5),
         motivo: motivo
       }
     })

@@ -33,7 +33,7 @@ export async function PUT(
       include: {
         estudiante: {
           include: {
-            estudianteApoderados: {
+            apoderados: {
               where: {
                 idApoderado: decoded.userId,
                 esTitular: true // Solo apoderados titulares pueden aprobar
@@ -51,17 +51,10 @@ export async function PUT(
       )
     }
 
-    if (retiro.estudiante.estudianteApoderados.length === 0) {
+    if (retiro.estudiante.apoderados.length === 0) {
       return NextResponse.json(
         { error: 'No tiene permisos para aprobar este retiro' },
         { status: 403 }
-      )
-    }
-
-    if (retiro.estado !== 'SOLICITADO' && retiro.estado !== 'EN_REVISION') {
-      return NextResponse.json(
-        { error: 'Este retiro ya ha sido procesado' },
-        { status: 400 }
       )
     }
 
@@ -71,9 +64,8 @@ export async function PUT(
         idRetiro: retiroId
       },
       data: {
-        estado: 'APROBADO',
-        fechaAprobacion: new Date(),
-        idAprobadoPor: decoded.userId
+        verificadoPor: decoded.userId,
+        observaciones: 'Aprobado por apoderado'
       },
       include: {
         estudiante: {
@@ -95,10 +87,8 @@ export async function PUT(
       message: 'Retiro aprobado exitosamente',
       retiro: {
         id: retiroAprobado.idRetiro.toString(),
-        estudiante: `${retiroAprobado.estudiante.usuario.apellido}, ${retiroAprobado.estudiante.usuario.nombre}`,
         fecha: retiroAprobado.fecha.toISOString().split('T')[0],
-        hora: retiroAprobado.hora,
-        estado: retiroAprobado.estado
+        hora: retiroAprobado.hora.toTimeString().slice(0, 5)
       }
     })
 

@@ -109,18 +109,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 5. Total de talleres de la IE
-    try {
-      console.log('🔍 Consultando talleres...')
-      totalTalleres = await prisma.taller.count({
-        where: {
-          idIe: ieId,
-          activo: true
-        }
-      })
-      console.log('✅ Total talleres activos:', totalTalleres)
-    } catch (error) {
-      console.error('❌ Error contando talleres:', error)
-    }
+    // Modelo taller no existe en el schema
+    totalTalleres = 0
 
     // 6. Asistencias de hoy
     try {
@@ -131,7 +121,6 @@ export async function GET(request: NextRequest) {
       
       asistenciasHoy = await prisma.asistencia.count({
         where: {
-          idIe: ieId,
           fecha: {
             gte: inicioDelDia,
             lte: finDelDia
@@ -195,7 +184,6 @@ export async function GET(request: NextRequest) {
       
       const asistenciasRecientes = await prisma.asistencia.findMany({
         where: {
-          idIe: ieId,
           fecha: {
             gte: hace7Dias
           }

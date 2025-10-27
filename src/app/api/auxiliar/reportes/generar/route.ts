@@ -68,6 +68,9 @@ export async function GET(request: NextRequest) {
               lte: new Date(fechaFin)
             }
           },
+          include: {
+            estadoAsistencia: true
+          },
           orderBy: {
             fecha: 'asc'
           }
@@ -79,9 +82,7 @@ export async function GET(request: NextRequest) {
     const reportes = estudiantes.map(estudiante => {
       const asistencias = estudiante.asistencias.map((asistencia: any) => ({
         fecha: asistencia.fecha.toISOString().split('T')[0],
-        estado: 'PRESENTE' as 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO', // Por ahora usamos PRESENTE como default
-        horaEntrada: asistencia.horaEntrada ? asistencia.horaEntrada.toISOString().split('T')[1].substring(0, 5) : undefined,
-        horaSalida: asistencia.horaSalida ? asistencia.horaSalida.toISOString().split('T')[1].substring(0, 5) : undefined
+        estado: asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE' as 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO'
       }))
 
       // Calcular estadísticas

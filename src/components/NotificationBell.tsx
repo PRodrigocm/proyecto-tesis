@@ -54,7 +54,7 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`/api/notifications?role=${userRole}&userId=${userId}`, {
+      const response = await fetch(`/api/notificaciones?role=${userRole}&userId=${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -75,7 +75,7 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
     try {
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`/api/notificaciones/${notificationId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -100,7 +100,7 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
     try {
       const token = localStorage.getItem('token')
       
-      const response = await fetch('/api/notifications/mark-all-read', {
+      const response = await fetch('/api/notificaciones/marcar-todas-leidas', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener asistencias de entrada/salida de la IE
-    const asistencias = await prisma.asistencia.findMany({
+    const asistencias = await prisma.asistenciaIE.findMany({
       where: {
         idEstudiante: parseInt(estudianteId),
         fecha: {
@@ -74,18 +74,18 @@ export async function GET(request: NextRequest) {
     })
 
     const asistenciasFormateadas = asistencias.map(asistencia => ({
-      id: asistencia.idAsistencia.toString(),
+      id: asistencia.idAsistenciaIE.toString(),
       fecha: asistencia.fecha.toISOString().split('T')[0],
-      horaEntrada: asistencia.horaEntrada,
-      horaSalida: asistencia.horaSalida,
+      horaEntrada: asistencia.horaIngreso?.toTimeString().slice(0, 5),
+      horaSalida: asistencia.horaSalida?.toTimeString().slice(0, 5),
       estado: asistencia.estado,
       estudiante: {
         id: asistencia.estudiante.idEstudiante.toString(),
         nombre: asistencia.estudiante.usuario.nombre,
         apellido: asistencia.estudiante.usuario.apellido,
         dni: asistencia.estudiante.usuario.dni,
-        grado: asistencia.estudiante.gradoSeccion.grado.nombre,
-        seccion: asistencia.estudiante.gradoSeccion.seccion.nombre
+        grado: asistencia.estudiante.gradoSeccion?.grado.nombre,
+        seccion: asistencia.estudiante.gradoSeccion?.seccion.nombre
       }
     }))
 

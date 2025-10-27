@@ -31,7 +31,7 @@ export async function GET() {
     return NextResponse.json(transformedData)
   } catch (error) {
     console.error('Error fetching instituciones:', error)
-    console.error('Error details:', error.message)
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

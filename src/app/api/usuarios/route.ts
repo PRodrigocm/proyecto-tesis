@@ -220,11 +220,8 @@ export async function POST(request: NextRequest) {
           
           const estudianteData = {
             idUsuario: newUser.idUsuario,
-            qr: qrCode,
-            idIe: ieId ? parseInt(ieId) : null,
-            fechaNacimiento: fechaNacimiento && fechaNacimiento.trim() !== '' ? new Date(fechaNacimiento) : null,
-            grado: grado ? parseInt(grado) : null,
-            seccion: seccion || null
+            codigoQR: qrCode,
+            fechaNacimiento: fechaNacimiento && fechaNacimiento.trim() !== '' ? new Date(fechaNacimiento) : null
           }
           
           console.log('Datos del estudiante a crear:', estudianteData)

@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
@@ -22,6 +22,7 @@ export async function PUT(
     const token = authHeader.substring(7)
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
 
+    const params = await context.params
     const idNotificacion = parseInt(params.id)
     if (isNaN(idNotificacion)) {
       return NextResponse.json(
@@ -83,7 +84,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
@@ -98,6 +99,7 @@ export async function DELETE(
     const token = authHeader.substring(7)
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
 
+    const params = await context.params
     const idNotificacion = parseInt(params.id)
     if (isNaN(idNotificacion)) {
       return NextResponse.json(

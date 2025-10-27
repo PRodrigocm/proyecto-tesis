@@ -273,9 +273,6 @@ export async function GET(request: NextRequest) {
         },
         asistencias: estudiante.asistencias.map(asistencia => ({
           fecha: asistencia.fecha.toISOString().split('T')[0],
-          sesion: asistencia.sesion,
-          horaEntrada: asistencia.horaEntrada?.toTimeString().slice(0, 8),
-          horaSalida: asistencia.horaSalida?.toTimeString().slice(0, 8),
           estado: asistencia.estadoAsistencia?.nombreEstado,
           codigo: asistencia.estadoAsistencia?.codigo,
           observaciones: asistencia.observaciones,

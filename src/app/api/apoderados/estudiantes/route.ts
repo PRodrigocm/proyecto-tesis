@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
       nombre: ea.estudiante.usuario.nombre,
       apellido: ea.estudiante.usuario.apellido,
       dni: ea.estudiante.usuario.dni,
-      grado: ea.estudiante.gradoSeccion.grado.nombre,
-      seccion: ea.estudiante.gradoSeccion.seccion.nombre,
-      codigoEstudiante: ea.estudiante.codigoEstudiante,
+      grado: ea.estudiante.gradoSeccion?.grado.nombre,
+      seccion: ea.estudiante.gradoSeccion?.seccion.nombre,
+      codigoEstudiante: ea.estudiante.codigoQR || ea.estudiante.usuario.dni,
       relacion: ea.relacion,
       esTitular: ea.esTitular
     }))

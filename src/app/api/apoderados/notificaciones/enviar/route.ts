@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`
         ).replace(
           '{grado}',
-          `${estudiante.gradoSeccion.grado.nombre}° ${estudiante.gradoSeccion.seccion.nombre}`
+          `${estudiante.gradoSeccion?.grado.nombre || ''}° ${estudiante.gradoSeccion?.seccion.nombre || ''}`
         )
 
         // Enviar notificación por email si está habilitado

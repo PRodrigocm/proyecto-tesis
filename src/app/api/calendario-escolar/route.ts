@@ -119,22 +119,28 @@ export async function POST(request: NextRequest) {
 
     // Verificar si ya existe una entrada para esta fecha
     console.log('🔍 Buscando entrada existente para fecha:', fecha, 'IE:', ieId)
+    const fechaBusqueda = new Date(fecha)
     const existingEntry = await prisma.calendarioEscolar.findFirst({
       where: {
         idIe: ieId,
-        fecha: new Date(fecha)
+        fechaInicio: {
+          lte: fechaBusqueda
+        },
+        fechaFin: {
+          gte: fechaBusqueda
+        }
       }
     })
     console.log('📋 Entrada existente encontrada:', existingEntry ? 'Sí' : 'No')
 
     if (existingEntry) {
       // Actualizar entrada existente
-      console.log('🔄 Actualizando entrada existente con ID:', existingEntry.idCal)
+      console.log('🔄 Actualizando entrada existente con ID:', existingEntry.idCalendario)
       const updatedEntry = await prisma.calendarioEscolar.update({
-        where: { idCal: existingEntry.idCal },
+        where: { idCalendario: existingEntry.idCalendario },
         data: {
-          esLectivo: esLectivo ?? true,
-          motivo: motivo || null
+          tipoDia: esLectivo ? 'CLASES' : 'FERIADO',
+          descripcion: motivo || null
         }
       })
       console.log('✅ Entrada actualizada exitosamente:', updatedEntry)
@@ -143,20 +149,23 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Entrada actualizada exitosamente',
         data: {
-          fecha: updatedEntry.fecha.toISOString().split('T')[0],
-          esLectivo: updatedEntry.esLectivo,
-          motivo: updatedEntry.motivo
+          fechaInicio: updatedEntry.fechaInicio.toISOString().split('T')[0],
+          fechaFin: updatedEntry.fechaFin.toISOString().split('T')[0],
+          tipoDia: updatedEntry.tipoDia,
+          descripcion: updatedEntry.descripcion
         }
       })
     } else {
       // Crear nueva entrada
       console.log('➕ Creando nueva entrada para:', { idIe: ieId, fecha: new Date(fecha), esLectivo: esLectivo ?? true, motivo })
+      const fechaDate = new Date(fecha)
       const newEntry = await prisma.calendarioEscolar.create({
         data: {
           idIe: ieId,
-          fecha: new Date(fecha),
-          esLectivo: esLectivo ?? true,
-          motivo: motivo || null
+          fechaInicio: fechaDate,
+          fechaFin: fechaDate,
+          tipoDia: esLectivo ? 'CLASES' : 'FERIADO',
+          descripcion: motivo || null
         }
       })
       console.log('✅ Nueva entrada creada exitosamente:', newEntry)
@@ -165,9 +174,10 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Entrada creada exitosamente',
         data: {
-          fecha: newEntry.fecha.toISOString().split('T')[0],
-          esLectivo: newEntry.esLectivo,
-          motivo: newEntry.motivo
+          fechaInicio: newEntry.fechaInicio.toISOString().split('T')[0],
+          fechaFin: newEntry.fechaFin.toISOString().split('T')[0],
+          tipoDia: newEntry.tipoDia,
+          descripcion: newEntry.descripcion
         }
       })
     }
@@ -201,10 +211,16 @@ export async function DELETE(request: NextRequest) {
     const ieId = decoded.ieId || 1
 
     // Eliminar entrada
+    const fechaDate = new Date(fecha)
     await prisma.calendarioEscolar.deleteMany({
       where: {
         idIe: ieId,
-        fecha: new Date(fecha)
+        fechaInicio: {
+          lte: fechaDate
+        },
+        fechaFin: {
+          gte: fechaDate
+        }
       }
     })
 

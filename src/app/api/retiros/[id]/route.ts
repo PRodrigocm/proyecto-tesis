@@ -24,7 +24,7 @@ function verifyToken(token: string): JWTPayload | null {
 // PUT - Modificar retiro
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
@@ -39,6 +39,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const retiroId = parseInt(params.id)
     const body = await request.json()
     const {
@@ -165,7 +166,7 @@ export async function PUT(
 // DELETE - Eliminar retiro
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
@@ -180,6 +181,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const retiroId = parseInt(params.id)
 
     // Verificar que el retiro existe

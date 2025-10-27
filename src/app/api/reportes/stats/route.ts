@@ -139,12 +139,8 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      totalTalleres = await prisma.taller.count({
-        where: {
-          idIe: ieId,
-          activo: true
-        }
-      })
+      // Modelo taller no existe
+      totalTalleres = 0
 
       console.log('✅ Estadísticas básicas obtenidas')
     } catch (error) {

@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔔 POST /api/notifications/mark-all-read - Marcando todas las notificaciones como leídas')
+    console.log('🔔 POST /api/notificaciones/marcar-todas-leidas - Marcando todas las notificaciones como leídas')
     
     // Verificar autenticación
     const authHeader = request.headers.get('authorization')

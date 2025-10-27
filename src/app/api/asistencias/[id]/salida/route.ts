@@ -16,17 +16,11 @@ export async function PATCH(
       )
     }
 
-    const asistenciaActualizada = await prisma.asistencia.update({
-      where: { idAsistencia: asistenciaId },
-      data: {
-        horaSalida: new Date()
-      }
-    })
-
+    // Este endpoint no es aplicable para Asistencia (asistencias de clase)
+    // Las asistencias de clase no tienen hora de salida
     return NextResponse.json({
-      message: 'Salida registrada exitosamente',
-      data: asistenciaActualizada
-    })
+      error: 'Este endpoint no está implementado para asistencias de clase'
+    }, { status: 501 })
 
   } catch (error) {
     console.error('Error registering salida:', error)

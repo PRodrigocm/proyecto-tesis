@@ -402,7 +402,7 @@ export async function GET(request: NextRequest) {
         const excelBuffer = generateExcelReport(reportData, reportTitle, colegioInfo, usuarioInfo)
         console.log('📊 Excel generado, tamaño:', excelBuffer.length, 'bytes')
         
-        return new NextResponse(excelBuffer, {
+        return new NextResponse(excelBuffer as any, {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition': `attachment; filename="reporte-${tipo}-${new Date().toISOString().split('T')[0]}.xlsx"`
@@ -418,7 +418,7 @@ export async function GET(request: NextRequest) {
         const pdfBuffer = await generatePDFReport(reportData, reportTitle, colegioInfo, usuarioInfo)
         console.log('📄 PDF generado, tamaño:', pdfBuffer.length, 'bytes')
         
-        return new NextResponse(pdfBuffer, {
+        return new NextResponse(pdfBuffer as any, {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="reporte-${tipo}-${new Date().toISOString().split('T')[0]}.pdf"`
@@ -434,7 +434,7 @@ export async function GET(request: NextRequest) {
         const wordBuffer = await generateWordReport(reportData, reportTitle, colegioInfo, usuarioInfo)
         console.log('📄 Word generado, tamaño:', wordBuffer.length, 'bytes')
         
-        return new NextResponse(wordBuffer, {
+        return new NextResponse(wordBuffer as any, {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'Content-Disposition': `attachment; filename="reporte-${tipo}-${new Date().toISOString().split('T')[0]}.docx"`
@@ -497,8 +497,7 @@ async function generateAsistenciaDiariaData(ieId: number, fechaInicio: Date, fec
       }
     },
     orderBy: [
-      { fecha: 'desc' },
-      { horaEntrada: 'asc' }
+      { fecha: 'desc' }
     ]
   })
 
@@ -506,10 +505,7 @@ async function generateAsistenciaDiariaData(ieId: number, fechaInicio: Date, fec
     Fecha: asistencia.fecha.toLocaleDateString('es-ES'),
     Estudiante: `${asistencia.estudiante.usuario.nombre} ${asistencia.estudiante.usuario.apellido}`,
     Grado: asistencia.estudiante.gradoSeccion?.grado.nombre || 'N/A',
-    Sección: asistencia.estudiante.gradoSeccion?.seccion.nombre || 'N/A',
-    'Hora Entrada': asistencia.horaEntrada?.toLocaleTimeString('es-ES') || 'N/A',
-    'Hora Salida': asistencia.horaSalida?.toLocaleTimeString('es-ES') || 'N/A',
-    Sesión: asistencia.sesion
+    Sección: asistencia.estudiante.gradoSeccion?.seccion.nombre || 'N/A'
   }))
 }
 
@@ -666,7 +662,7 @@ async function generateAsistenciaEstudianteData(ieId: number, fechaInicio: Date,
         nombre: estudiante.usuario.nombre,
         apellido: estudiante.usuario.apellido,
         dni: estudiante.usuario.dni,
-        codigo: estudiante.codigo
+        codigoQR: estudiante.codigoQR
       })
     })
 
@@ -689,7 +685,7 @@ async function generateAsistenciaEstudianteData(ieId: number, fechaInicio: Date,
           Tipo: 'ESTUDIANTE',
           Información: `${index + 1}. ${estudiante.nombre} ${estudiante.apellido}`,
           Detalle: `DNI: ${estudiante.dni}`,
-          'Total Estudiantes': estudiante.codigo || 'Sin código',
+          'Total Estudiantes': estudiante.codigoQR || 'Sin código',
           Observaciones: 'Estudiante activo'
         })
       })
@@ -1023,7 +1019,7 @@ async function generateReporteGeneralData(ieId: number, fechaInicio: Date, fecha
       ...estudiantesDetallados.map((estudiante, index) => ({
         Categoría: 'ESTUDIANTES',
         Descripción: `${index + 1}. ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
-        Valor: estudiante.codigo || 'Sin código',
+        Valor: estudiante.codigoQR || 'Sin código',
         Detalle: `DNI: ${estudiante.usuario.dni} | Grado: ${estudiante.gradoSeccion?.grado.nombre}° ${estudiante.gradoSeccion?.seccion.nombre} | Estado: ${estudiante.usuario.estado}`
       }))
     ]
@@ -1151,7 +1147,7 @@ async function getColegioInfo(ieId: number) {
     if (ie) {
       console.log('🏫 Datos de IE:', {
         nombre: ie.nombre,
-        codigo: ie.codigoIe,
+        codigoQR: ie.codigoIe,
         modalidad: ie.modalidad?.nombre
       })
     }
@@ -1159,7 +1155,7 @@ async function getColegioInfo(ieId: number) {
     return {
       nombre: ie?.nombre || 'Institución Educativa',
       modalidad: ie?.modalidad?.nombre || 'EBR - Educación Básica Regular',
-      codigo: ie?.codigoIe || 'IE002',
+      codigoQR: ie?.codigoIe || 'IE002',
       direccion: (ie as any)?.direccion || 'Dirección no registrada',
       telefono: (ie as any)?.telefono || 'Teléfono no registrado',
       email: (ie as any)?.email || 'Email no registrado'
@@ -1169,7 +1165,7 @@ async function getColegioInfo(ieId: number) {
     return {
       nombre: 'I.E. María Auxiliadora',
       modalidad: 'EBR - Educación Básica Regular',
-      codigo: 'IE002',
+      codigoQR: 'IE002',
       direccion: 'Dirección institucional',
       telefono: 'Teléfono institucional', 
       email: 'contacto@institucion.edu.pe'
@@ -1249,7 +1245,7 @@ function generateExcelReport(data: any[], title: string, colegioInfo?: any, usua
         [''],
         ['ENCABEZADO'],
         ['Institución:', colegioInfo.nombre],
-        ['Código IE:', colegioInfo.codigo],
+        ['Código IE:', colegioInfo.codigoQR],
         ['Modalidad:', colegioInfo.modalidad],
         ['Período:', new Date().toLocaleDateString('es-ES')],
         ['Generado el:', `${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`],
@@ -1499,7 +1495,7 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.text(`Institución Educativa: ${colegioInfo.nombre}`, 20, 95)
-      doc.text(`Código Modular: ${colegioInfo.codigo}`, 20, 105)
+      doc.text(`Código Modular: ${colegioInfo.codigoQR}`, 20, 105)
       doc.text(`Modalidad Educativa: ${colegioInfo.modalidad}`, 20, 115)
       doc.text(`Dirección: ${colegioInfo.direccion}`, 20, 125)
       doc.text(`Teléfono: ${colegioInfo.telefono}`, 20, 135)
@@ -1991,7 +1987,7 @@ async function generateReporteSemanalCompleto(ieId: number, fechaInicio: Date, f
       {
         Sección: 'ENCABEZADO',
         Campo: 'Código IE',
-        Valor: colegioInfo.codigo,
+        Valor: colegioInfo.codigoQR,
         Observaciones: ''
       },
       {
@@ -2049,7 +2045,7 @@ async function generateReporteSemanalCompleto(ieId: number, fechaInicio: Date, f
           Sección: 'ASISTENCIAS POR ESTUDIANTE',
           Campo: `${estudiante.gradoSeccion?.grado.nombre}° ${estudiante.gradoSeccion?.seccion.nombre}`,
           Valor: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
-          Observaciones: `Código: ${estudiante.codigo} | DNI: ${estudiante.usuario.dni} | Asistió: ${diasAsistidos} | Faltó: ${diasFaltados} | ${porcentajeAsistencia}%`
+          Observaciones: `Código: ${estudiante.codigoQR} | DNI: ${estudiante.usuario.dni} | Asistió: ${diasAsistidos} | Faltó: ${diasFaltados} | ${porcentajeAsistencia}%`
         }
       }),
       
@@ -2288,7 +2284,7 @@ async function generateWordReport(data: any[], title: string, colegioInfo?: any,
         new Paragraph({
           children: [
             new TextRun({
-              text: `Código Modular: ${colegioInfo.codigo}`,
+              text: `Código Modular: ${colegioInfo.codigoQR}`,
               size: 20
             })
           ],
@@ -2404,7 +2400,7 @@ function generateSimpleWordReport(data: any[], title: string, colegioInfo?: any,
   
   if (colegioInfo) {
     content += `Institución: ${colegioInfo.nombre}\n`
-    content += `Código: ${colegioInfo.codigo}\n`
+    content += `Código: ${colegioInfo.codigoQR}\n`
     content += `Modalidad: ${colegioInfo.modalidad}\n\n`
   }
   

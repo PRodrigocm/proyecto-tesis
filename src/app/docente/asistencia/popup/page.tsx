@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import TomarAsistenciaPopup from '@/components/docente/TomarAsistenciaPopup'
-import { closePopupAndRefresh } from '@/utils/popupUtils'
+import { closeTabAndRefresh } from '@/utils/popupUtils'
 
 interface Estudiante {
   id: number
@@ -46,7 +46,7 @@ function TomarAsistenciaPopupContent() {
   }
 
   const handleClose = () => {
-    closePopupAndRefresh()
+    closeTabAndRefresh()
   }
 
   // Manejar cierre con Escape

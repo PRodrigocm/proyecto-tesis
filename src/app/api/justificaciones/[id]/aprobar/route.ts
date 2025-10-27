@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth'
 // POST /api/justificaciones/[id]/aprobar - Aprobar justificación
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -19,6 +19,7 @@ export async function POST(
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
+    const params = await context.params
     const id = parseInt(params.id)
     const body = await request.json()
     const { observacionesRevision, aplicarAAsistencias = true } = body

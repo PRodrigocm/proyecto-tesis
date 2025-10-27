@@ -51,7 +51,7 @@ export const requireRole = (roles: UserRole[]) => {
   };
 };
 
-export const requireAdmin = requireRole([UserRole.ADMIN]);
-export const requireAdminOrAdministrativo = requireRole([UserRole.ADMIN, UserRole.ADMINISTRATIVO]);
-export const requireDocente = requireRole([UserRole.DOCENTE]);
-export const requireApoderado = requireRole([UserRole.APODERADO]);
+export const requireAdmin = requireRole(['ADMIN' as UserRole]);
+export const requireAdminOrAdministrativo = requireRole(['ADMIN' as UserRole, 'ADMINISTRATIVO' as UserRole]);
+export const requireDocente = requireRole(['DOCENTE' as UserRole]);
+export const requireApoderado = requireRole(['APODERADO' as UserRole]);

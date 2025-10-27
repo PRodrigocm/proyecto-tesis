@@ -317,8 +317,8 @@ function SalonTablesView({ salon }: { salon: Salon }) {
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap">
                                 <div className="flex justify-center">
-                                  {estudiante.qr ? (
-                                    <QRCodeDisplay qrCode={estudiante.qr} />
+                                  {estudiante.codigoQR ? (
+                                    <QRCodeDisplay qrCode={estudiante.codigoQR} />
                                   ) : (
                                     <div className="text-xs font-mono bg-gray-200 text-gray-800 px-2 py-1 rounded border">
                                       Sin QR

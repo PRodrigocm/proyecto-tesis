@@ -11,15 +11,15 @@ export default function CreateUserForm() {
   const { institucionesEducativas, loading: institutionsLoading } = useInstitucionesEducativas()
 
   const [formData, setFormData] = useState<CreateUserData>({
-    nombre: '',
-    apellido: '',
+    nombres: '',
+    apellidos: '',
     dni: '',
     email: '',
     telefono: '',
-    password: '',
+    passwordHash: '',
     confirmPassword: '',
-    institucionEducativa: '',
-    roles: [],
+    ieId: '',
+    roleIds: [],
     especialidad: ''
   })
 
@@ -34,15 +34,15 @@ export default function CreateUserForm() {
   const handleRoleChange = (roleId: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      roles: checked 
-        ? [...prev.roles, roleId]
-        : prev.roles.filter(id => id !== roleId)
+      roleIds: checked 
+        ? [...prev.roleIds, roleId]
+        : prev.roleIds.filter(id => id !== roleId)
     }))
   }
 
   // Helper functions to determine field requirements based on selected roles
   const getSelectedRoleNames = () => {
-    return roles.filter(role => formData.roles.includes(role.id)).map(role => role.nombre)
+    return roles.filter((role: any) => formData.roleIds.includes(role.id)).map((role: any) => role.nombre)
   }
 
   const isEstudianteOnly = () => {
@@ -56,7 +56,7 @@ export default function CreateUserForm() {
 
   const requiresEmailPhone = () => {
     const selectedRoles = getSelectedRoleNames()
-    return selectedRoles.some(role => ['APODERADO', 'DOCENTE', 'ADMIN', 'ADMINISTRATIVO'].includes(role))
+    return selectedRoles.some((role: string) => ['APODERADO', 'DOCENTE', 'ADMIN', 'ADMINISTRATIVO'].includes(role))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,15 +67,15 @@ export default function CreateUserForm() {
     if (result) {
       // Reset form on success
       setFormData({
-        nombre: '',
-        apellido: '',
+        nombres: '',
+        apellidos: '',
         dni: '',
         email: '',
         telefono: '',
-        password: '',
+        passwordHash: '',
         confirmPassword: '',
-        institucionEducativa: '',
-        roles: [],
+        ieId: '',
+        roleIds: [],
         especialidad: ''
       })
     }
@@ -110,34 +110,34 @@ export default function CreateUserForm() {
           {/* Información Personal */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="nombres" className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre *
               </label>
               <input
                 type="text"
-                id="nombre"
-                name="nombre"
-                value={formData.nombre}
+                id="nombres"
+                name="nombres"
+                value={formData.nombres}
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingrese el nombre"
+                placeholder="Ingrese el nombres"
               />
             </div>
 
             <div>
-              <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="apellidos" className="block text-sm font-medium text-gray-700 mb-1">
                 Apellido *
               </label>
               <input
                 type="text"
-                id="apellido"
-                name="apellido"
-                value={formData.apellido}
+                id="apellidos"
+                name="apellidos"
+                value={formData.apellidos}
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingrese el apellido"
+                placeholder="Ingrese el apellidos"
               />
             </div>
           </div>
@@ -201,14 +201,14 @@ export default function CreateUserForm() {
           {/* Contraseñas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="passwordHash" className="block text-sm font-medium text-gray-700 mb-1">
                 Contraseña *
               </label>
               <input
                 type="password"
-                id="password"
-                name="password"
-                value={formData.password}
+                id="passwordHash"
+                name="passwordHash"
+                value={formData.passwordHash}
                 onChange={handleInputChange}
                 required
                 minLength={6}
@@ -237,13 +237,13 @@ export default function CreateUserForm() {
 
           {/* Institución Educativa */}
           <div>
-            <label htmlFor="institucionEducativa" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="ieId" className="block text-sm font-medium text-gray-700 mb-1">
               Institución Educativa *
             </label>
             <select
-              id="institucionEducativa"
-              name="institucionEducativa"
-              value={formData.institucionEducativa}
+              id="ieId"
+              name="ieId"
+              value={formData.ieId}
               onChange={handleInputChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -263,12 +263,12 @@ export default function CreateUserForm() {
               Roles * (Seleccione al menos uno)
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {roles.map((role) => (
+              {roles.map((role: any) => (
                 <div key={role.id} className="flex items-center">
                   <input
                     type="checkbox"
                     id={`role-${role.id}`}
-                    checked={formData.roles.includes(role.id)}
+                    checked={formData.roleIds.includes(role.id)}
                     onChange={(e) => handleRoleChange(role.id, e.target.checked)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
@@ -303,12 +303,12 @@ export default function CreateUserForm() {
           )}
 
           {/* Información sobre campos requeridos según rol */}
-          {formData.roles.length > 0 && (
+          {formData.roleIds.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
               <h4 className="text-sm font-medium text-blue-800 mb-2">Campos requeridos según rol seleccionado:</h4>
               <ul className="text-sm text-blue-700 space-y-1">
                 {isEstudianteOnly() && (
-                  <li>• <strong>Estudiante:</strong> Solo nombre, apellido, DNI, contraseña e institución</li>
+                  <li>• <strong>Estudiante:</strong> Solo nombres, apellidos, DNI, contraseña e institución</li>
                 )}
                 {requiresEmailPhone() && (
                   <li>• <strong>Apoderado/Docente/Admin:</strong> Se requiere email y teléfono</li>
@@ -326,15 +326,15 @@ export default function CreateUserForm() {
               type="button"
               onClick={() => {
                 setFormData({
-                  nombre: '',
-                  apellido: '',
+                  nombres: '',
+                  apellidos: '',
                   dni: '',
                   email: '',
                   telefono: '',
-                  password: '',
+                  passwordHash: '',
                   confirmPassword: '',
-                  institucionEducativa: '',
-                  roles: [],
+                  ieId: '',
+                  roleIds: [],
                   especialidad: ''
                 })
                 resetState()

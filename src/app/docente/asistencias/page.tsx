@@ -224,7 +224,7 @@ export default function DocenteAsistencias() {
       setLoading(true)
       console.log('🔍 Cargando estudiantes para clase:', claseSeleccionada, 'fecha:', fechaSeleccionada)
 
-      const response = await fetch(`/api/docente/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
+      const response = await fetch(`/api/docentes/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

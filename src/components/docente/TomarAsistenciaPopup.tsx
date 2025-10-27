@@ -81,7 +81,7 @@ export default function TomarAsistenciaPopup({
       const token = localStorage.getItem('token')
       if (!token) throw new Error('No hay token de autenticación')
 
-      const response = await fetch(`/api/docente/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
+      const response = await fetch(`/api/docentes/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -173,7 +173,7 @@ export default function TomarAsistenciaPopup({
     
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/docente/asistencia/tomar', {
+      const response = await fetch('/api/docentes/asistencia/tomar', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

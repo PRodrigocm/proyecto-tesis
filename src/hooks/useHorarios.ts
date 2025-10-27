@@ -245,10 +245,18 @@ export const useHorarios = () => {
 
   const stats = {
     total: filteredHorarios.length,
-    activos: filteredHorarios.filter(h => h.activo).length,
-    inactivos: filteredHorarios.filter(h => !h.activo).length,
-    grados: grados.length,
-    docentes: docentes.length
+    am: filteredHorarios.filter(h => {
+      if (!h.horaInicio) return false
+      const hora = new Date(h.horaInicio).getHours()
+      return hora < 12
+    }).length,
+    pm: filteredHorarios.filter(h => {
+      if (!h.horaInicio) return false
+      const hora = new Date(h.horaInicio).getHours()
+      return hora >= 12
+    }).length,
+    grados: new Set(filteredHorarios.map(h => h.grado)).size,
+    docentes: new Set(filteredHorarios.map(h => h.docente?.nombre)).size
   }
 
   return {

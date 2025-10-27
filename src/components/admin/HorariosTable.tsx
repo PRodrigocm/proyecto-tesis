@@ -52,11 +52,6 @@ export default function HorariosTable({ horarios, onEdit, onDelete }: HorariosTa
                           {horario.grado} - {horario.seccion}
                         </div>
                       </div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        horario.sesion === 'AM' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {horario.sesion}
-                      </span>
                     </div>
                     
                     <div className="text-xs text-gray-600 mb-2">
@@ -65,7 +60,7 @@ export default function HorariosTable({ horarios, onEdit, onDelete }: HorariosTa
                     </div>
                     
                     <div className="text-xs text-gray-500 mb-3">
-                      Prof. {horario.docente.nombre} {horario.docente.apellido}
+                      Prof. {horario.docente?.nombre} {horario.docente?.apellido}
                     </div>
                     
                     <div className="flex space-x-2">

@@ -26,41 +26,39 @@ export async function GET(request: NextRequest) {
     const diasLectivos = await prisma.calendarioEscolar.count({
       where: {
         idIe: ieId,
-        fecha: {
+        fechaInicio: {
           gte: startDate,
           lte: endDate
         },
-        esLectivo: true
+        tipoDia: 'CLASES'
       }
     })
 
-    // Contar feriados (excepciones tipo FERIADO o DIA_NO_LABORABLE)
-    const feriados = await prisma.excepcionHorario.count({
+    // Contar feriados
+    const feriados = await prisma.calendarioEscolar.count({
       where: {
         idIe: ieId,
-        fecha: {
+        fechaInicio: {
           gte: startDate,
           lte: endDate
         },
-        tipoExcepcion: {
-          in: ['FERIADO', 'DIA_NO_LABORABLE']
-        },
-        activo: true
+        tipoDia: 'FERIADO'
       }
     })
 
-    // Contar suspensiones
-    const suspensiones = await prisma.excepcionHorario.count({
+    // Contar vacaciones
+    const vacaciones = await prisma.calendarioEscolar.count({
       where: {
         idIe: ieId,
-        fecha: {
+        fechaInicio: {
           gte: startDate,
           lte: endDate
         },
-        tipoExcepcion: 'SUSPENSION_CLASES',
-        activo: true
+        tipoDia: 'VACACIONES'
       }
     })
+
+    const suspensiones = 0 // No hay modelo de suspensiones
 
     // Calcular días totales del año
     const isLeapYear = (parseInt(year) % 4 === 0 && parseInt(year) % 100 !== 0) || (parseInt(year) % 400 === 0)
@@ -93,17 +91,7 @@ export async function GET(request: NextRequest) {
       // Porcentajes
       porcentajeLectivos: diasHabiles > 0 ? Math.round((diasEfectivos / diasHabiles) * 100) : 0,
       // Información adicional
-      vacaciones: await prisma.excepcionHorario.count({
-        where: {
-          idIe: ieId,
-          fecha: {
-            gte: startDate,
-            lte: endDate
-          },
-          tipoExcepcion: 'VACACIONES',
-          activo: true
-        }
-      })
+      vacaciones
     }
 
     console.log(`📊 Estadísticas calendario ${year}:`, stats)

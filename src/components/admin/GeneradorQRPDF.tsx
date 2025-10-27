@@ -131,20 +131,16 @@ export default function GeneradorQRPDF() {
 
         // Generar código QR con configuración óptima
         const qrDataURL = await QRCode.toDataURL(estudiante.codigo, {
-          width: 800, // Alta resolución para impresión
-          margin: 2, // Margen alrededor del QR
-          errorCorrectionLevel: 'H', // Nivel H: 30% de corrección de errores (máximo)
-          type: 'image/png',
-          quality: 1.0,
+          width: 800,
+          margin: 2,
+          errorCorrectionLevel: 'H' as const,
           color: {
-            dark: '#000000',  // Color negro para los módulos
-            light: '#FFFFFF'  // Color blanco para el fondo
-          },
-          // Configuración adicional para mejor calidad
-          rendererOpts: {
-            quality: 1.0
+            dark: '#000000',
+            light: '#FFFFFF'
           }
-        })
+        } as any) as unknown as string
+
+        if (!qrDataURL || typeof qrDataURL !== 'string') continue
 
         // Dibujar borde de la tarjeta
         pdf.setDrawColor(0, 0, 0)
@@ -161,7 +157,7 @@ export default function GeneradorQRPDF() {
         pdf.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4)
         
         // Agregar código QR centrado
-        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize)
+        pdf.addImage(qrDataURL as string, 'PNG', qrX, qrY, qrSize, qrSize)
 
         // Posición Y después del QR
         let textY = qrY + qrSize + 5

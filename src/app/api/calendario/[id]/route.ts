@@ -18,7 +18,7 @@ export async function PATCH(
     }
 
     const eventoActualizado = await prisma.calendarioEscolar.update({
-      where: { idCal: eventoId },
+      where: { idCalendario: eventoId },
       data: {
         ...(body.fechaInicio && { fecha: new Date(body.fechaInicio) }),
         ...(body.titulo && { motivo: body.titulo }),
@@ -42,10 +42,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { params } = context
+    const params = await context.params
     const eventoId = parseInt(params.id)
 
     if (isNaN(eventoId)) {
@@ -56,7 +56,7 @@ export async function DELETE(
     }
 
     await prisma.calendarioEscolar.delete({
-      where: { idCal: eventoId }
+      where: { idCalendario: eventoId }
     })
 
     return NextResponse.json({

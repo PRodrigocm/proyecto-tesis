@@ -114,8 +114,8 @@ export async function GET(request: NextRequest) {
         nombre: estudiante?.usuario.nombre,
         apellido: estudiante?.usuario.apellido,
         dni: estudiante?.usuario.dni,
-        grado: estudiante?.gradoSeccion.grado.nombre,
-        seccion: estudiante?.gradoSeccion.seccion.nombre
+        grado: estudiante?.gradoSeccion?.grado.nombre,
+        seccion: estudiante?.gradoSeccion?.seccion.nombre
       }
     }))
 
