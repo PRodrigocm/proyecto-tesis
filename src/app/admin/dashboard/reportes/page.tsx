@@ -188,36 +188,76 @@ export default function ReportesPage() {
   const loadFiltrosData = async () => {
     try {
       const token = localStorage.getItem('token')
-      if (!token) return
+      if (!token) {
+        console.log('⚠️ No hay token, no se pueden cargar filtros')
+        return
+      }
+
+      // Obtener ieId del usuario
+      const userStr = localStorage.getItem('user')
+      let ieId = '1' // Default
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr)
+          ieId = user.idIe?.toString() || '1'
+        } catch (error) {
+          console.error('Error parsing user data:', error)
+        }
+      }
+
+      // Si no hay ieId en user, intentar decodificar del token
+      if (!ieId || ieId === '1') {
+        try {
+          const tokenParts = token.split('.')
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]))
+            ieId = payload.ieId?.toString() || '1'
+          }
+        } catch (error) {
+          console.error('Error decoding token:', error)
+        }
+      }
+
+      console.log('🏫 Cargando filtros para IE:', ieId)
 
       // Cargar grados
-      const gradosResponse = await fetch('/api/grados', {
+      const gradosResponse = await fetch(`/api/grados?ieId=${ieId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (gradosResponse.ok) {
         const gradosData = await gradosResponse.json()
+        console.log('📚 Grados cargados:', gradosData.data?.length || 0)
         setGrados(gradosData.data || [])
+      } else {
+        console.error('❌ Error cargando grados:', gradosResponse.status)
       }
 
       // Cargar secciones
-      const seccionesResponse = await fetch('/api/secciones', {
+      const seccionesResponse = await fetch(`/api/secciones?ieId=${ieId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (seccionesResponse.ok) {
         const seccionesData = await seccionesResponse.json()
+        console.log('📋 Secciones cargadas:', seccionesData.data?.length || 0)
         setSecciones(seccionesData.data || [])
+      } else {
+        console.error('❌ Error cargando secciones:', seccionesResponse.status)
       }
 
       // Cargar docentes
-      const docentesResponse = await fetch('/api/docentes', {
+      const docentesResponse = await fetch(`/api/docentes?ieId=${ieId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (docentesResponse.ok) {
         const docentesData = await docentesResponse.json()
+        console.log('👨‍🏫 Docentes cargados:', docentesData.data?.length || 0)
         setDocentes(docentesData.data || [])
+      } else {
+        console.error('❌ Error cargando docentes:', docentesResponse.status)
       }
 
-      console.log('✅ Datos de filtros cargados')
+      console.log('✅ Datos de filtros cargados exitosamente')
     } catch (error) {
       console.error('❌ Error cargando datos de filtros:', error)
     }
@@ -349,12 +389,12 @@ export default function ReportesPage() {
                 <select
                   value={selectedPeriodo}
                   onChange={(e) => setSelectedPeriodo(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
                 >
-                  <option value="dia">Hoy</option>
-                  <option value="semana">Esta Semana</option>
-                  <option value="mes">Este Mes</option>
-                  <option value="año">Este Año</option>
+                  <option value="dia" className="text-black font-medium">Hoy</option>
+                  <option value="semana" className="text-black font-medium">Esta Semana</option>
+                  <option value="mes" className="text-black font-medium">Este Mes</option>
+                  <option value="año" className="text-black font-medium">Este Año</option>
                 </select>
                 <button
                   onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
@@ -380,32 +420,45 @@ export default function ReportesPage() {
 
       {/* Filtros Avanzados */}
       {mostrarFiltrosAvanzados && (
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filtros Avanzados</h3>
+        <div className="bg-gradient-to-br from-white to-gray-50 shadow-lg rounded-xl p-6 mb-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Filtros Avanzados</h3>
+            </div>
             <button
               onClick={limpiarFiltros}
-              className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:from-gray-200 hover:to-gray-300 transition-all shadow-sm flex items-center space-x-2"
             >
-              Limpiar Filtros
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span>Limpiar Filtros</span>
             </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Filtro por Grado */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
+                </svg>
                 Grado
               </label>
               <select
                 value={filtros.gradoId}
                 onChange={(e) => handleFiltroChange('gradoId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
               >
-                <option value="">Todos los grados</option>
+                <option value="" className="text-gray-500">Todos los grados</option>
                 {grados.map((grado, index) => (
-                  <option key={`grado-${grado.idGrado || index}`} value={grado.idGrado}>
-                    {grado.nombre}°
+                  <option key={`grado-${grado.idGrado || index}`} value={grado.idGrado} className="text-black font-medium">
+                    {grado.nombre}° Grado
                   </option>
                 ))}
               </select>
@@ -413,18 +466,21 @@ export default function ReportesPage() {
 
             {/* Filtro por Sección */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                </svg>
                 Sección
               </label>
               <select
                 value={filtros.seccionId}
                 onChange={(e) => handleFiltroChange('seccionId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
               >
-                <option value="">Todas las secciones</option>
+                <option value="" className="text-gray-500">Todas las secciones</option>
                 {secciones.map((seccion, index) => (
-                  <option key={`seccion-${seccion.idSeccion || index}`} value={seccion.idSeccion}>
-                    {seccion.nombre}
+                  <option key={`seccion-${seccion.idSeccion || index}`} value={seccion.idSeccion} className="text-black font-medium">
+                    Sección {seccion.nombre}
                   </option>
                 ))}
               </select>
@@ -432,17 +488,20 @@ export default function ReportesPage() {
 
             {/* Filtro por Docente */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+                </svg>
                 Docente
               </label>
               <select
                 value={filtros.docenteId}
                 onChange={(e) => handleFiltroChange('docenteId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
               >
-                <option value="">Todos los docentes</option>
+                <option value="" className="text-gray-500">Todos los docentes</option>
                 {docentes.map((docente, index) => (
-                  <option key={`docente-${docente.idDocente || index}`} value={docente.idDocente}>
+                  <option key={`docente-${docente.idDocente || index}`} value={docente.idDocente} className="text-black font-medium">
                     {docente.nombre} {docente.apellido}
                   </option>
                 ))}
@@ -451,27 +510,33 @@ export default function ReportesPage() {
 
             {/* Fecha Inicio */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                </svg>
                 Fecha Inicio
               </label>
               <input
                 type="date"
                 value={filtros.fechaInicio}
                 onChange={(e) => handleFiltroChange('fechaInicio', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
               />
             </div>
 
             {/* Fecha Fin */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                </svg>
                 Fecha Fin
               </label>
               <input
                 type="date"
                 value={filtros.fechaFin}
                 onChange={(e) => handleFiltroChange('fechaFin', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
               />
             </div>
           </div>

@@ -47,6 +47,7 @@ export const useHorarios = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
+      console.log('🔄 Cargando horarios del docente...')
       
       // Usar la API específica para docentes
       const response = await fetch('/api/docentes/horarios', {
@@ -57,15 +58,17 @@ export const useHorarios = () => {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Horarios cargados exitosamente:', data)
+        console.log('✅ Horarios cargados exitosamente:', data.horarios?.length || 0, 'horarios')
+        console.log('📚 Datos:', data.horarios)
         setHorarios(data.horarios || [])
       } else {
         const errorText = await response.text()
-        console.error('Error loading horarios:', response.status, errorText)
+        console.error('❌ Error loading horarios:', response.status, errorText)
         setHorarios([])
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('❌ Error en loadHorarios:', error)
+      setHorarios([])
     } finally {
       setLoading(false)
     }
@@ -75,12 +78,11 @@ export const useHorarios = () => {
     const matchesGrado = !filters.grado || horario.grado === filters.grado
     const matchesSeccion = !filters.seccion || horario.seccion === filters.seccion
     const matchesDia = !filters.diaSemana || horario.diaSemana === filters.diaSemana
-    // Removemos el filtro de sesión ya que no existe en el nuevo modelo
-    const matchesDocente = !filters.docente || 
-      (horario.docente?.nombre && horario.docente?.apellido && 
-       `${horario.docente.nombre} ${horario.docente.apellido}`.toLowerCase().includes(filters.docente.toLowerCase()))
+    // Buscar por materia en lugar de docente
+    const matchesMateria = !filters.docente || 
+      horario.materia.toLowerCase().includes(filters.docente.toLowerCase())
 
-    return matchesGrado && matchesSeccion && matchesDia && matchesDocente
+    return matchesGrado && matchesSeccion && matchesDia && matchesMateria
   })
 
   const grados = [...new Set(horarios.map(h => h.grado))].filter(Boolean).sort()

@@ -104,13 +104,14 @@ export default function GeneradorQRPDF() {
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
       
-      // Configuración de la cuadrícula
-      const qrSize = 40 // Tamaño del QR en mm
-      const cardWidth = 85 // Ancho de cada tarjeta
-      const cardHeight = 55 // Alto de cada tarjeta
-      const margin = 10
-      const cols = 2 // 2 columnas por página
-      const rows = 4 // 4 filas por página
+      // Configuración para 6 QR por página (3 columnas x 2 filas)
+      // QR más grande para mejor escaneo
+      const qrSize = 60 // Tamaño del QR en mm (6cm - más grande y visible)
+      const cardWidth = 68 // Ancho de cada tarjeta
+      const cardHeight = 130 // Alto de cada tarjeta
+      const margin = 3
+      const cols = 3 // 3 columnas por página
+      const rows = 2 // 2 filas por página (6 tarjetas total)
       
       let currentPage = 1
       let currentRow = 0
@@ -128,33 +129,79 @@ export default function GeneradorQRPDF() {
         const x = margin + (currentCol * cardWidth)
         const y = 25 + (currentRow * cardHeight)
 
-        // Generar código QR
+        // Generar código QR con configuración óptima
         const qrDataURL = await QRCode.toDataURL(estudiante.codigo, {
-          width: 200,
-          margin: 1,
+          width: 800, // Alta resolución para impresión
+          margin: 2, // Margen alrededor del QR
+          errorCorrectionLevel: 'H', // Nivel H: 30% de corrección de errores (máximo)
+          type: 'image/png',
+          quality: 1.0,
           color: {
-            dark: '#000000',
-            light: '#FFFFFF'
+            dark: '#000000',  // Color negro para los módulos
+            light: '#FFFFFF'  // Color blanco para el fondo
+          },
+          // Configuración adicional para mejor calidad
+          rendererOpts: {
+            quality: 1.0
           }
         })
 
         // Dibujar borde de la tarjeta
-        pdf.setDrawColor(200, 200, 200)
+        pdf.setDrawColor(0, 0, 0)
+        pdf.setLineWidth(0.5)
         pdf.rect(x, y, cardWidth, cardHeight)
 
-        // Agregar código QR
-        pdf.addImage(qrDataURL, 'PNG', x + 5, y + 5, qrSize, qrSize)
+        // Centrar el QR horizontalmente en la tarjeta
+        const qrX = x + (cardWidth - qrSize) / 2
+        const qrY = y + 10
+        
+        // Dibujar borde del QR
+        pdf.setDrawColor(0, 0, 0)
+        pdf.setLineWidth(0.8)
+        pdf.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4)
+        
+        // Agregar código QR centrado
+        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize)
 
-        // Agregar información del estudiante
-        pdf.setFontSize(10)
+        // Posición Y después del QR
+        let textY = qrY + qrSize + 5
+        
+        // Código del estudiante (SIN BORDE - solo texto)
+        pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        pdf.text(estudiante.nombre, x + qrSize + 10, y + 15)
+        pdf.text(estudiante.codigo, x + cardWidth / 2, textY + 6, { align: 'center' })
         
-        pdf.setFont('helvetica', 'normal')
-        pdf.text(`Código: ${estudiante.codigo}`, x + qrSize + 10, y + 25)
+        textY += 10
         
+        // Grado y Sección (con borde)
         if (estudiante.grado && estudiante.seccion) {
-          pdf.text(`${estudiante.grado} - Sección ${estudiante.seccion}`, x + qrSize + 10, y + 35)
+          const gradoBoxHeight = 7
+          pdf.setDrawColor(0, 0, 0)
+          pdf.setLineWidth(0.4)
+          pdf.rect(x + 8, textY, cardWidth - 16, gradoBoxHeight)
+          pdf.setFontSize(8)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text(`${estudiante.grado}° - Sec ${estudiante.seccion}`, x + cardWidth / 2, textY + 5, { align: 'center' })
+          textY += gradoBoxHeight + 2
+        }
+        
+        // Nombre completo (SIN BORDE - solo texto)
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'bold')
+        
+        // Dividir nombre si es muy largo
+        const nombreCompleto = estudiante.nombre
+        const maxWidth = cardWidth - 8
+        const nombreLineas = pdf.splitTextToSize(nombreCompleto, maxWidth)
+        
+        if (nombreLineas.length === 1) {
+          pdf.text(nombreLineas[0], x + cardWidth / 2, textY + 6, { align: 'center' })
+        } else {
+          pdf.setFontSize(8)
+          pdf.text(nombreLineas[0], x + cardWidth / 2, textY + 3, { align: 'center' })
+          if (nombreLineas[1]) {
+            pdf.text(nombreLineas[1], x + cardWidth / 2, textY + 8, { align: 'center' })
+          }
         }
 
         // Avanzar posición
@@ -252,10 +299,14 @@ export default function GeneradorQRPDF() {
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <h4 className="font-semibold text-black mb-2">📋 Información del PDF:</h4>
         <ul className="text-sm text-black space-y-1">
-          <li>• <strong>Formato:</strong> A4, 2 columnas x 4 filas por página</li>
-          <li>• <strong>Contenido:</strong> Código QR + Nombre + Código + Grado/Sección</li>
-          <li>• <strong>Tamaño QR:</strong> 40mm x 40mm (ideal para escaneo)</li>
-          <li>• <strong>Uso:</strong> Imprimir y recortar para distribuir a estudiantes</li>
+          <li>• <strong>Formato:</strong> A4, 3 columnas x 2 filas por página (6 tarjetas por hoja)</li>
+          <li>• <strong>Diseño:</strong> QR grande arriba, Código destacado (14pt), Grado/Sección y Nombre</li>
+          <li>• <strong>Tamaño QR:</strong> 60mm x 60mm (6cm - detectable hasta 6 metros)</li>
+          <li>• <strong>Código:</strong> 14pt bold - Visible y legible</li>
+          <li>• <strong>Resolución:</strong> 800px con corrección de errores nivel H (máxima calidad)</li>
+          <li>• <strong>Tamaño tarjeta:</strong> 68mm x 130mm</li>
+          <li>• <strong>Tarjetas por hoja:</strong> 6 (optimiza papel y distribución)</li>
+          <li>• <strong>Uso:</strong> Imprimir en A4 de alta calidad, recortar y distribuir</li>
         </ul>
       </div>
     </div>

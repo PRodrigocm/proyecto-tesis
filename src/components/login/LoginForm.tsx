@@ -61,32 +61,6 @@ export const LoginForm = () => {
             error={errors.password}
             label="Contraseña"
           />
-
-          <Select
-            id="institucionEducativa"
-            name="institucionEducativa"
-            value={formData.institucionEducativa}
-            onChange={handleChange}
-            options={institucionesEducativas}
-            error={errors.institucionEducativa}
-            label="Institución Educativa"
-            placeholder="Seleccione una institución"
-            disabled={loadingData}
-            loading={loadingData}
-          />
-
-          <Select
-            id="rol"
-            name="rol"
-            value={formData.rol}
-            onChange={handleChange}
-            options={roles}
-            error={errors.rol}
-            label="Rol"
-            placeholder="Seleccione un rol"
-            disabled={loadingData}
-            loading={loadingData}
-          />
         </div>
 
         <div className="flex items-center justify-between">

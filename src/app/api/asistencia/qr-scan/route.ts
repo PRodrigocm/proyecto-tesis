@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma, withPrismaConnection } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
+import { notificarAsistenciaQR } from '@/lib/notifications'
 
 /**
  * API simplificada para escaneo QR de asistencias
@@ -258,6 +259,68 @@ export async function POST(request: NextRequest) {
       sesion: sesionCalculada,
       fecha: fechaAsistencia.toISOString().split('T')[0]
     })
+
+    // 10.5. ENVIAR NOTIFICACIONES (COMENTADO TEMPORALMENTE - REQUIERE CORRECCIÓN DE SCHEMA)
+    /*
+    const docente = await withPrismaConnection(() =>
+      prisma.docente.findFirst({
+        where: { idUsuario: userInfo.idUsuario },
+        include: { usuario: true }
+      })
+    )
+
+    const apoderado = await withPrismaConnection(() =>
+      prisma.apoderado.findFirst({
+        where: { 
+          estudiantes: {
+            some: { idEstudiante: estudiante.idEstudiante }
+          }
+        },
+        include: { usuario: true }
+      })
+    )
+
+    const horarioClase = await withPrismaConnection(() =>
+      prisma.horarioClase.findFirst({
+        where: {
+          idGradoSeccion: estudiante.idGradoSeccion,
+          idDocente: docente?.idDocente,
+          activo: true
+        }
+      })
+    )
+
+    const aula = horarioClase?.aula || `Aula ${estudiante.gradoSeccion.grado.nombre}° ${estudiante.gradoSeccion.seccion.nombre}`
+
+    if (apoderado && docente) {
+      console.log('📧 Preparando notificaciones para el apoderado...')
+      
+      try {
+        const resultadoNotificaciones = await notificarAsistenciaQR({
+          estudianteNombre: estudiante.usuario.nombre,
+          estudianteApellido: estudiante.usuario.apellido,
+          estudianteDNI: estudiante.usuario.dni,
+          grado: estudiante.gradoSeccion.grado.nombre,
+          seccion: estudiante.gradoSeccion.seccion.nombre,
+          aula: aula,
+          estado: estado.toUpperCase(),
+          hora: fechaHoy.toISOString(),
+          fecha: fechaAsistencia.toISOString(),
+          docenteNombre: docente.usuario.nombre,
+          docenteApellido: docente.usuario.apellido,
+          emailApoderado: apoderado.usuario.email,
+          telefonoApoderado: apoderado.usuario.telefono || ''
+        })
+
+        console.log('📧 Resultado de notificaciones:', resultadoNotificaciones)
+      } catch (notifError) {
+        console.error('⚠️ Error al enviar notificaciones (no crítico):', notifError)
+      }
+    } else {
+      console.log('⚠️ No se encontró apoderado o docente para enviar notificaciones')
+    }
+    */
+    console.log('📧 Notificaciones deshabilitadas temporalmente - requiere corrección de schema')
 
     // 11. RESPUESTA EXITOSA
     return NextResponse.json({

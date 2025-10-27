@@ -39,11 +39,11 @@ export default function DocentesFiltersComponent({
             id="estado"
             value={filters.filterEstado}
             onChange={(e) => onFiltersChange({ filterEstado: e.target.value as 'TODOS' | 'ACTIVO' | 'INACTIVO' })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black font-medium"
           >
-            <option value="TODOS">Todos</option>
-            <option value="ACTIVO">Activos</option>
-            <option value="INACTIVO">Inactivos</option>
+            <option value="TODOS" className="text-black">Todos</option>
+            <option value="ACTIVO" className="text-black">Activos</option>
+            <option value="INACTIVO" className="text-black">Inactivos</option>
           </select>
         </div>
         <div>
@@ -54,11 +54,11 @@ export default function DocentesFiltersComponent({
             id="grado"
             value={filters.filterGrado}
             onChange={(e) => onFiltersChange({ filterGrado: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black font-medium"
           >
-            <option value="">Todos</option>
+            <option value="" className="text-black">Todos</option>
             {[...new Set(grados)].map((grado, index) => (
-              <option key={`grado-${grado}-${index}`} value={grado}>
+              <option key={`grado-${grado}-${index}`} value={grado} className="text-black">
                 {grado}°
               </option>
             ))}
@@ -72,11 +72,11 @@ export default function DocentesFiltersComponent({
             id="seccion"
             value={filters.filterSeccion}
             onChange={(e) => onFiltersChange({ filterSeccion: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black font-medium"
           >
-            <option value="">Todas</option>
+            <option value="" className="text-black">Todas</option>
             {[...new Set(secciones)].map((seccion, index) => (
-              <option key={`seccion-${seccion}-${index}`} value={seccion}>
+              <option key={`seccion-${seccion}-${index}`} value={seccion} className="text-black">
                 {seccion}
               </option>
             ))}

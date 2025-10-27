@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
+import { notificarEntradaSalida } from '@/lib/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,62 +63,74 @@ export async function POST(request: NextRequest) {
 
     // Obtener fecha y hora actual
     const ahora = new Date()
-    const fechaHoy = new Date(ahora.toISOString().split('T')[0])
+    const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
     console.log('📅 Registrando salida para:', estudiante.usuario.nombre, estudiante.usuario.apellido)
     console.log('🕐 Hora de salida:', ahora.toTimeString().slice(0, 8))
 
-    // Verificar si tiene asistencia registrada hoy
-    const asistenciaHoy = await prisma.asistencia.findFirst({
+    // Verificar si tiene entrada registrada hoy en AsistenciaIE
+    const asistenciaHoy = await prisma.asistenciaIE.findFirst({
       where: {
         idEstudiante: estudiante.idEstudiante,
-        fecha: fechaHoy
+        fecha: {
+          gte: fechaHoy,
+          lt: new Date(fechaHoy.getTime() + 24 * 60 * 60 * 1000)
+        }
       }
     })
 
-    if (!asistenciaHoy) {
+    if (!asistenciaHoy || !asistenciaHoy.horaIngreso) {
       return NextResponse.json({ 
         error: 'El estudiante no tiene entrada registrada hoy' 
       }, { status: 400 })
     }
 
-    if (!['PRESENTE', 'TARDANZA'].includes(asistenciaHoy.estado)) {
-      return NextResponse.json({ 
-        error: 'El estudiante no está presente en la IE' 
-      }, { status: 400 })
-    }
-
-    // Verificar si ya tiene un retiro completado hoy
-    const retiroExistente = await prisma.retiro.findFirst({
-      where: {
-        idEstudiante: estudiante.idEstudiante,
-        fechaRetiro: fechaHoy,
-        estado: 'COMPLETADO'
-      }
-    })
-
-    if (retiroExistente) {
-      return NextResponse.json({ 
-        error: 'El estudiante ya tiene salida registrada hoy' 
-      }, { status: 400 })
-    }
-
-    // Crear registro de retiro (salida normal)
-    const nuevoRetiro = await prisma.retiro.create({
+    // Registrar salida en AsistenciaIE
+    const asistenciaActualizada = await prisma.asistenciaIE.update({
+      where: { idAsistenciaIE: asistenciaHoy.idAsistenciaIE },
       data: {
-        idEstudiante: estudiante.idEstudiante,
-        idTipoRetiro: 1, // Asumiendo que 1 es "Salida Normal"
-        fechaRetiro: fechaHoy,
-        horaRetiro: ahora.toTimeString().slice(0, 5),
-        motivo: 'Salida normal de la IE',
-        observaciones: `Salida registrada por auxiliar: ${userInfo.nombre} ${userInfo.apellido}`,
-        estado: 'COMPLETADO',
-        autorizadoPor: userInfo.idUsuario,
-        fechaAutorizacion: ahora
+        horaSalida: ahora,
+        estado: 'RETIRADO',
+        registradoSalidaPor: userInfo.idUsuario
       }
     })
 
-    console.log('✅ Salida registrada exitosamente')
+    console.log('✅ Salida registrada manualmente')
+
+    // Enviar notificaciones al apoderado
+    try {
+      const apoderado = await prisma.apoderado.findFirst({
+        where: {
+          estudiantes: {
+            some: {
+              idEstudiante: estudiante.idEstudiante
+            }
+          }
+        },
+        include: {
+          usuario: true
+        }
+      })
+
+      if (apoderado && apoderado.usuario.email) {
+        console.log(`📧 Enviando notificación de salida al apoderado...`)
+        
+        await notificarEntradaSalida({
+          estudianteNombre: estudiante.usuario.nombre || '',
+          estudianteApellido: estudiante.usuario.apellido || '',
+          estudianteDNI: estudiante.usuario.dni,
+          grado: estudiante.gradoSeccion?.grado?.nombre || '',
+          seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+          accion: 'salida',
+          hora: ahora.toISOString(),
+          fecha: fechaHoy.toISOString(),
+          emailApoderado: apoderado.usuario.email,
+          telefonoApoderado: apoderado.usuario.telefono || ''
+        })
+      }
+    } catch (notifError) {
+      console.error(`⚠️ Error al enviar notificación:`, notifError)
+    }
 
     return NextResponse.json({
       success: true,
@@ -131,10 +142,10 @@ export async function POST(request: NextRequest) {
         grado: estudiante.gradoSeccion?.grado?.nombre,
         seccion: estudiante.gradoSeccion?.seccion?.nombre
       },
-      retiro: {
-        id: nuevoRetiro.idRetiro,
-        horaRetiro: nuevoRetiro.horaRetiro,
-        fechaRetiro: nuevoRetiro.fechaRetiro.toISOString().split('T')[0]
+      asistencia: {
+        id: asistenciaActualizada.idAsistenciaIE,
+        estado: asistenciaActualizada.estado,
+        horaSalida: asistenciaActualizada.horaSalida?.toTimeString().slice(0, 5)
       }
     })
 
@@ -144,7 +155,5 @@ export async function POST(request: NextRequest) {
       error: 'Error interno del servidor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }

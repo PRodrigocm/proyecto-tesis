@@ -20,7 +20,8 @@ export default function HorarioClasesPage() {
     loading: loadingHorarios, 
     getHorariosPorDia,
     diasSemana,
-    stats: statsHorarios 
+    stats: statsHorarios,
+    loadHorarios
   } = useHorariosSemanales()
   
   const { 
@@ -147,6 +148,12 @@ export default function HorarioClasesPage() {
       
       // La funcionalidad de edición ya está implementada en el modal EditHorarioClasesModal
       // que usa la API PUT /api/horarios/clases
+      
+      // Recargar horarios después de guardar
+      console.log('🔄 Recargando horarios...')
+      await loadHorarios()
+      console.log('✅ Horarios recargados exitosamente')
+      
       return true
     } catch (error) {
       console.error('💥 Error editing horario:', error)
@@ -476,12 +483,8 @@ export default function HorarioClasesPage() {
                                 excepcion.tipoHorario === 'AMBOS' ? 'bg-purple-100 text-purple-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {excepcion.tipoHorario === 'CLASE' ? 'Solo Clases' :
-                                 excepcion.tipoHorario === 'AMBOS' ? 'Clases y Talleres' : excepcion.tipoHorario}
+                                Clases
                               </span>
-                              <button className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
-                                Editar
-                              </button>
                             </div>
                           </div>
                         </div>

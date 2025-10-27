@@ -1,78 +1,237 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
+import jwt from 'jsonwebtoken'
 
+const prisma = new PrismaClient()
+
+// GET - Obtener eventos del calendario
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url)
-    const mes = url.searchParams.get('mes')
-    const año = url.searchParams.get('año')
-    const tipo = url.searchParams.get('tipo')
-    const prioridad = url.searchParams.get('prioridad')
-    const visible = url.searchParams.get('visible')
-    const ieId = url.searchParams.get('ieId')
-
-    if (!ieId) {
-      return NextResponse.json(
-        { error: 'Institution ID is required' },
-        { status: 400 }
-      )
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
     }
 
-    const whereClause: any = {
-      idIe: parseInt(ieId)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const ieId = decoded.ieId || 1
+
+    const { searchParams } = new URL(request.url)
+    const fecha = searchParams.get('fecha')
+    const mes = searchParams.get('mes')
+    const año = searchParams.get('año')
+    const tipoDia = searchParams.get('tipoDia')
+
+    const where: any = { idIe: ieId }
+
+    // Filtrar por fecha específica
+    if (fecha) {
+      const fechaBusqueda = new Date(fecha)
+      where.fechaInicio = { lte: fechaBusqueda }
+      where.fechaFin = { gte: fechaBusqueda }
     }
 
-    if (tipo) whereClause.tipo = tipo
-    if (prioridad) whereClause.prioridad = prioridad
-    if (visible !== null) whereClause.visible = visible === 'true'
-
-    // Filtro por mes y año
+    // Filtrar por mes y año
     if (mes && año) {
       const startDate = new Date(parseInt(año), parseInt(mes) - 1, 1)
       const endDate = new Date(parseInt(año), parseInt(mes), 0)
       
-      whereClause.fecha = {
-        gte: startDate,
-        lte: endDate
-      }
+      where.OR = [
+        {
+          fechaInicio: { gte: startDate, lte: endDate }
+        },
+        {
+          fechaFin: { gte: startDate, lte: endDate }
+        },
+        {
+          AND: [
+            { fechaInicio: { lte: startDate } },
+            { fechaFin: { gte: endDate } }
+          ]
+        }
+      ]
     }
 
+    // Filtrar por tipo de día
+    if (tipoDia) {
+      where.tipoDia = tipoDia
+    }
+
+    // Obtener eventos del calendario escolar
     const eventos = await prisma.calendarioEscolar.findMany({
-      where: whereClause,
+      where,
       include: {
-        ie: true
+        ie: {
+          select: {
+            nombre: true
+          }
+        }
       },
+      orderBy: {
+        fechaInicio: 'asc'
+      }
+    })
+
+    // Obtener reuniones del mismo período
+    const whereReuniones: any = { idIe: ieId }
+    
+    if (mes && año) {
+      const startDate = new Date(parseInt(año), parseInt(mes) - 1, 1)
+      const endDate = new Date(parseInt(año), parseInt(mes), 0)
+      
+      whereReuniones.fecha = { gte: startDate, lte: endDate }
+    }
+
+    const reuniones = await prisma.reunion.findMany({
+      where: whereReuniones,
       orderBy: {
         fecha: 'asc'
       }
     })
 
-    const transformedEventos = eventos.map(evento => ({
-      id: evento.idCal.toString(),
-      titulo: evento.motivo || 'Evento Escolar',
-      descripcion: evento.motivo || '',
-      fechaInicio: evento.fecha.toISOString(),
-      fechaFin: evento.fecha.toISOString(),
-      horaInicio: '',
-      horaFin: '',
-      tipo: 'ACADEMICO',
-      prioridad: 'MEDIA',
-      todoDia: true,
-      color: evento.esLectivo ? '#10B981' : '#EF4444',
-      visible: true,
-      institucionId: evento.idIe.toString(),
-      creadoPor: 'Sistema',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    // Transformar eventos del calendario
+    const eventosTransformados = eventos.map(evento => ({
+      id: evento.idCalendario.toString(),
+      titulo: evento.descripcion || evento.tipoDia,
+      descripcion: evento.descripcion || '',
+      fechaInicio: evento.fechaInicio.toISOString().split('T')[0],
+      fechaFin: evento.fechaFin.toISOString().split('T')[0],
+      tipo: evento.tipoDia === 'FERIADO' ? 'FERIADO' : 'ACADEMICO',
+      color: evento.tipoDia === 'FERIADO' ? '#EF4444' : '#10B981',
+      esLectivo: evento.tipoDia !== 'FERIADO'
     }))
 
+    // Transformar reuniones
+    const reunionesTransformadas = reuniones.map(reunion => ({
+      id: `reunion-${reunion.idReunion}`,
+      titulo: reunion.titulo,
+      descripcion: reunion.descripcion || '',
+      fechaInicio: reunion.fecha.toISOString().split('T')[0],
+      fechaFin: reunion.fecha.toISOString().split('T')[0],
+      tipo: 'ESPECIAL' as const,
+      color: '#3B82F6',
+      esLectivo: false
+    }))
+
+    // Combinar eventos y reuniones
+    const todosEventos = [...eventosTransformados, ...reunionesTransformadas]
+
     return NextResponse.json({
-      data: transformedEventos,
-      total: transformedEventos.length
+      success: true,
+      data: todosEventos
     })
 
   } catch (error) {
-    console.error('Error fetching eventos:', error)
+    console.error('❌ Error fetching calendario:', error)
+    return NextResponse.json(
+      { 
+        error: 'Error interno del servidor',
+        details: error instanceof Error ? error.message : 'Error desconocido'
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Crear evento en calendario
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const ieId = decoded.ieId || 1
+
+    const body = await request.json()
+    const {
+      fechaInicio,
+      fechaFin,
+      tipoDia,
+      descripcion
+    } = body
+
+    // Validar campos requeridos
+    if (!fechaInicio || !fechaFin || !tipoDia) {
+      return NextResponse.json({
+        error: 'Campos requeridos: fechaInicio, fechaFin, tipoDia'
+      }, { status: 400 })
+    }
+
+    // Validar tipo de día
+    const tiposValidos = ['CLASES', 'FERIADO', 'VACACIONES', 'EVENTO']
+    if (!tiposValidos.includes(tipoDia)) {
+      return NextResponse.json({
+        error: `tipoDia debe ser uno de: ${tiposValidos.join(', ')}`
+      }, { status: 400 })
+    }
+
+    const nuevoEvento = await prisma.calendarioEscolar.create({
+      data: {
+        idIe: ieId,
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: new Date(fechaFin),
+        tipoDia,
+        descripcion: descripcion || null
+      },
+      include: {
+        ie: {
+          select: {
+            nombre: true
+          }
+        }
+      }
+    })
+
+    // Enviar notificaciones a los apoderados
+    try {
+      const apoderados = await prisma.usuario.findMany({
+        where: {
+          idIe: ieId,
+          roles: {
+            some: {
+              rol: {
+                nombre: 'APODERADO'
+              }
+            }
+          }
+        },
+        select: {
+          idUsuario: true,
+          nombre: true,
+          apellido: true,
+          email: true
+        }
+      })
+
+      // Crear notificaciones para cada apoderado
+      const notificaciones = apoderados.map(apoderado => ({
+        idUsuario: apoderado.idUsuario,
+        tipo: 'EVENTO_CALENDARIO' as const,
+        titulo: `Nuevo evento: ${descripcion || tipoDia}`,
+        mensaje: `Se ha registrado un evento en el calendario escolar del ${new Date(fechaInicio).toLocaleDateString('es-ES')} al ${new Date(fechaFin).toLocaleDateString('es-ES')}.`,
+        leido: false
+      }))
+
+      if (notificaciones.length > 0) {
+        await prisma.notificacion.createMany({
+          data: notificaciones
+        })
+        console.log(`✅ ${notificaciones.length} notificaciones creadas para evento`)
+      }
+    } catch (notifError) {
+      console.error('⚠️ Error al enviar notificaciones:', notifError)
+      // No fallar la creación del evento si las notificaciones fallan
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Evento creado exitosamente',
+      data: nuevoEvento
+    }, { status: 201 })
+
+  } catch (error) {
+    console.error('Error creating evento:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -80,38 +239,34 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// DELETE - Eliminar evento
+export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      titulo,
-      descripcion,
-      fechaInicio,
-      fechaFin,
-      horaInicio,
-      horaFin,
-      tipo,
-      prioridad,
-      todoDia,
-      color
-    } = body
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
 
-    const nuevoEvento = await prisma.calendarioEscolar.create({
-      data: {
-        idIe: 1, // IE por defecto
-        fecha: new Date(fechaInicio),
-        esLectivo: tipo === 'ACADEMICO',
-        motivo: titulo
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+    }
+
+    await prisma.calendarioEscolar.delete({
+      where: {
+        idCalendario: parseInt(id)
       }
     })
 
     return NextResponse.json({
-      message: 'Evento creado exitosamente',
-      id: nuevoEvento.idCal
+      success: true,
+      message: 'Evento eliminado exitosamente'
     })
 
   } catch (error) {
-    console.error('Error creating evento:', error)
+    console.error('Error deleting evento:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

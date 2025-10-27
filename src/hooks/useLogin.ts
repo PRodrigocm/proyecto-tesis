@@ -4,15 +4,11 @@ import { useRouter } from 'next/navigation'
 interface LoginFormData {
   email: string
   password: string
-  institucionEducativa: string
-  rol: string
 }
 
 interface LoginErrors {
   email: string
   password: string
-  institucionEducativa: string
-  rol: string
   general: string
 }
 
@@ -30,15 +26,11 @@ export const useLogin = () => {
   const router = useRouter()
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
-    password: '',
-    institucionEducativa: '',
-    rol: ''
+    password: ''
   })
   const [errors, setErrors] = useState<LoginErrors>({
     email: '',
     password: '',
-    institucionEducativa: '',
-    rol: '',
     general: ''
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -77,7 +69,7 @@ export const useLogin = () => {
   }, [])
 
   const validateForm = () => {
-    const newErrors: LoginErrors = { email: '', password: '', institucionEducativa: '', rol: '', general: '' }
+    const newErrors: LoginErrors = { email: '', password: '', general: '' }
     let isValid = true
 
     if (!formData.email) {
@@ -96,16 +88,6 @@ export const useLogin = () => {
       isValid = false
     }
 
-    if (!formData.institucionEducativa) {
-      newErrors.institucionEducativa = 'Debe seleccionar una institución educativa'
-      isValid = false
-    }
-
-    if (!formData.rol) {
-      newErrors.rol = 'Debe seleccionar un rol'
-      isValid = false
-    }
-
     setErrors(newErrors)
     return isValid
   }
@@ -120,12 +102,10 @@ export const useLogin = () => {
     try {
       console.log('🔐 Starting login process...')
       console.log('Form data:', {
-        email: formData.email,
-        institucionEducativa: formData.institucionEducativa,
-        rol: formData.rol
+        email: formData.email
       })
 
-      // Login unificado para todos los roles
+      // Login simplificado - el backend detecta automáticamente IE y Rol
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -133,9 +113,7 @@ export const useLogin = () => {
         },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password,
-          institucionEducativa: formData.institucionEducativa,
-          rol: formData.rol
+          password: formData.password
         })
       })
 
@@ -209,8 +187,8 @@ export const useLogin = () => {
 
   const handleBack = () => {
     setShowRoleSelection(false)
-    setFormData(prev => ({ ...prev, institucionEducativa: '', rol: '' }))
-    setErrors({ email: '', password: '', institucionEducativa: '', rol: '', general: '' })
+    setFormData({ email: '', password: '' })
+    setErrors({ email: '', password: '', general: '' })
   }
 
   return {

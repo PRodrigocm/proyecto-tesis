@@ -269,6 +269,67 @@ async function main() {
     console.log('ℹ️  Usuario Administrativo ya existe')
   }
 
+  // 12. HORARIOS DE CLASE
+  console.log('⏰ Creando Horarios de Clase...')
+  
+  // Obtener el primer docente
+  const primerDocente = await prisma.docente.findFirst()
+  
+  if (primerDocente) {
+    // Obtener algunos grados-secciones
+    const gradosSecciones = await prisma.gradoSeccion.findMany({
+      take: 3,
+      include: {
+        grado: true,
+        seccion: true
+      }
+    })
+
+    const materias = ['Matemáticas', 'Comunicación', 'Ciencia y Tecnología', 'Personal Social', 'Arte y Cultura']
+    const diasSemana = [1, 2, 3, 4, 5] // Lunes a Viernes
+    
+    let horariosCreados = 0
+    
+    for (const gs of gradosSecciones) {
+      for (let i = 0; i < 2; i++) { // 2 horarios por grado-sección
+        const dia = diasSemana[i]
+        const materia = materias[i % materias.length]
+        
+        // Crear hora de inicio y fin
+        const horaInicio = new Date()
+        horaInicio.setHours(8 + (i * 2), 0, 0, 0)
+        
+        const horaFin = new Date()
+        horaFin.setHours(8 + (i * 2) + 1, 30, 0, 0)
+        
+        try {
+          await prisma.horarioClase.create({
+            data: {
+              idGradoSeccion: gs.idGradoSeccion,
+              idDocente: primerDocente.idDocente,
+              materia: materia,
+              diaSemana: dia,
+              horaInicio: horaInicio,
+              horaFin: horaFin,
+              aula: `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`,
+              activo: true,
+              toleranciaMin: 10,
+              tipoActividad: 'CLASE_REGULAR'
+            }
+          })
+          horariosCreados++
+        } catch (error) {
+          // Ignorar errores de duplicados
+          console.log(`⚠️  Horario ya existe para ${gs.grado.nombre}° ${gs.seccion.nombre} - ${materia}`)
+        }
+      }
+    }
+    
+    console.log(`✅ ${horariosCreados} Horarios de Clase creados`)
+  } else {
+    console.log('⚠️  No se encontró docente para asignar horarios')
+  }
+
   console.log('🎉 Seed completado exitosamente!')
 }
 

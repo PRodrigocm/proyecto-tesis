@@ -38,8 +38,7 @@ export async function GET(request: NextRequest) {
       },
       select: {
         idEstudiante: true,
-        codigo: true,
-        qr: true,
+        codigoQR: true,
         usuario: {
           select: {
             nombre: true,
@@ -95,18 +94,18 @@ export async function GET(request: NextRequest) {
 
     // Mostrar datos de estudiantes para debugging
     estudiantes.forEach(est => {
-      console.log(`  - ${est.usuario.nombre} ${est.usuario.apellido}: ID=${est.idEstudiante}, Código=${est.codigo}, QR=${est.qr}, DNI=${est.usuario.dni}`)
+      console.log(`  - ${est.usuario.nombre} ${est.usuario.apellido}: ID=${est.idEstudiante}, CodigoQR=${est.codigoQR}, DNI=${est.usuario.dni}`)
     })
 
     // Transformar datos para el generador de QR
     const estudiantesTransformados = estudiantes.map(estudiante => {
-      const codigoFinal = estudiante.codigo || estudiante.qr || estudiante.usuario.dni
+      const codigoFinal = estudiante.codigoQR || estudiante.usuario.dni
       console.log(`🔄 Transformando: ${estudiante.usuario.nombre} → Código final: ${codigoFinal}`)
       
       return {
         id: estudiante.idEstudiante.toString(),
         nombre: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
-        codigo: codigoFinal, // Usar código real de BD
+        codigo: codigoFinal, // Usar código QR de BD o DNI como fallback
         grado: estudiante.gradoSeccion?.grado?.nombre || '',
         seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
         dni: estudiante.usuario.dni,

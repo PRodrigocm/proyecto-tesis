@@ -6,14 +6,6 @@ interface CalendarioEscolarItem {
   motivo?: string
 }
 
-interface ExcepcionItem {
-  fecha: string
-  fechaFin?: string
-  tipoExcepcion: 'FERIADO' | 'DIA_NO_LABORABLE' | 'SUSPENSION_CLASES' | 'HORARIO_ESPECIAL' | 'VACACIONES' | 'CAPACITACION' | 'OTRO'
-  motivo?: string
-  descripcion?: string
-}
-
 interface Stats {
   diasLectivos: number
   feriados: number
@@ -23,7 +15,6 @@ interface Stats {
 
 export function useAnoLectivo(year: number = new Date().getFullYear()) {
   const [calendarioEscolar, setCalendarioEscolar] = useState<CalendarioEscolarItem[]>([])
-  const [excepciones, setExcepciones] = useState<ExcepcionItem[]>([])
   const [loading, setLoading] = useState(true)
   const currentYear = new Date().getFullYear()
   const [stats, setStats] = useState<Stats>({
@@ -47,34 +38,6 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
       if (calendarioResponse.ok) {
         const calendarioData = await calendarioResponse.json()
         setCalendarioEscolar(calendarioData.data || [])
-      }
-
-      // Cargar excepciones
-      console.log('⚠️ Cargando excepciones para año:', year)
-      const excepcionesResponse = await fetch(`/api/excepciones-horario?year=${year}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (excepcionesResponse.ok) {
-        const excepcionesData = await excepcionesResponse.json()
-        console.log('⚠️ Excepciones cargadas:', excepcionesData.data?.length || 0, 'registros')
-        console.log('⚠️ Datos de excepciones completos:', excepcionesData.data)
-        
-        // Log específico de cada excepción
-        if (excepcionesData.data && excepcionesData.data.length > 0) {
-          excepcionesData.data.forEach((exc: any, index: number) => {
-            console.log(`  📋 Excepción ${index + 1}:`, {
-              fecha: exc.fecha,
-              tipo: exc.tipoExcepcion,
-              motivo: exc.motivo,
-              activo: exc.activo
-            })
-          })
-        }
-        
-        setExcepciones(excepcionesData.data || [])
-      } else {
-        console.error('❌ Error cargando excepciones:', excepcionesResponse.status)
       }
 
       // Cargar estadísticas
@@ -120,63 +83,50 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
         console.log('📅 Día lectivo: No se guarda en BD (es por defecto)')
         console.log('✅ Día lectivo procesado exitosamente (sin guardar)')
       } else {
-        // Registrar como excepción
-        let tipoExcepcion: ExcepcionItem['tipoExcepcion'] = 'OTRO'
+        // Registrar en CalendarioEscolar
+        let tipoDia = 'EVENTO'
         
         switch (eventoData.tipo) {
           case 'FERIADO':
-            tipoExcepcion = 'FERIADO'
+            tipoDia = 'FERIADO'
             break
           case 'SUSPENSION':
-            tipoExcepcion = 'SUSPENSION_CLASES'
-            break
           case 'VACACIONES':
-            tipoExcepcion = 'VACACIONES'
+            tipoDia = 'VACACIONES'
+            break
+          case 'EVENTO':
+            tipoDia = 'EVENTO'
             break
         }
 
-        // Generar motivo automáticamente basado en el tipo
-        let motivoAutomatico = ''
-        switch (eventoData.tipo) {
-          case 'FERIADO':
-            motivoAutomatico = 'Feriado'
-            break
-          case 'SUSPENSION':
-            motivoAutomatico = 'Suspensión de Clases'
-            break
-          case 'VACACIONES':
-            motivoAutomatico = 'Vacaciones'
-            break
-          default:
-            motivoAutomatico = eventoData.tipo
+        // Generar descripción automática si no se proporciona
+        let descripcionFinal = eventoData.descripcion
+        if (!descripcionFinal) {
+          switch (eventoData.tipo) {
+            case 'FERIADO':
+              descripcionFinal = 'Feriado'
+              break
+            case 'SUSPENSION':
+              descripcionFinal = 'Suspensión de Clases'
+              break
+            case 'VACACIONES':
+              descripcionFinal = 'Vacaciones'
+              break
+            default:
+              descripcionFinal = 'Evento Especial'
+          }
         }
 
-        const requestBody: any = {
-          fecha: eventoData.fecha.toISOString().split('T')[0],
+        const requestBody = {
           fechaInicio: eventoData.fechaInicio.toISOString().split('T')[0],
-          tipoExcepcion,
-          tipoHorario: 'AMBOS',
-          motivo: motivoAutomatico,
-          descripcion: eventoData.descripcion
+          fechaFin: (eventoData.fechaFin || eventoData.fechaInicio).toISOString().split('T')[0],
+          tipoDia,
+          descripcion: descripcionFinal
         }
 
-        // Agregar campos opcionales si existen
-        if (eventoData.fechaFin) {
-          requestBody.fechaFin = eventoData.fechaFin.toISOString().split('T')[0]
-        }
-        if (eventoData.horaInicio) {
-          requestBody.horaInicio = eventoData.horaInicio
-        }
-        if (eventoData.horaFin) {
-          requestBody.horaFin = eventoData.horaFin
-        }
-        if (eventoData.idHorarioClase) {
-          requestBody.idHorarioClase = eventoData.idHorarioClase
-        }
-
-        console.log('⚠️ Enviando a /api/excepciones-horario:', requestBody)
+        console.log('📅 Enviando a /api/calendario:', requestBody)
         
-        const response = await fetch('/api/excepciones-horario', {
+        const response = await fetch('/api/calendario', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -185,12 +135,12 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
           body: JSON.stringify(requestBody)
         })
 
-        console.log('📊 Respuesta del servidor (excepciones):', response.status, response.statusText)
+        console.log('📊 Respuesta del servidor (calendario):', response.status, response.statusText)
 
         if (!response.ok) {
           const errorData = await response.json()
-          console.error('❌ Error del servidor (excepciones):', errorData)
-          throw new Error(`Error al registrar excepción: ${errorData.error || response.statusText}`)
+          console.error('❌ Error del servidor (calendario):', errorData)
+          throw new Error(`Error al registrar evento: ${errorData.error || response.statusText}`)
         }
         
         const result = await response.json()
@@ -203,7 +153,6 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
       console.log('✅ Datos recargados exitosamente')
       console.log('📊 Estado actual después de recarga:')
       console.log('  - Calendario escolar items:', calendarioEscolar.length)
-      console.log('  - Excepciones items:', excepciones.length)
       
     } catch (error) {
       console.error('Error registering evento:', error)
@@ -242,7 +191,6 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
 
   return {
     calendarioEscolar,
-    excepciones,
     loading,
     stats,
     loadCalendarioEscolar,

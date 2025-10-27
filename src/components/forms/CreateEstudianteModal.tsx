@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 
 interface Grado {
   idGrado: number
@@ -56,6 +57,13 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
   const [apoderadosRelaciones, setApoderadosRelaciones] = useState<ApoderadoRelacion[]>([
     { apoderadoId: 0, relacion: '', esTitular: false }
   ])
+  
+  // Calcular fechas mínima y máxima para edades entre 6 y 12 años
+  const today = new Date()
+  const maxDate = new Date(today.getFullYear() - 6, today.getMonth(), today.getDate())
+  const minDate = new Date(today.getFullYear() - 12, today.getMonth(), today.getDate())
+  const maxDateString = maxDate.toISOString().split('T')[0]
+  const minDateString = minDate.toISOString().split('T')[0]
   
   const [formData, setFormData] = useState({
     dni: '',
@@ -304,9 +312,12 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
                 name="fechaNacimiento"
                 value={formData.fechaNacimiento}
                 onChange={handleChange}
+                min={minDateString}
+                max={maxDateString}
                 required
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
               />
+              <p className="mt-1 text-sm text-gray-500">El estudiante debe tener entre 6 y 12 años</p>
             </div>
 
 
@@ -392,24 +403,21 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Selector de Apoderado */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Seleccionar Apoderado
-                      </label>
-                      <select
-                        value={relacion.apoderadoId}
-                        onChange={(e) => handleApoderadoChange(index, 'apoderadoId', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                      >
-                        <option value={0}>Seleccionar apoderado</option>
-                        {apoderados.map((apoderado) => (
-                          <option key={apoderado.id} value={apoderado.id}>
-                            {apoderado.nombre} {apoderado.apellido} - DNI: {apoderado.dni}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Selector de Apoderado con búsqueda */}
+                    <SearchableSelect
+                      label="Seleccionar Apoderado"
+                      options={[
+                        { value: '0', label: 'Ninguno', subtitle: 'No asignar apoderado' },
+                        ...apoderados.map(apo => ({
+                          value: String(apo.id),
+                          label: `${apo.nombre} ${apo.apellido}`,
+                          subtitle: `DNI: ${apo.dni}`
+                        }))
+                      ]}
+                      value={String(relacion.apoderadoId)}
+                      onChange={(value) => handleApoderadoChange(index, 'apoderadoId', value)}
+                      placeholder="Buscar apoderado por nombre o DNI..."
+                    />
 
                     {/* Selector de Relación */}
                     <div>

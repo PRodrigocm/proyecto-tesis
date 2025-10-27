@@ -53,8 +53,6 @@ export default function RegistrarEventoModal({
     descripcion: '',
     fechaInicio: null as Date | null,
     fechaFin: null as Date | null,
-    horaInicio: '',
-    horaFin: '',
     alcance: 'TODOS' as 'TODOS' | 'RANGO' | 'INDIVIDUAL',
     nivel: '',
     gradoInicio: '',
@@ -66,9 +64,17 @@ export default function RegistrarEventoModal({
   const [loading, setLoading] = useState(false)
   const [gradosSecciones, setGradosSecciones] = useState<GradoSeccion[]>([])
   const [loadingGrados, setLoadingGrados] = useState(false)
+  
+  // Fecha mínima: hoy (no permitir fechas pasadas)
+  const today = new Date()
+  const minDateString = today.toISOString().split('T')[0]
 
   useEffect(() => {
     if (isOpen && selectedDate) {
+      // Debug: Ver qué datos tiene selectedEvento
+      console.log('📝 Modal abierto con selectedEvento:', selectedEvento)
+      console.log('🔍 onDelete disponible:', !!onDelete)
+      
       if (selectedEvento) {
         // Cargar datos del evento existente
         setFormData({
@@ -78,8 +84,6 @@ export default function RegistrarEventoModal({
           descripcion: selectedEvento.motivo || '',
           fechaInicio: new Date(selectedEvento.fecha),
           fechaFin: selectedEvento.fechaFin ? new Date(selectedEvento.fechaFin) : null,
-          horaInicio: '',
-          horaFin: '',
           alcance: 'TODOS',
           nivel: '',
           gradoInicio: '',
@@ -95,8 +99,6 @@ export default function RegistrarEventoModal({
           descripcion: '',
           fechaInicio: selectedDate,
           fechaFin: null,
-          horaInicio: '',
-          horaFin: '',
           alcance: 'TODOS',
           nivel: '',
           gradoInicio: '',
@@ -158,8 +160,6 @@ export default function RegistrarEventoModal({
         fecha: fechaInicioFinal,
         fechaInicio: fechaInicioFinal,
         fechaFin: formData.fechaFin || undefined,
-        horaInicio: formData.horaInicio || undefined,
-        horaFin: formData.horaFin || undefined,
         tipo: formData.tipo,
         descripcion: formData.descripcion,
         alcance: formData.alcance,
@@ -247,9 +247,11 @@ export default function RegistrarEventoModal({
                   ...prev, 
                   fechaInicio: e.target.value ? new Date(e.target.value + 'T00:00:00') : null 
                 }))}
+                min={minDateString}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">No se pueden seleccionar fechas pasadas</p>
             </div>
 
             {/* Fecha Fin (opcional) */}
@@ -265,7 +267,7 @@ export default function RegistrarEventoModal({
                   ...prev, 
                   fechaFin: e.target.value ? new Date(e.target.value + 'T00:00:00') : null 
                 }))}
-                min={formData.fechaInicio ? formData.fechaInicio.toISOString().split('T')[0] : ''}
+                min={formData.fechaInicio ? formData.fechaInicio.toISOString().split('T')[0] : minDateString}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -273,33 +275,6 @@ export default function RegistrarEventoModal({
               </p>
             </div>
 
-            {/* Horas (opcional) */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="horaInicio" className="block text-sm font-medium text-gray-700 mb-1">
-                  Hora Inicio (Opcional)
-                </label>
-                <input
-                  type="time"
-                  id="horaInicio"
-                  value={formData.horaInicio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
-                />
-              </div>
-              <div>
-                <label htmlFor="horaFin" className="block text-sm font-medium text-gray-700 mb-1">
-                  Hora Fin (Opcional)
-                </label>
-                <input
-                  type="time"
-                  id="horaFin"
-                  value={formData.horaFin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, horaFin: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black"
-                />
-              </div>
-            </div>
             {/* Tipo de evento */}
             <div>
               <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
@@ -512,17 +487,25 @@ export default function RegistrarEventoModal({
             {/* Botones */}
             <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
               {/* Botón Eliminar (solo si hay evento seleccionado) */}
-              {selectedEvento && onDelete && selectedEvento.idExcepcion ? (
+              {selectedEvento && onDelete ? (
                 <button
                   type="button"
-                  onClick={() => onDelete(String(selectedEvento.idExcepcion))}
+                  onClick={() => {
+                    console.log('🗑️ Eliminando evento:', selectedEvento)
+                    const eventoId = selectedEvento.idExcepcion || selectedEvento.id
+                    if (eventoId) {
+                      onDelete(String(eventoId))
+                    } else {
+                      alert('No se puede eliminar: ID de evento no encontrado')
+                    }
+                  }}
                   className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                 >
                   <span className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    Eliminar
+                    Eliminar Evento
                   </span>
                 </button>
               ) : (

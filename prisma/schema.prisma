@@ -28,7 +28,6 @@ model Ie {
   asistenciasIE     AsistenciaIE[]
   calendarioEscolar CalendarioEscolar[]
   estudiantes       Estudiante[]
-  excepciones       ExcepcionHorario[]
   modalidad         Modalidad           @relation(fields: [idModalidad], references: [idModalidad])
   justificaciones   Justificacion[]
   niveles           Nivel[]
@@ -56,7 +55,7 @@ model Grado {
   nombre         String
   nivel          Nivel          @relation(fields: [idNivel], references: [idNivel])
   gradoSecciones GradoSeccion[]
-  reuniones      Reunion[]
+  reuniones      Reunion[]      @relation("ReunionGrados")
 
   @@unique([idNivel, nombre], name: "uq_grado_nivel_nombre")
   @@map("grado")
@@ -66,7 +65,7 @@ model Seccion {
   idSeccion      Int            @id @default(autoincrement()) @map("id_seccion")
   nombre         String         @unique
   gradoSecciones GradoSeccion[]
-  reuniones      Reunion[]
+  reuniones      Reunion[]      @relation("ReunionSecciones")
 
   @@map("seccion")
 }
@@ -113,7 +112,6 @@ model Usuario {
   retirosVerificados         Retiro[]                    @relation("VerificadoPor")
   roles                      UsuarioRol[]
   ie                         Ie?                         @relation(fields: [idIe], references: [idIe])
-  reunionesResponsable       Reunion[]
 
   @@map("usuarios")
 }
@@ -227,42 +225,20 @@ model DocenteAula {
 }
 
 model CalendarioEscolar {
-  idCal     Int      @id @default(autoincrement()) @map("id_cal")
-  idIe      Int      @map("id_ie")
-  fecha     DateTime @db.Date
-  esLectivo Boolean  @default(true) @map("es_lectivo")
-  motivo    String?
-  ie        Ie       @relation(fields: [idIe], references: [idIe])
+  idCalendario Int      @id @default(autoincrement()) @map("id_calendario")
+  idIe         Int      @map("id_ie")
+  fechaInicio  DateTime @map("fecha_inicio") @db.Date
+  fechaFin     DateTime @map("fecha_fin") @db.Date
+  tipoDia      String   @map("tipo_dia") // CLASES, FERIADO, VACACIONES, EVENTO
+  descripcion  String?
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+  ie           Ie       @relation(fields: [idIe], references: [idIe])
 
-  @@unique([idIe, fecha], name: "uq_cal_ie_fecha")
+  @@index([idIe, fechaInicio])
+  @@index([tipoDia])
   @@map("calendario_escolar")
 }
 
-model ExcepcionHorario {
-  idExcepcion     Int               @id @default(autoincrement()) @map("id_excepcion")
-  idIe            Int               @map("id_ie")
-  fecha           DateTime          @db.Date
-  tipoExcepcion   TipoExcepcionEnum @map("tipo_excepcion")
-  tipoHorario     TipoHorarioEnum   @map("tipo_horario")
-  idHorarioClase  Int?              @map("id_horario_clase")
-  motivo          String?
-  descripcion     String?
-  fechaInicio           DateTime          @db.Date
-  horaInicioAlt   DateTime?         @map("hora_inicio_alt") @db.Time(6)
-  horaFinAlt      DateTime?         @map("hora_fin_alt") @db.Time(6)
-  activo          Boolean           @default(true)
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime?         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  fechaFin        DateTime?         @map("fecha_fin") @db.Date
-  horarioClase    HorarioClase?     @relation(fields: [idHorarioClase], references: [idHorarioClase])
-  ie              Ie                @relation(fields: [idIe], references: [idIe])
-
-  @@unique([idHorarioClase, fecha], name: "uq_exc_horario_clase_fecha")
-  @@index([fecha])
-  @@index([idIe, fecha])
-  @@index([tipoHorario])
-  @@map("excepciones_horario")
-}
 
 model HorarioClase {
   idHorarioClase Int                @id @default(autoincrement()) @map("id_horario_clase")
@@ -280,7 +256,6 @@ model HorarioClase {
   tipoActividad  TipoActividadEnum  @default(CLASE_REGULAR) @map("tipo_actividad")
   toleranciaMin  Int                @default(10) @map("tolerancia_min")
   asistencias    Asistencia[]
-  excepciones    ExcepcionHorario[]
   docente        Docente?           @relation(fields: [idDocente], references: [idDocente])
   gradoSeccion   GradoSeccion       @relation(fields: [idGradoSeccion], references: [idGradoSeccion])
 
@@ -537,25 +512,6 @@ model Notificacion {
   @@map("notificaciones")
 }
 
-enum TipoExcepcionEnum {
-  FERIADO
-  DIA_NO_LABORABLE
-  SUSPENSION_CLASES
-  HORARIO_ESPECIAL
-  VACACIONES
-  CAPACITACION
-  OTRO
-
-  @@map("tipo_excepcion")
-}
-
-enum TipoHorarioEnum {
-  CLASE
-  AMBOS
-
-  @@map("tipo_horario")
-}
-
 enum TipoActividadEnum {
   CLASE_REGULAR
   REFORZAMIENTO
@@ -567,51 +523,31 @@ enum TipoActividadEnum {
 
 enum TipoReunionEnum {
   GENERAL
-  POR_GRADO
-  POR_AULA
+  ENTREGA_LIBRETAS
+  ASAMBLEA_PADRES
+  TUTORIAL
+  EMERGENCIA
+  OTRO
 
   @@map("tipo_reunion")
 }
 
-enum MetodoRegistroEnum {
-  QR
-  MANUAL
-
-  @@map("metodo_registro")
-}
-
-enum EstadoReunionEnum {
-  PROGRAMADA
-  REALIZADA
-  CANCELADA
-
-  @@map("estado_reunion")
-}
-
 model Reunion {
-  idReunion             Int                   @id @default(autoincrement()) @map("id_reunion")
-  idIe                  Int                   @map("id_ie")
-  titulo                String                @db.VarChar(100)
-  descripcion           String?               @db.Text
-  fecha                 DateTime              @db.Date
-  horaInicio            DateTime              @map("hora_inicio") @db.Time(6)
-  horaFin               DateTime?             @map("hora_fin") @db.Time(6)
-  tipoReunion           TipoReunionEnum       @map("tipo_reunion")
-  idUsuarioResponsable  Int                   @map("id_usuario_responsable")
-  idGrado               Int?                  @map("id_grado")
-  idSeccion             Int?                  @map("id_seccion")
-  metodoRegistro        MetodoRegistroEnum    @map("metodo_registro") @default(MANUAL)
-  estado                EstadoReunionEnum     @default(PROGRAMADA)
-  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime?             @updatedAt @map("updated_at") @db.Timestamptz(6)
-  
-  ie                    Ie                    @relation(fields: [idIe], references: [idIe])
-  usuarioResponsable    Usuario               @relation(fields: [idUsuarioResponsable], references: [idUsuario])
-  grado                 Grado?                @relation(fields: [idGrado], references: [idGrado])
-  seccion               Seccion?              @relation(fields: [idSeccion], references: [idSeccion])
+  idReunion     Int                @id @default(autoincrement()) @map("id_reunion")
+  idIe          Int                @map("id_ie")
+  titulo        String
+  descripcion   String?
+  fecha         DateTime           @db.Timestamptz(6)
+  horaInicio    DateTime           @map("hora_inicio") @db.Time(6)
+  horaFin       DateTime           @map("hora_fin") @db.Time(6)
+  tipo          TipoReunionEnum    @default(GENERAL)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime?          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  @@index([idIe, fecha])
-  @@index([idUsuarioResponsable])
-  @@index([estado])
-  @@map("reuniones")
+  // Relaciones
+  ie            Ie                 @relation(fields: [idIe], references: [idIe])
+  grados        Grado[]            @relation("ReunionGrados")
+  secciones     Seccion[]          @relation("ReunionSecciones")
+
+  @@map("reunion")
 }

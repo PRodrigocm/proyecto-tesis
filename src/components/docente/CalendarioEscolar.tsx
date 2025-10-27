@@ -46,7 +46,8 @@ export default function CalendarioEscolar({ className = '' }: CalendarioEscolarP
         console.log('✅ Eventos del calendario cargados:', data.data?.length || 0)
         setEventos(data.data || [])
       } else {
-        console.error('❌ Error al cargar eventos del calendario')
+        const errorText = await response.text()
+        console.error('❌ Error al cargar eventos del calendario:', response.status, errorText)
         // Datos de ejemplo para desarrollo
         setEventos([
           {

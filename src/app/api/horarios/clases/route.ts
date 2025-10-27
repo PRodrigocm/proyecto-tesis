@@ -48,7 +48,83 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Verificar que el grado-sección existe
+    const ieId = user.ieId || 1
+
+    // Modo TODOS: actualizar todos los grados-secciones
+    if (idGradoSeccion === 'TODOS') {
+      console.log('🏫 Modo TODOS: Actualizando todos los grados-secciones')
+      
+      // Obtener todos los grados-secciones de la IE
+      const todosGradosSecciones = await prisma.gradoSeccion.findMany({
+        where: {
+          grado: {
+            nivel: {
+              idIe: ieId
+            }
+          }
+        },
+        include: {
+          grado: { include: { nivel: true } },
+          seccion: true
+        }
+      })
+
+      console.log(`📋 Total de grados-secciones a actualizar: ${todosGradosSecciones.length}`)
+      console.log(`📋 Horarios recibidos: ${horarios.length}`)
+
+      // Usar transacción para actualizar todos los grados-secciones
+      await prisma.$transaction(async (tx) => {
+        let totalCreados = 0
+        
+        for (const gs of todosGradosSecciones) {
+          // Eliminar horarios existentes
+          await tx.horarioClase.deleteMany({
+            where: { idGradoSeccion: gs.idGradoSeccion }
+          })
+          
+          // Crear nuevos horarios para este grado-sección
+          // Agrupar por día y hora para evitar duplicados
+          const horariosUnicos = new Map()
+          for (const horario of horarios) {
+            const key = `${horario.diaSemana}-${horario.horaInicio}`
+            if (!horariosUnicos.has(key)) {
+              horariosUnicos.set(key, horario)
+            }
+          }
+          
+          for (const horario of horariosUnicos.values()) {
+            const horaInicioDateTime = new Date(`1970-01-01T${horario.horaInicio}:00.000Z`)
+            const horaFinDateTime = new Date(`1970-01-01T${horario.horaFin}:00.000Z`)
+            
+            await tx.horarioClase.create({
+              data: {
+                idGradoSeccion: gs.idGradoSeccion,
+                diaSemana: horario.diaSemana,
+                horaInicio: horaInicioDateTime,
+                horaFin: horaFinDateTime,
+                aula: horario.aula || `Aula ${gs.grado.nombre}° ${gs.seccion.nombre}`,
+                tipoActividad: horario.tipoActividad || 'CLASE_REGULAR',
+                idDocente: null
+              }
+            })
+            totalCreados++
+          }
+        }
+        
+        console.log(`✅ Total de horarios creados: ${totalCreados}`)
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: `Horarios actualizados para ${todosGradosSecciones.length} grados-secciones`,
+        data: {
+          gradoSeccion: 'TODOS',
+          count: todosGradosSecciones.length
+        }
+      })
+    }
+
+    // Modo INDIVIDUAL: actualizar un grado-sección específico
     const gradoSeccion = await prisma.gradoSeccion.findUnique({
       where: { idGradoSeccion: parseInt(idGradoSeccion) },
       include: {
@@ -64,7 +140,6 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verificar que pertenece a la IE del usuario
-    const ieId = user.ieId || 1
     if (gradoSeccion.grado.nivel.idIe !== ieId) {
       return NextResponse.json({ 
         error: 'No tienes permisos para editar este grado-sección' 

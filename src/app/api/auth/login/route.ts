@@ -5,32 +5,19 @@ import jwt from 'jsonwebtoken'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, institucionEducativa, rol } = await request.json()
+    const { email, password } = await request.json()
 
-    if (!email || !password || !institucionEducativa || !rol) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Todos los campos son requeridos' },
+        { error: 'Email y contraseña son requeridos' },
         { status: 400 }
       )
     }
 
-    // Construir filtro de institución
-    const ieFilter = rol === 'ADMINISTRATIVO'
-      ? {} // El administrativo puede no estar ligado a una IE específica
-      : { idIe: parseInt(institucionEducativa) }
-
-    // Buscar usuario con el rol y (si aplica) institución especificados
+    // Buscar usuario por email (sin filtros de IE o Rol)
     const user = await prisma.usuario.findFirst({
       where: {
-        email: email,
-        ...ieFilter,
-        roles: {
-          some: {
-            rol: {
-              nombre: rol
-            }
-          }
-        }
+        email: email
       },
       include: {
         ie: true,
@@ -58,12 +45,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Obtener el primer rol del usuario (el principal)
+    const userRole = user.roles[0]?.rol?.nombre || 'USUARIO'
+
     // Generar JWT
     const token = jwt.sign(
       { 
         userId: user.idUsuario, 
         email: user.email, 
-        rol: user.roles[0]?.rol?.nombre || rol,
+        rol: userRole,
         ieId: user.idIe
       },
       process.env.JWT_SECRET || 'fallback-secret',
@@ -75,8 +65,9 @@ export async function POST(request: NextRequest) {
       email: user.email,
       nombres: user.nombre,
       apellidos: user.apellido,
-      rol: user.roles[0]?.rol?.nombre || rol,
-      institucion: user.ie?.nombre || null
+      rol: userRole,
+      institucion: user.ie?.nombre || null,
+      ieId: user.idIe
     }
 
     console.log('🔍 Login API - User found:', {

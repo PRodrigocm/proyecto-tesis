@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function GET(request: NextRequest) {
   try {
@@ -154,6 +155,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Hashear contraseña
+    console.log('🔐 Hasheando contraseña...')
+    const hashedPassword = await bcrypt.hash(password, 10)
+    console.log('✅ Contraseña hasheada exitosamente')
+    
     // Crear usuario
     console.log('Creando usuario con datos:', {
       dni, nombre, apellido, email, telefono, passwordHash: '***', idIe: ieId, estado: 'ACTIVO'
@@ -166,7 +172,7 @@ export async function POST(request: NextRequest) {
         apellido,
         email,
         telefono,
-        passwordHash: password, // En producción debería estar hasheada
+        passwordHash: hashedPassword,
         idIe: ieId,
         estado: 'ACTIVO'
       }

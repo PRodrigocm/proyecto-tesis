@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,12 +36,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Usuario sin IE asignada' }, { status: 400 })
     }
 
-    // Obtener fecha actual
+    // Obtener fecha actual (sin hora para comparación)
     const hoy = new Date()
-    const fechaHoy = hoy.toISOString().split('T')[0]
-    const fechaBusqueda = new Date(fechaHoy)
+    const fechaBusqueda = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+    const fechaHoy = fechaBusqueda.toISOString().split('T')[0]
 
     console.log('📅 Obteniendo estudiantes para fecha:', fechaHoy)
+    console.log('🔍 Fecha de búsqueda:', fechaBusqueda)
 
     // Obtener todos los estudiantes activos de la IE
     const estudiantes = await prisma.estudiante.findMany({
@@ -56,8 +55,7 @@ export async function GET(request: NextRequest) {
       select: {
         idEstudiante: true,
         idGradoSeccion: true,
-        codigo: true,
-        qr: true,
+        codigoQR: true,
         usuario: true,
         gradoSeccion: {
           include: {
@@ -78,41 +76,29 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // Ahora buscar asistencias y retiros por separado para cada estudiante
+    // Buscar asistencias IE (entrada/salida) para cada estudiante
     const estudiantesConEstado = await Promise.all(
       estudiantes.map(async (estudiante) => {
-        // Buscar asistencia del día
-        const asistencia = await prisma.asistencia.findFirst({
+        // Buscar asistencia IE del día (entrada/salida de la institución)
+        const asistenciaIE = await prisma.asistenciaIE.findFirst({
           where: {
             idEstudiante: estudiante.idEstudiante,
-            fecha: fechaBusqueda
+            fecha: {
+              gte: fechaBusqueda,
+              lt: new Date(fechaBusqueda.getTime() + 24 * 60 * 60 * 1000)
+            }
           },
           orderBy: {
             createdAt: 'desc'
           }
         })
 
-        // Buscar retiro del día
-        const retiro = await prisma.retiro.findFirst({
-          where: {
-            idEstudiante: estudiante.idEstudiante,
-            fecha: fechaBusqueda
-          }
-        })
-
-        // Buscar horario de clases del día actual
-        let horarioClase = null
-        if (estudiante.idGradoSeccion) {
-          const diaSemana = fechaBusqueda.getDay() === 0 ? 7 : fechaBusqueda.getDay() // Domingo = 7
-          horarioClase = await prisma.horarioClase.findFirst({
-            where: {
-              idGradoSeccion: estudiante.idGradoSeccion,
-              diaSemana: diaSemana,
-              activo: true
-            },
-            orderBy: {
-              horaInicio: 'asc'
-            }
+        if (asistenciaIE) {
+          console.log(`📋 Asistencia encontrada para ${estudiante.usuario.nombre}:`, {
+            fecha: asistenciaIE.fecha,
+            horaIngreso: asistenciaIE.horaIngreso,
+            horaSalida: asistenciaIE.horaSalida,
+            estado: asistenciaIE.estado
           })
         }
 
@@ -120,22 +106,17 @@ export async function GET(request: NextRequest) {
         let horaEntrada: string | undefined
         let horaSalida: string | undefined
 
-        // Determinar estado
-        if (retiro) {
-          estado = 'RETIRADO'
-          // Usar el campo correcto para la hora de retiro
-          horaSalida = retiro.hora ? new Date(retiro.hora).toTimeString().slice(0, 5) : undefined
-          // Si hay asistencia, también mostrar hora de entrada
-          if (asistencia && asistencia.horaEntrada) {
-            horaEntrada = asistencia.horaEntrada.toTimeString().slice(0, 5)
+        // Determinar estado basado en AsistenciaIE
+        if (asistenciaIE) {
+          if (asistenciaIE.horaSalida) {
+            estado = 'RETIRADO'
+            horaSalida = asistenciaIE.horaSalida.toTimeString().slice(0, 5)
+          } else if (asistenciaIE.horaIngreso) {
+            estado = 'PRESENTE'
           }
-        } else if (asistencia) {
-          estado = 'PRESENTE'
-          if (asistencia.horaEntrada) {
-            horaEntrada = asistencia.horaEntrada.toTimeString().slice(0, 5)
-          }
-          if (asistencia.horaSalida) {
-            horaSalida = asistencia.horaSalida.toTimeString().slice(0, 5)
+          
+          if (asistenciaIE.horaIngreso) {
+            horaEntrada = asistenciaIE.horaIngreso.toTimeString().slice(0, 5)
           }
         }
 
@@ -147,16 +128,11 @@ export async function GET(request: NextRequest) {
           grado: estudiante.gradoSeccion?.grado?.nombre || '',
           seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
           nivel: estudiante.gradoSeccion?.grado?.nivel?.nombre || '',
-          codigo: estudiante.codigo || estudiante.qr || estudiante.usuario.dni, // Usar código real
-          codigoQR: estudiante.qr || estudiante.codigo || estudiante.usuario.dni, // Para compatibilidad
+          codigo: estudiante.codigoQR || estudiante.usuario.dni,
+          codigoQR: estudiante.codigoQR || estudiante.usuario.dni,
           estado,
           horaEntrada,
-          horaSalida,
-          horarioClase: horarioClase ? {
-            horaInicio: horarioClase.horaInicio.toTimeString().slice(0, 5),
-            horaFin: horarioClase.horaFin.toTimeString().slice(0, 5),
-            materia: horarioClase.materia || 'Clases generales'
-          } : null
+          horaSalida
         }
       })
     )
@@ -168,6 +144,7 @@ export async function GET(request: NextRequest) {
       success: true,
       estudiantes: estudiantesConEstado,
       fecha: fechaHoy,
+      fechaBusqueda: fechaBusqueda.toISOString(),
       total: estudiantesConEstado.length
     })
 
@@ -177,7 +154,5 @@ export async function GET(request: NextRequest) {
       error: 'Error interno del servidor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }

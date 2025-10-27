@@ -247,11 +247,21 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
+            <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
+                  <p className="text-sm text-gray-500">Complete los datos del nuevo usuario</p>
+                </div>
+              </div>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all focus:outline-none"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -260,14 +270,30 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
             </div>
 
           {success && (
-            <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-              Usuario creado exitosamente
+            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg shadow-sm">
+              <div className="flex items-center">
+                <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="font-semibold text-green-800">¡Usuario creado exitosamente!</p>
+                  <p className="text-sm text-green-600">El usuario ha sido registrado en el sistema</p>
+                </div>
+              </div>
             </div>
           )}
 
           {error && (
-            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
+            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 rounded-lg shadow-sm">
+              <div className="flex items-start">
+                <svg className="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="font-semibold text-red-800">Error al crear usuario</p>
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -438,7 +464,10 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
             {/* Fecha de Nacimiento (solo para Estudiantes) */}
             {requiresFechaNacimiento && (
               <div>
-                <label htmlFor="fechaNacimiento" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="fechaNacimiento" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                  <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                  </svg>
                   Fecha de Nacimiento *
                 </label>
                 <input
@@ -446,10 +475,52 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   id="fechaNacimiento"
                   name="fechaNacimiento"
                   value={formData.fechaNacimiento || ''}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    const selectedDate = new Date(e.target.value)
+                    const today = new Date()
+                    const age = today.getFullYear() - selectedDate.getFullYear()
+                    const monthDiff = today.getMonth() - selectedDate.getMonth()
+                    const dayDiff = today.getDate() - selectedDate.getDate()
+                    
+                    // Calcular edad exacta
+                    let exactAge = age
+                    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+                      exactAge--
+                    }
+                    
+                    // Validar rango de edad
+                    if (exactAge < 6 || exactAge > 12) {
+                      setError(`La edad del estudiante debe estar entre 6 y 12 años. Edad seleccionada: ${exactAge} años`)
+                      // Limpiar grado si la edad no es válida
+                      setFormData(prev => ({ ...prev, grado: '' }))
+                    } else {
+                      setError(null)
+                      
+                      // Asignar grado automáticamente según la edad
+                      // 6 años = 1° grado, 7 años = 2° grado, etc.
+                      const gradoAsignado = (exactAge - 5).toString()
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        fechaNacimiento: e.target.value,
+                        grado: gradoAsignado 
+                      }))
+                      
+                      console.log(`✅ Edad: ${exactAge} años → Grado asignado: ${gradoAsignado}°`)
+                      return
+                    }
+                    
+                    handleInputChange(e)
+                  }}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black transition-all"
                 />
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Solo estudiantes entre 6 y 12 años
+                </p>
               </div>
             )}
 
@@ -457,25 +528,53 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
             {isEstudiante && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="grado" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="grado" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                    </svg>
                     Grado *
+                    {formData.grado && formData.fechaNacimiento && (
+                      <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Auto-asignado
+                      </span>
+                    )}
                   </label>
-                  <select
-                    id="grado"
-                    name="grado"
-                    value={formData.grado || ''}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                  >
-                    <option value="">Seleccionar grado</option>
-                    <option value="1">1° Grado</option>
-                    <option value="2">2° Grado</option>
-                    <option value="3">3° Grado</option>
-                    <option value="4">4° Grado</option>
-                    <option value="5">5° Grado</option>
-                    <option value="6">6° Grado</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="grado"
+                      name="grado"
+                      value={formData.grado || ''}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black transition-all"
+                    >
+                      <option value="">Seleccionar grado</option>
+                      <option value="1">1° Grado (6 años)</option>
+                      <option value="2">2° Grado (7 años)</option>
+                      <option value="3">3° Grado (8 años)</option>
+                      <option value="4">4° Grado (9 años)</option>
+                      <option value="5">5° Grado (10 años)</option>
+                      <option value="6">6° Grado (11 años)</option>
+                    </select>
+                    {formData.grado && (
+                      <div className="absolute inset-y-0 right-10 flex items-center pointer-events-none">
+                        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  {formData.fechaNacimiento && formData.grado && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      Grado asignado según fecha de nacimiento
+                    </p>
+                  )}
                 </div>
 
                 <div>

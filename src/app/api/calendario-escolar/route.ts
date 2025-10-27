@@ -25,26 +25,57 @@ export async function GET(request: NextRequest) {
     if (year) {
       const startDate = new Date(`${year}-01-01`)
       const endDate = new Date(`${year}-12-31`)
-      whereClause.fecha = {
-        gte: startDate,
-        lte: endDate
-      }
+      whereClause.OR = [
+        {
+          fechaInicio: {
+            gte: startDate,
+            lte: endDate
+          }
+        },
+        {
+          fechaFin: {
+            gte: startDate,
+            lte: endDate
+          }
+        }
+      ]
     }
 
     if (fecha) {
-      whereClause.fecha = new Date(fecha)
+      const fechaBuscada = new Date(fecha)
+      whereClause.AND = [
+        { fechaInicio: { lte: fechaBuscada } },
+        { fechaFin: { gte: fechaBuscada } }
+      ]
     }
 
     const calendarioItems = await prisma.calendarioEscolar.findMany({
       where: whereClause,
-      orderBy: { fecha: 'asc' }
+      orderBy: { fechaInicio: 'asc' }
     })
 
-    const transformedItems = calendarioItems.map(item => ({
-      fecha: item.fecha.toISOString().split('T')[0],
-      esLectivo: item.esLectivo,
-      motivo: item.motivo
-    }))
+    // Expandir rangos de fechas a días individuales
+    const transformedItems: any[] = []
+    calendarioItems.forEach(item => {
+      const inicio = new Date(item.fechaInicio)
+      const fin = new Date(item.fechaFin)
+      
+      // Determinar si es lectivo basado en tipoDia
+      const esLectivo = item.tipoDia === 'CLASES' || item.tipoDia === 'EVENTO'
+      
+      // Iterar por cada día en el rango
+      const currentDate = new Date(inicio)
+      while (currentDate <= fin) {
+        transformedItems.push({
+          idCalendario: item.idCalendario,
+          fecha: currentDate.toISOString().split('T')[0],
+          esLectivo,
+          motivo: item.descripcion || item.tipoDia,
+          tipoDia: item.tipoDia
+        })
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+    })
 
     return NextResponse.json({
       success: true,

@@ -15,6 +15,54 @@ export default function DocenteAsistencias() {
 
   const [modoEdicion, setModoEdicion] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [hayClaseHoy, setHayClaseHoy] = useState(true) // Por defecto asumimos que sí hay clase
+
+  // Verificar si la fecha seleccionada es hoy (usando fecha local)
+  const esFechaHoy = () => {
+    const hoy = new Date()
+    const año = hoy.getFullYear()
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+    const dia = String(hoy.getDate()).padStart(2, '0')
+    const fechaHoyLocal = `${año}-${mes}-${dia}`
+    
+    console.log('🗓️ Comparando fechas:', { fechaSeleccionada, fechaHoyLocal, sonIguales: fechaSeleccionada === fechaHoyLocal })
+    return fechaSeleccionada === fechaHoyLocal
+  }
+
+  // Verificar si hay clase programada para la fecha seleccionada
+  const verificarHorarioClase = async () => {
+    if (!claseSeleccionada || !fechaSeleccionada) {
+      setHayClaseHoy(false)
+      return
+    }
+
+    try {
+      const fecha = new Date(fechaSeleccionada + 'T00:00:00')
+      const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
+      const diaSemana = diasSemana[fecha.getDay()]
+      
+      console.log('📅 Verificando horario para:', { fecha: fechaSeleccionada, diaSemana })
+
+      const response = await fetch(`/api/horarios/verificar?claseId=${claseSeleccionada}&diaSemana=${diaSemana}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setHayClaseHoy(data.hayClase)
+        console.log('✅ Verificación de horario:', data)
+      } else {
+        // Si no hay endpoint, asumimos que sí hay clase (comportamiento por defecto)
+        setHayClaseHoy(true)
+      }
+    } catch (error) {
+      console.error('Error verificando horario:', error)
+      // En caso de error, asumimos que sí hay clase
+      setHayClaseHoy(true)
+    }
+  }
 
   const estadosAsistencia = [
     { value: 'presente', label: 'Presente', color: 'bg-green-100 text-green-800' },
@@ -28,6 +76,28 @@ export default function DocenteAsistencias() {
   // Cargar datos de autenticación
   useEffect(() => {
     setMounted(true)
+    
+    // Suprimir errores de extensiones del navegador
+    const originalError = console.error
+    console.error = (...args) => {
+      if (args[0]?.toString().includes('auth required') || 
+          args[0]?.toString().includes('content.bundle.js')) {
+        return // Ignorar errores de extensiones
+      }
+      originalError.apply(console, args)
+    }
+    
+    // Suprimir errores de promesas no capturadas de extensiones
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const errorMessage = event.reason?.message || event.reason?.toString() || ''
+      if (errorMessage.includes('auth required') || 
+          event.reason?.stack?.includes('content.bundle.js')) {
+        event.preventDefault() // Prevenir que se muestre en consola
+        return
+      }
+    }
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
     
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('token')
@@ -46,7 +116,19 @@ export default function DocenteAsistencias() {
         }
       }
     }
+    
+    return () => {
+      console.error = originalError
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+    }
   }, [])
+
+  // Verificar horario cuando cambie la clase o fecha
+  useEffect(() => {
+    if (claseSeleccionada && fechaSeleccionada && token) {
+      verificarHorarioClase()
+    }
+  }, [claseSeleccionada, fechaSeleccionada, token])
 
   // Cargar estudiantes cuando cambie la clase o fecha
   useEffect(() => {
@@ -81,7 +163,27 @@ export default function DocenteAsistencias() {
       if (response.ok) {
         const data = await response.json()
         console.log('✅ Clases cargadas:', data.data)
-        setClases(data.data || [])
+        
+        // Corregir horarios invertidos en el frontend
+        const clasesCorregidas = (data.data || []).map((clase: any) => {
+          if (clase.horario) {
+            const [inicio, fin] = clase.horario.split('-')
+            
+            // Convertir a minutos para comparar correctamente
+            const inicioMinutos = parseInt(inicio.split(':')[0]) * 60 + parseInt(inicio.split(':')[1])
+            const finMinutos = parseInt(fin.split(':')[0]) * 60 + parseInt(fin.split(':')[1])
+            
+            // Si el inicio es mayor que el fin, están invertidos
+            if (inicioMinutos > finMinutos) {
+              console.log('⚠️ Horario invertido detectado en frontend:', clase.horario)
+              clase.horario = `${fin}-${inicio}`
+              console.log('✅ Horario corregido:', clase.horario)
+            }
+          }
+          return clase
+        })
+        
+        setClases(clasesCorregidas)
         setErrorMessage(null) // Limpiar mensaje de error si la carga es exitosa
       } else {
         const errorText = await response.text()
@@ -247,7 +349,7 @@ export default function DocenteAsistencias() {
             claseId={claseSeleccionada}
             fecha={fechaSeleccionada}
             onAsistenciaUpdated={handleTomarAsistenciaQR}
-            disabled={!claseSeleccionada}
+            disabled={!claseSeleccionada || !esFechaHoy() || !hayClaseHoy}
           />
           <button
             onClick={() => setModoEdicion(!modoEdicion)}
@@ -305,49 +407,135 @@ export default function DocenteAsistencias() {
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="mt-6 bg-white shadow rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="fecha" className="block text-sm font-medium text-gray-700">
-              Fecha
-            </label>
-            <input
-              type="date"
-              id="fecha"
-              value={fechaSeleccionada}
-              onChange={(e) => setFechaSeleccionada(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black"
-            />
+      {/* Filtros Mejorados */}
+      <div className="mt-6 bg-gradient-to-br from-white to-gray-50 shadow-lg rounded-xl p-6 border border-gray-200">
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-lg">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </div>
+          <h3 className="text-xl font-bold text-gray-900">Seleccionar Fecha y Clase</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Fecha */}
           <div>
-            <label htmlFor="clase" className="block text-sm font-medium text-gray-700">
-              Clase
+            <label htmlFor="fecha" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+              </svg>
+              Fecha de Clase
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                id="fecha"
+                value={fechaSeleccionada}
+                onChange={(e) => setFechaSeleccionada(e.target.value)}
+                className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black font-medium bg-white hover:border-blue-400 transition-all"
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500 flex items-center">
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+              </svg>
+              Incluye días de clase y recuperación
+            </p>
+          </div>
+
+          {/* Clase */}
+          <div>
+            <label htmlFor="clase" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
+              </svg>
+              Clase / Aula
             </label>
             <select
               id="clase"
               value={claseSeleccionada}
               onChange={(e) => setClaseSeleccionada(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-black"
+              className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black font-medium bg-white hover:border-blue-400 transition-all"
             >
-              <option value="">Seleccionar clase</option>
+              <option value="" className="text-gray-500">Seleccionar clase</option>
               {clases.map((clase) => (
-                <option key={clase.id} value={clase.id}>
-                  {clase.nombre} ({clase.horario})
+                <option key={clase.id} value={clase.id} className="text-black font-medium">
+                  {clase.nombre}
                 </option>
               ))}
             </select>
+            {clases.length === 0 && (
+              <p className="mt-2 text-xs text-amber-600 flex items-center">
+                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                </svg>
+                No tienes clases asignadas
+              </p>
+            )}
           </div>
+
+          {/* Botón Cargar */}
           <div className="flex items-end">
             <button 
               onClick={loadEstudiantes}
-              disabled={!claseSeleccionada || !fechaSeleccionada}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={!claseSeleccionada || !fechaSeleccionada || loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed font-semibold flex items-center justify-center space-x-2"
             >
-              {loading ? 'Cargando...' : 'Cargar Asistencia'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Cargando...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  <span>Cargar Asistencia</span>
+                </>
+              )}
             </button>
           </div>
         </div>
+
+        {/* Información adicional */}
+        {fechaSeleccionada && claseSeleccionada && (
+          <div className={`mt-4 p-3 border rounded-lg ${
+            esFechaHoy() && hayClaseHoy ? 'bg-blue-50 border-blue-200' : 
+            !hayClaseHoy ? 'bg-red-50 border-red-200' : 
+            'bg-amber-50 border-amber-200'
+          }`}>
+            <div className="flex items-start space-x-2">
+              <svg className={`w-5 h-5 mt-0.5 ${
+                esFechaHoy() && hayClaseHoy ? 'text-blue-600' : 
+                !hayClaseHoy ? 'text-red-600' : 
+                'text-amber-600'
+              }`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+              </svg>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${
+                  esFechaHoy() && hayClaseHoy ? 'text-blue-900' : 
+                  !hayClaseHoy ? 'text-red-900' : 
+                  'text-amber-900'
+                }`}>
+                  Fecha seleccionada: {new Date(fechaSeleccionada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+                {!hayClaseHoy ? (
+                  <p className="text-xs text-red-700 mt-1">❌ No hay clase programada para este día según el horario</p>
+                ) : esFechaHoy() ? (
+                  <p className="text-xs text-blue-700 mt-1">✅ Puedes tomar asistencia hoy</p>
+                ) : (
+                  <p className="text-xs text-amber-700 mt-1">⚠️ Solo puedes VER asistencias de días anteriores. Para TOMAR asistencia, selecciona el día actual.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Estadísticas */}

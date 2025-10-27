@@ -332,30 +332,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Buscar estado según el origen del retiro
-    const codigoEstado = esAdministrativo ? 'APROBADO' : 'PENDIENTE'
+    // TODOS los retiros se crean como PENDIENTE
+    // Solo el apoderado puede autorizarlos
+    const codigoEstado = 'PENDIENTE'
     let estadoRetiro = await prisma.estadoRetiro.findFirst({
       where: { codigo: codigoEstado }
     })
 
     if (!estadoRetiro) {
-      if (esAdministrativo) {
-        estadoRetiro = await prisma.estadoRetiro.create({
-          data: { 
-            codigo: 'APROBADO',
-            nombre: 'Aprobado',
-            orden: 2
-          }
-        })
-      } else {
-        estadoRetiro = await prisma.estadoRetiro.create({
-          data: { 
-            codigo: 'PENDIENTE',
-            nombre: 'Pendiente',
-            orden: 1
-          }
-        })
-      }
+      estadoRetiro = await prisma.estadoRetiro.create({
+        data: { 
+          codigo: 'PENDIENTE',
+          nombre: 'Pendiente',
+          orden: 1
+        }
+      })
     }
     
     console.log(`🏷️ Estado del retiro: ${estadoRetiro.nombre} (${estadoRetiro.codigo})`)

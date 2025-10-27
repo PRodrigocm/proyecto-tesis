@@ -8,23 +8,28 @@ const prisma = new PrismaClient()
 // GET - Obtener reuniones
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!token) {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim()
+    if (!token || token === 'null' || token === 'undefined') {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
     const ieId = decoded.ieId || 1
 
     const { searchParams } = new URL(request.url)
-    const estado = searchParams.get('estado')
+    const tipo = searchParams.get('tipo')
     const fecha = searchParams.get('fecha')
     const year = searchParams.get('year')
 
     const where: any = { idIe: ieId }
     
-    if (estado) {
-      where.estado = estado
+    if (tipo) {
+      where.tipo = tipo
     }
     
     if (fecha) {
@@ -43,27 +48,34 @@ export async function GET(request: NextRequest) {
     const reuniones = await prisma.reunion.findMany({
       where,
       include: {
-        usuarioResponsable: {
+        ie: {
           select: {
-            nombre: true,
-            apellido: true
+            nombre: true
           }
         },
-        grado: {
+        grados: {
           include: {
             nivel: true
           }
         },
-        seccion: true
+        secciones: true
       },
       orderBy: {
         fecha: 'desc'
       }
     })
 
+    // Transformar fechas para el frontend
+    const reunionesTransformadas = reuniones.map(reunion => ({
+      ...reunion,
+      fecha: reunion.fecha.toISOString().split('T')[0],
+      horaInicio: reunion.horaInicio.toISOString().split('T')[1].substring(0, 5),
+      horaFin: reunion.horaFin.toISOString().split('T')[1].substring(0, 5)
+    }))
+
     return NextResponse.json({
       success: true,
-      data: reuniones
+      data: reunionesTransformadas
     })
 
   } catch (error) {
@@ -78,9 +90,14 @@ export async function GET(request: NextRequest) {
 // POST - Crear reunión
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!token) {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim()
+    if (!token || token === 'null' || token === 'undefined') {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
@@ -94,159 +111,69 @@ export async function POST(request: NextRequest) {
       fecha,
       horaInicio,
       horaFin,
-      tipoReunion,
-      idGrado,
-      idSeccion,
-      metodoRegistro
+      tipo,
+      gradosIds,
+      seccionesIds
     } = body
 
     // Validar campos requeridos
-    if (!titulo || !fecha || !horaInicio || !tipoReunion) {
+    if (!titulo || !fecha || !horaInicio || !horaFin || !tipo) {
       return NextResponse.json({
-        error: 'Campos requeridos: titulo, fecha, horaInicio, tipoReunion'
+        error: 'Campos requeridos: titulo, fecha, horaInicio, horaFin, tipo'
       }, { status: 400 })
     }
 
-    // Validar tipo de reunión con grado/sección
-    if (tipoReunion === 'POR_GRADO' && !idGrado) {
-      return NextResponse.json({
-        error: 'idGrado es requerido para reuniones por grado'
-      }, { status: 400 })
+    // Preparar datos de la reunión
+    const reunionData: any = {
+      idIe: ieId,
+      titulo,
+      descripcion: descripcion || null,
+      fecha: new Date(fecha),
+      horaInicio: new Date(`1970-01-01T${horaInicio}:00`),
+      horaFin: new Date(`1970-01-01T${horaFin}:00`),
+      tipo
     }
 
-    if (tipoReunion === 'POR_AULA' && (!idGrado || !idSeccion)) {
-      return NextResponse.json({
-        error: 'idGrado e idSeccion son requeridos para reuniones por aula'
-      }, { status: 400 })
+    // Si se especifican grados, conectarlos
+    if (gradosIds && Array.isArray(gradosIds) && gradosIds.length > 0) {
+      reunionData.grados = {
+        connect: gradosIds.map((id: number) => ({ idGrado: id }))
+      }
     }
 
-    // Si es reunión GENERAL, crear una reunión por cada grado-sección
-    if (tipoReunion === 'GENERAL') {
-      // Obtener todos los grados y secciones de la IE
-      const gradosSecciones = await prisma.gradoSeccion.findMany({
-        where: {
-          grado: {
-            nivel: {
-              idIe: ieId
-            }
+    // Si se especifican secciones, conectarlas
+    if (seccionesIds && Array.isArray(seccionesIds) && seccionesIds.length > 0) {
+      reunionData.secciones = {
+        connect: seccionesIds.map((id: number) => ({ idSeccion: id }))
+      }
+    }
+
+    // Crear la reunión
+    const nuevaReunion = await prisma.reunion.create({
+      data: reunionData,
+      include: {
+        ie: {
+          select: {
+            nombre: true
           }
         },
-        include: {
-          grado: {
-            include: {
-              nivel: true
-            }
-          },
-          seccion: true
-        }
-      })
-
-      console.log(`📊 Creando ${gradosSecciones.length} reuniones (una por cada grado-sección)`)
-
-      // Crear una reunión por cada grado-sección
-      const reunionesCreadas = []
-      for (const gs of gradosSecciones) {
-        const reunionData: any = {
-          idIe: ieId,
-          titulo,
-          descripcion: descripcion || null,
-          fecha: new Date(fecha),
-          horaInicio: new Date(`1970-01-01T${horaInicio}:00`),
-          tipoReunion,
-          idUsuarioResponsable,
-          idGrado: gs.idGrado,
-          idSeccion: gs.idSeccion,
-          metodoRegistro: metodoRegistro || 'MANUAL',
-          estado: 'PROGRAMADA'
-        }
-
-        if (horaFin) {
-          reunionData.horaFin = new Date(`1970-01-01T${horaFin}:00`)
-        }
-
-        const nuevaReunion = await prisma.reunion.create({
-          data: reunionData,
+        grados: {
           include: {
-            usuarioResponsable: {
-              select: {
-                nombre: true,
-                apellido: true
-              }
-            },
-            grado: {
-              include: {
-                nivel: true
-              }
-            },
-            seccion: true
+            nivel: true
           }
-        })
-
-        reunionesCreadas.push(nuevaReunion)
+        },
+        secciones: true
       }
+    })
 
-      // Enviar notificaciones (solo una vez, no por cada reunión)
-      await enviarNotificacionesReunion(reunionesCreadas[0], ieId)
+    // Enviar notificaciones a padres de familia
+    await enviarNotificacionesReunion(nuevaReunion, ieId)
 
-      return NextResponse.json({
-        success: true,
-        message: `Reunión general programada exitosamente. ${reunionesCreadas.length} reuniones creadas (una por cada grado-sección). Notificaciones enviadas a los padres de familia.`,
-        data: reunionesCreadas,
-        count: reunionesCreadas.length
-      }, { status: 201 })
-    } else {
-      // Reunión específica (POR_GRADO o POR_AULA)
-      const reunionData: any = {
-        idIe: ieId,
-        titulo,
-        descripcion: descripcion || null,
-        fecha: new Date(fecha),
-        horaInicio: new Date(`1970-01-01T${horaInicio}:00`),
-        tipoReunion,
-        idUsuarioResponsable,
-        metodoRegistro: metodoRegistro || 'MANUAL',
-        estado: 'PROGRAMADA'
-      }
-
-      if (horaFin) {
-        reunionData.horaFin = new Date(`1970-01-01T${horaFin}:00`)
-      }
-
-      if (idGrado) {
-        reunionData.idGrado = idGrado
-      }
-
-      if (idSeccion) {
-        reunionData.idSeccion = idSeccion
-      }
-
-      const nuevaReunion = await prisma.reunion.create({
-        data: reunionData,
-        include: {
-          usuarioResponsable: {
-            select: {
-              nombre: true,
-              apellido: true
-            }
-          },
-          grado: {
-            include: {
-              nivel: true
-            }
-          },
-          seccion: true
-        }
-      })
-
-      // Enviar notificaciones a padres de familia
-      await enviarNotificacionesReunion(nuevaReunion, ieId)
-
-      return NextResponse.json({
-        success: true,
-        message: 'Reunión programada exitosamente. Notificaciones enviadas a los padres de familia.',
-        data: nuevaReunion
-      }, { status: 201 })
-    }
+    return NextResponse.json({
+      success: true,
+      message: 'Reunión programada exitosamente. Notificaciones enviadas a los padres de familia.',
+      data: nuevaReunion
+    }, { status: 201 })
 
   } catch (error) {
     console.error('Error creating reunion:', error)
@@ -265,86 +192,48 @@ async function enviarNotificacionesReunion(reunion: any, ieId: number) {
     // Obtener padres según el tipo de reunión
     let apoderados: any[] = []
 
-    if (reunion.tipoReunion === 'GENERAL') {
-      // Todos los padres de la institución
-      apoderados = await prisma.apoderado.findMany({
-        where: {
-          estudiantes: {
-            some: {
-              estudiante: {
-                idIe: ieId
-              }
-            }
-          }
-        },
-        include: {
-          usuario: {
-            select: {
-              nombre: true,
-              apellido: true,
-              email: true,
-              telefono: true,
-              idUsuario: true
-            }
+    // Determinar qué padres notificar según grados y secciones
+    const whereCondition: any = {
+      estudiantes: {
+        some: {
+          estudiante: {
+            idIe: ieId
           }
         }
-      })
-    } else if (reunion.tipoReunion === 'POR_GRADO') {
-      // Padres del grado específico
-      apoderados = await prisma.apoderado.findMany({
-        where: {
-          estudiantes: {
-            some: {
-              estudiante: {
-                idIe: ieId,
-                gradoSeccion: {
-                  idGrado: reunion.idGrado
-                }
-              }
-            }
-          }
-        },
-        include: {
-          usuario: {
-            select: {
-              nombre: true,
-              apellido: true,
-              email: true,
-              telefono: true,
-              idUsuario: true
-            }
-          }
-        }
-      })
-    } else if (reunion.tipoReunion === 'POR_AULA') {
-      // Padres del aula específica
-      apoderados = await prisma.apoderado.findMany({
-        where: {
-          estudiantes: {
-            some: {
-              estudiante: {
-                idIe: ieId,
-                gradoSeccion: {
-                  idGrado: reunion.idGrado,
-                  idSeccion: reunion.idSeccion
-                }
-              }
-            }
-          }
-        },
-        include: {
-          usuario: {
-            select: {
-              nombre: true,
-              apellido: true,
-              email: true,
-              telefono: true,
-              idUsuario: true
-            }
-          }
-        }
-      })
+      }
     }
+
+    // Si hay grados específicos, filtrar por ellos
+    if (reunion.grados && reunion.grados.length > 0) {
+      const gradosIds = reunion.grados.map((g: any) => g.idGrado)
+      whereCondition.estudiantes.some.estudiante.gradoSeccion = {
+        idGrado: { in: gradosIds }
+      }
+    }
+
+    // Si hay secciones específicas, agregar filtro
+    if (reunion.secciones && reunion.secciones.length > 0) {
+      const seccionesIds = reunion.secciones.map((s: any) => s.idSeccion)
+      if (!whereCondition.estudiantes.some.estudiante.gradoSeccion) {
+        whereCondition.estudiantes.some.estudiante.gradoSeccion = {}
+      }
+      whereCondition.estudiantes.some.estudiante.gradoSeccion.idSeccion = { in: seccionesIds }
+    }
+
+    apoderados = await prisma.apoderado.findMany({
+      where: whereCondition,
+      include: {
+        usuario: {
+          select: {
+            nombre: true,
+            apellido: true,
+            email: true,
+            telefono: true,
+            idUsuario: true
+          }
+        }
+      }
+    })
 
     console.log(`📊 Total de padres a notificar: ${apoderados.length}`)
     
@@ -448,7 +337,7 @@ async function enviarNotificacionesReunion(reunion: any, ieId: number) {
                 <tr>
                   <td style="padding: 20px; background-color: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
                     <p style="margin: 0; color: #856404; font-size: 15px; line-height: 1.5;">
-                      ⚠️ <strong>Su asistencia es importante.</strong> Por favor confirme su participación.
+                      ⚠️ <strong>Su asistencia es importante.</strong>
                     </p>
                   </td>
                 </tr>

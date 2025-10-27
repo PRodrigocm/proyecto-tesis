@@ -388,9 +388,6 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
               <li>• <strong>Tolerancia:</strong> {formData.toleranciaMin} minutos</li>
               <li>• <strong>Tipo:</strong> Clase Regular (horario base)</li>
             </ul>
-            <p className="text-xs text-green-600 mt-2">
-              💡 Para feriados, suspensiones o cambios temporales, usa el módulo de "Excepciones de Horario"
-            </p>
           </div>
 
           {/* Botones */}

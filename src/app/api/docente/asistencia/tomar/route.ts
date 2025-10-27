@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
           nombre: estudiante.usuario.nombre,
           apellido: estudiante.usuario.apellido,
           dni: estudiante.usuario.dni,
-          codigo: estudiante.codigo || estudiante.qr || estudiante.usuario.dni,
+          codigo: estudiante.codigoQR || estudiante.usuario.dni,
           grado: estudiante.gradoSeccion?.grado?.nombre || 'Sin grado',
           seccion: estudiante.gradoSeccion?.seccion?.nombre || 'Sin sección'
         },
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
         nombre: estudiante.usuario.nombre,
         apellido: estudiante.usuario.apellido,
         dni: estudiante.usuario.dni,
-        codigo: estudiante.codigo || estudiante.qr || estudiante.usuario.dni,
+        codigo: estudiante.codigoQR || estudiante.usuario.dni,
         grado: estudiante.gradoSeccion?.grado?.nombre || 'Sin grado',
         seccion: estudiante.gradoSeccion?.seccion?.nombre || 'Sin sección'
       },
@@ -322,10 +322,10 @@ export async function GET(request: NextRequest) {
         nombre: estudiante.usuario.nombre,
         apellido: estudiante.usuario.apellido,
         dni: estudiante.usuario.dni,
-        codigo: estudiante.codigo || estudiante.qr || estudiante.usuario.dni,
+        codigo: estudiante.codigoQR || estudiante.usuario.dni, // Usar codigoQR del estudiante
         estado: asistenciaDelDia?.estadoAsistencia?.codigo.toLowerCase() || 'pendiente',
-        horaLlegada: asistenciaDelDia?.horaEntrada ? 
-          asistenciaDelDia.horaEntrada.toLocaleTimeString('es-ES', { 
+        horaLlegada: asistenciaDelDia?.horaRegistro ? 
+          asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : null

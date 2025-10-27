@@ -64,6 +64,14 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
   const [selectedGradoInicio, setSelectedGradoInicio] = useState('')
   const [selectedGradoFin, setSelectedGradoFin] = useState('')
   const [modoSeleccion, setModoSeleccion] = useState<'individual' | 'rango' | 'todos'>('individual')
+  const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false)
+  const [diasRecuperacion, setDiasRecuperacion] = useState<Set<6 | 7>>(new Set()) // Set para múltiples días
+  const [horaInicioRegular, setHoraInicioRegular] = useState('07:00')
+  const [horaFinRegular, setHoraFinRegular] = useState('13:30')
+  const [horaInicioRecuperacionSabado, setHoraInicioRecuperacionSabado] = useState('09:00')
+  const [horaFinRecuperacionSabado, setHoraFinRecuperacionSabado] = useState('12:00')
+  const [horaInicioRecuperacionDomingo, setHoraInicioRecuperacionDomingo] = useState('09:00')
+  const [horaFinRecuperacionDomingo, setHoraFinRecuperacionDomingo] = useState('12:00')
 
   const diasSemana = [
     { value: 1, label: 'Lunes' },
@@ -485,19 +493,74 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedGradoSeccion) {
-      alert('Por favor selecciona un grado y sección')
-      return
-    }
+    
+    // Solo validar en modo individual
+    if (modoSeleccion === 'individual') {
+      if (!selectedGradoSeccion) {
+        alert('Por favor selecciona un grado y sección')
+        return
+      }
 
-    if (horarios.length === 0) {
-      alert('No hay horarios para editar. Selecciona un grado-sección que tenga horarios creados.')
-      return
+      if (horarios.length === 0) {
+        alert('No hay horarios para editar. Selecciona un grado-sección que tenga horarios creados.')
+        return
+      }
     }
 
     setLoading(true)
     try {
-      console.log('💾 Guardando horarios...', { idGradoSeccion: selectedGradoSeccion, horarios })
+      // En modo "Todos" o "Por Rango", generar horarios desde los estados
+      let horariosToSend = horarios
+      
+      if (modoSeleccion === 'todos' || modoSeleccion === 'rango') {
+        horariosToSend = []
+        
+        // Agregar horarios regulares (Lunes a Viernes)
+        for (let dia = 1; dia <= 5; dia++) {
+          horariosToSend.push({
+            diaSemana: dia,
+            horaInicio: horaInicioRegular,
+            horaFin: horaFinRegular,
+            docente: '',
+            aula: '',
+            tipoActividad: 'CLASE_REGULAR'
+          })
+        }
+        
+        // Agregar horarios de recuperación si están activados
+        if (diasRecuperacion.has(6)) {
+          horariosToSend.push({
+            diaSemana: 6,
+            horaInicio: horaInicioRecuperacionSabado,
+            horaFin: horaFinRecuperacionSabado,
+            docente: '',
+            aula: '',
+            tipoActividad: 'RECUPERACION'
+          })
+        }
+        
+        if (diasRecuperacion.has(7)) {
+          horariosToSend.push({
+            diaSemana: 7,
+            horaInicio: horaInicioRecuperacionDomingo,
+            horaFin: horaFinRecuperacionDomingo,
+            docente: '',
+            aula: '',
+            tipoActividad: 'RECUPERACION'
+          })
+        }
+        
+        console.log('📋 Horarios generados:', horariosToSend)
+      }
+      
+      // En modo "Todos", usar 'TODOS' como idGradoSeccion
+      const gradoSeccionToSend = modoSeleccion === 'todos' ? 'TODOS' : selectedGradoSeccion
+      
+      console.log('💾 Guardando horarios...', { 
+        modo: modoSeleccion,
+        idGradoSeccion: gradoSeccionToSend, 
+        horarios: horariosToSend.length 
+      })
 
       const token = localStorage.getItem('token')
       const response = await fetch('/api/horarios/clases', {
@@ -507,8 +570,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          idGradoSeccion: selectedGradoSeccion,
-          horarios: horarios
+          idGradoSeccion: gradoSeccionToSend,
+          horarios: horariosToSend
         })
       })
 
@@ -724,22 +787,218 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
           )}
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">
-                Horarios de Clase {selectedGradoSeccion && '(Editando)'}
-              </h4>
-              <button
-                type="button"
-                onClick={agregarHorarioRecuperacion}
-                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                disabled={!selectedGradoSeccion}
-              >
-                + Agregar Recuperación
-              </button>
-            </div>
+            {/* Modo Todos o Por Rango: Mostrar solo campos de hora */}
+            {(modoSeleccion === 'todos' || modoSeleccion === 'rango') && (
+              <div className="space-y-4">
+                {/* Configuración de Horario Regular */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="bg-blue-500 p-2 rounded-lg">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-900">
+                        📚 Horario de Clases Regulares
+                      </h4>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        🕐 Hora de Inicio *
+                      </label>
+                      <input
+                        type="time"
+                        value={horaInicioRegular}
+                        onChange={(e) => setHoraInicioRegular(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black font-medium text-lg transition-all"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        🕐 Hora de Fin *
+                      </label>
+                      <input
+                        type="time"
+                        value={horaFinRegular}
+                        onChange={(e) => setHoraFinRegular(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black font-medium text-lg transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 bg-blue-100 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                    <p className="text-sm text-blue-800 flex items-start">
+                      <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>
+                        Este horario se aplicará de <strong>Lunes a Viernes</strong> para {modoSeleccion === 'todos' ? 'todos los grados y secciones' : 'el rango seleccionado'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {horarios.map((horario, index) => (
+                {/* Sección de Recuperación */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-200 shadow-sm">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <div className="bg-green-500 p-2 rounded-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-900">
+                      🔄 Horarios de Recuperación (Opcional)
+                    </h4>
+                  </div>
+                  
+                  {/* Botones Toggle para Sábado y Domingo */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {/* Sábado */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSet = new Set(diasRecuperacion)
+                        if (newSet.has(6)) {
+                          newSet.delete(6)
+                        } else {
+                          newSet.add(6)
+                        }
+                        setDiasRecuperacion(newSet)
+                      }}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        diasRecuperacion.has(6)
+                          ? 'bg-green-500 border-green-600 text-white shadow-md'
+                          : 'bg-white border-gray-300 text-gray-600 hover:border-green-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">📅 Sábado</span>
+                        {diasRecuperacion.has(6) && (
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                    
+                    {/* Domingo */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSet = new Set(diasRecuperacion)
+                        if (newSet.has(7)) {
+                          newSet.delete(7)
+                        } else {
+                          newSet.add(7)
+                        }
+                        setDiasRecuperacion(newSet)
+                      }}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        diasRecuperacion.has(7)
+                          ? 'bg-green-500 border-green-600 text-white shadow-md'
+                          : 'bg-white border-gray-300 text-gray-600 hover:border-green-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">📅 Domingo</span>
+                        {diasRecuperacion.has(7) && (
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                  
+                  {/* Horarios de Sábado */}
+                  {diasRecuperacion.has(6) && (
+                    <div className="mb-4 p-4 bg-white rounded-lg border border-green-200">
+                      <h5 className="font-semibold text-gray-900 mb-3">⏰ Horario del Sábado</h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                          <input
+                            type="time"
+                            value={horaInicioRecuperacionSabado}
+                            onChange={(e) => setHoraInicioRecuperacionSabado(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hora Fin</label>
+                          <input
+                            type="time"
+                            value={horaFinRecuperacionSabado}
+                            onChange={(e) => setHoraFinRecuperacionSabado(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-black"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Horarios de Domingo */}
+                  {diasRecuperacion.has(7) && (
+                    <div className="mb-4 p-4 bg-white rounded-lg border border-green-200">
+                      <h5 className="font-semibold text-gray-900 mb-3">⏰ Horario del Domingo</h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                          <input
+                            type="time"
+                            value={horaInicioRecuperacionDomingo}
+                            onChange={(e) => setHoraInicioRecuperacionDomingo(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hora Fin</label>
+                          <input
+                            type="time"
+                            value={horaFinRecuperacionDomingo}
+                            onChange={(e) => setHoraFinRecuperacionDomingo(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-black"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {diasRecuperacion.size === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">Selecciona Sábado y/o Domingo para agregar horarios de recuperación</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+
+            {/* Modo Individual: Mostrar tarjetas de horarios */}
+            {modoSeleccion === 'individual' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-md font-medium text-gray-900">
+                    Horarios de Clase {selectedGradoSeccion && '(Editando)'}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={agregarHorarioRecuperacion}
+                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                    disabled={!selectedGradoSeccion}
+                  >
+                    + Agregar Recuperación
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {horarios.map((horario, index) => (
                 <div key={`horario-${index}-${horario.diaSemana}-${horario.tipoActividad}`} className={`p-4 border rounded-lg ${
                   horario.tipoActividad === 'RECUPERACION' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
                 }`}>
@@ -883,6 +1142,8 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t">
@@ -897,7 +1158,7 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
             <button
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              disabled={loading || !selectedGradoSeccion || horarios.length === 0}
+              disabled={loading || (modoSeleccion === 'individual' && (!selectedGradoSeccion || horarios.length === 0))}
             >
               {loading ? 'Guardando...' : 'Guardar Cambios'}
             </button>

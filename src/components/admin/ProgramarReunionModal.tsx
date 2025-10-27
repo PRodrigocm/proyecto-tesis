@@ -23,11 +23,10 @@ interface ProgramarReunionModalProps {
     descripcion?: string
     fecha: string
     horaInicio: string
-    horaFin?: string
-    tipoReunion: 'GENERAL' | 'POR_GRADO' | 'POR_AULA'
-    idGrado?: number
-    idSeccion?: number
-    metodoRegistro: 'QR' | 'MANUAL'
+    horaFin: string
+    tipo: 'GENERAL' | 'ENTREGA_LIBRETAS' | 'ASAMBLEA_PADRES' | 'TUTORIAL' | 'EMERGENCIA' | 'OTRO'
+    gradosIds?: number[]
+    seccionesIds?: number[]
   }) => Promise<void>
 }
 
@@ -43,11 +42,11 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
     fecha: '',
     horaInicio: '',
     horaFin: '',
-    tipoReunion: 'GENERAL' as 'GENERAL' | 'POR_GRADO' | 'POR_AULA',
-    idGrado: '',
-    idSeccion: '',
-    metodoRegistro: 'MANUAL' as 'QR' | 'MANUAL'
+    tipo: 'GENERAL' as 'GENERAL' | 'ENTREGA_LIBRETAS' | 'ASAMBLEA_PADRES' | 'TUTORIAL' | 'EMERGENCIA' | 'OTRO'
   })
+
+  const [selectedGrados, setSelectedGrados] = useState<number[]>([])
+  const [selectedSecciones, setSelectedSecciones] = useState<number[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +56,14 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
       setFormData(prev => ({ ...prev, fecha: today }))
     }
   }, [isOpen])
+
+  // Seleccionar todos los grados y secciones cuando el tipo es GENERAL
+  useEffect(() => {
+    if (formData.tipo === 'GENERAL') {
+      setSelectedGrados(grados.map(g => g.idGrado))
+      setSelectedSecciones(secciones.map(s => s.idSeccion))
+    }
+  }, [formData.tipo, grados, secciones])
 
   const loadData = async () => {
     setLoadingData(true)
@@ -90,8 +97,8 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.titulo || !formData.fecha || !formData.horaInicio) {
-      alert('Por favor completa los campos requeridos')
+    if (!formData.titulo || !formData.fecha || !formData.horaInicio || !formData.horaFin) {
+      alert('Por favor completa los campos requeridos (título, fecha, hora inicio y hora fin)')
       return
     }
 
@@ -102,11 +109,10 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
         descripcion: formData.descripcion || undefined,
         fecha: formData.fecha,
         horaInicio: formData.horaInicio,
-        horaFin: formData.horaFin || undefined,
-        tipoReunion: formData.tipoReunion,
-        idGrado: formData.idGrado ? parseInt(formData.idGrado) : undefined,
-        idSeccion: formData.idSeccion ? parseInt(formData.idSeccion) : undefined,
-        metodoRegistro: formData.metodoRegistro
+        horaFin: formData.horaFin,
+        tipo: formData.tipo,
+        gradosIds: selectedGrados.length > 0 ? selectedGrados : undefined,
+        seccionesIds: selectedSecciones.length > 0 ? selectedSecciones : undefined
       })
       
       // Reset form
@@ -116,11 +122,10 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
         fecha: '',
         horaInicio: '',
         horaFin: '',
-        tipoReunion: 'GENERAL',
-        idGrado: '',
-        idSeccion: '',
-        metodoRegistro: 'MANUAL'
+        tipo: 'GENERAL'
       })
+      setSelectedGrados([])
+      setSelectedSecciones([])
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -222,7 +227,7 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
               </div>
               <div>
                 <label htmlFor="horaFin" className="block text-sm font-medium text-gray-700 mb-1">
-                  Hora Fin
+                  Hora Fin *
                 </label>
                 <input
                   type="time"
@@ -231,92 +236,97 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
                   value={formData.horaFin}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
+                  required
                 />
               </div>
             </div>
 
             {/* Tipo de Reunión */}
             <div>
-              <label htmlFor="tipoReunion" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
                 Tipo de Reunión *
               </label>
               <select
-                id="tipoReunion"
-                name="tipoReunion"
-                value={formData.tipoReunion}
+                id="tipo"
+                name="tipo"
+                value={formData.tipo}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
                 required
               >
-                <option value="GENERAL">🏫 General (Todos los padres)</option>
-                <option value="POR_GRADO">📚 Por Grado</option>
-                <option value="POR_AULA">🎓 Por Aula Específica</option>
+                <option value="GENERAL">🏫 General</option>
+                <option value="ENTREGA_LIBRETAS">📋 Entrega de Libretas</option>
+                <option value="ASAMBLEA_PADRES">👥 Asamblea de Padres</option>
+                <option value="TUTORIAL">📚 Tutorial/Orientación</option>
+                <option value="EMERGENCIA">🚨 Emergencia</option>
+                <option value="OTRO">📌 Otro</option>
               </select>
             </div>
 
-            {/* Grado (si es por grado o aula) */}
-            {(formData.tipoReunion === 'POR_GRADO' || formData.tipoReunion === 'POR_AULA') && (
-              <div>
-                <label htmlFor="idGrado" className="block text-sm font-medium text-gray-700 mb-1">
-                  Grado *
-                </label>
-                <select
-                  id="idGrado"
-                  name="idGrado"
-                  value={formData.idGrado}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
-                  required
-                >
-                  <option value="">Seleccionar grado...</option>
-                  {grados.map(grado => (
-                    <option key={grado.idGrado} value={grado.idGrado}>
-                      {grado.nivel.nombre} - {grado.nombre}°
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Sección (si es por aula) */}
-            {formData.tipoReunion === 'POR_AULA' && (
-              <div>
-                <label htmlFor="idSeccion" className="block text-sm font-medium text-gray-700 mb-1">
-                  Sección *
-                </label>
-                <select
-                  id="idSeccion"
-                  name="idSeccion"
-                  value={formData.idSeccion}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
-                  required
-                >
-                  <option value="">Seleccionar sección...</option>
-                  {secciones.map(seccion => (
-                    <option key={seccion.idSeccion} value={seccion.idSeccion}>
-                      Sección {seccion.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Método de Registro */}
+            {/* Selección de Grados (Opcional) */}
             <div>
-              <label htmlFor="metodoRegistro" className="block text-sm font-medium text-gray-700 mb-1">
-                Método de Registro de Asistencia
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Grados
               </label>
-              <select
-                id="metodoRegistro"
-                name="metodoRegistro"
-                value={formData.metodoRegistro}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
-              >
-                <option value="MANUAL">✍️ Manual</option>
-                <option value="QR">📱 Código QR</option>
-              </select>
+              <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto">
+                {grados.map(grado => (
+                  <label key={grado.idGrado} className="flex items-center py-1 hover:bg-gray-50 px-2 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedGrados.includes(grado.idGrado)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedGrados([...selectedGrados, grado.idGrado])
+                        } else {
+                          setSelectedGrados(selectedGrados.filter(id => id !== grado.idGrado))
+                        }
+                      }}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      {grado.nivel.nombre} - {grado.nombre}°
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {selectedGrados.length > 0 && (
+                <p className="text-xs text-purple-600 mt-1">
+                  {selectedGrados.length} grado(s) seleccionado(s)
+                </p>
+              )}
+            </div>
+
+            {/* Selección de Secciones (Opcional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Secciones
+              </label>
+              <div className="border border-gray-300 rounded-md p-3 max-h-32 overflow-y-auto">
+                {secciones.map(seccion => (
+                  <label key={seccion.idSeccion} className="flex items-center py-1 hover:bg-gray-50 px-2 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedSecciones.includes(seccion.idSeccion)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSecciones([...selectedSecciones, seccion.idSeccion])
+                        } else {
+                          setSelectedSecciones(selectedSecciones.filter(id => id !== seccion.idSeccion))
+                        }
+                      }}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Sección {seccion.nombre}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {selectedSecciones.length > 0 && (
+                <p className="text-xs text-purple-600 mt-1">
+                  {selectedSecciones.length} sección(es) seleccionada(s)
+                </p>
+              )}
             </div>
 
             {/* Información */}
@@ -326,7 +336,12 @@ export default function ProgramarReunionModal({ isOpen, onClose, onSubmit }: Pro
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="text-sm text-purple-700">
-                  <p>La reunión se programará con estado "Programada". Los padres de familia recibirán una notificación automática.</p>
+                  <p>
+                    {selectedGrados.length === 0 && selectedSecciones.length === 0 
+                      ? 'Se notificará a TODOS los padres de familia de la institución.'
+                      : `Se notificará a los padres de ${selectedGrados.length > 0 ? `${selectedGrados.length} grado(s)` : 'todos los grados'}${selectedSecciones.length > 0 ? ` y ${selectedSecciones.length} sección(es)` : ''}.`
+                    }
+                  </p>
                 </div>
               </div>
             </div>

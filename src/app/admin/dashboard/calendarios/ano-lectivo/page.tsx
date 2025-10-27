@@ -18,7 +18,6 @@ export default function AnoLectivoPage() {
   
   const {
     calendarioEscolar,
-    excepciones,
     loading,
     loadCalendarioEscolar,
     registrarEvento,
@@ -169,7 +168,7 @@ export default function AnoLectivoPage() {
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Ver Eventos ({excepciones.length})
+            Ver Eventos ({calendarioEscolar.filter(item => !item.esLectivo).length})
           </button>
           
           {/* Botones de Crear */}
@@ -293,7 +292,6 @@ export default function AnoLectivoPage() {
           <CalendarioAnual
             year={currentYear}
             calendarioEscolar={calendarioEscolar}
-            excepciones={excepciones}
             reuniones={reuniones}
             onDateClick={handleDateClick}
           />
@@ -453,11 +451,11 @@ export default function AnoLectivoPage() {
                 </div>
                 
                 <div className="mt-4 max-h-96 overflow-y-auto">
-                  {excepciones.length === 0 ? (
+                  {calendarioEscolar.filter(item => !item.esLectivo).length === 0 ? (
                     <p className="text-center text-gray-500 py-8">No hay eventos registrados para este año</p>
                   ) : (
                     <div className="space-y-3">
-                      {excepciones.map((evento: any) => (
+                      {calendarioEscolar.filter(item => !item.esLectivo).map((evento: any) => (
                         <div key={evento.idExcepcion} className={`border rounded-lg p-4 transition-colors ${
                           evento.tipoEvento === 'FERIADO' ? 'border-red-200 hover:bg-red-50' :
                           evento.tipoEvento === 'SUSPENSION' ? 'border-yellow-200 hover:bg-yellow-50' :

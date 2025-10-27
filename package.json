@@ -20,7 +20,10 @@
     "init:retiros-data": "tsx scripts/init-retiros-data.ts",
     "generate:qr-pdf": "tsx scripts/generate-qr-pdf.ts",
     "verify:qr-codes": "tsx scripts/verify-qr-codes.ts",
-    "init:notificaciones-test": "tsx scripts/init-notificaciones-test.ts"
+    "init:notificaciones-test": "tsx scripts/init-notificaciones-test.ts",
+    "cleanup:reuniones": "tsx scripts/cleanup-reuniones.ts",
+    "hash:passwords": "node scripts/hashPasswords.js",
+    "fix:horarios": "tsx scripts/fix-horarios.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

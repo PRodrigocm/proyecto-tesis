@@ -54,6 +54,7 @@ export default function AsistenciaControl() {
   const [selectedSeccion, setSelectedSeccion] = useState('')
   const [grados, setGrados] = useState<Grado[]>([])
   const [secciones, setSecciones] = useState<Seccion[]>([])
+  const [fechaActual, setFechaActual] = useState('')
   const [showQRModal, setShowQRModal] = useState(false)
   const [estudiantesEscaneados, setEstudiantesEscaneados] = useState<any[]>([])
   const [scanning, setScanning] = useState(false)
@@ -117,7 +118,10 @@ export default function AsistenciaControl() {
         const data = await response.json()
         setEstudiantes(data.estudiantes || [])
         setFilteredEstudiantes(data.estudiantes || [])
+        setFechaActual(data.fecha || new Date().toISOString().split('T')[0])
         calculateStats(data.estudiantes || [])
+        console.log('📅 Fecha de asistencia:', data.fecha)
+        console.log('👥 Estudiantes cargados:', data.estudiantes.length)
       }
     } catch (error) {
       console.error('Error loading estudiantes:', error)
@@ -497,9 +501,14 @@ export default function AsistenciaControl() {
       {/* Students Table */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Lista de Estudiantes ({filteredEstudiantes.length})
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              Lista de Estudiantes ({filteredEstudiantes.length})
+            </h3>
+            <div className="text-sm text-gray-600">
+              📅 Fecha: <span className="font-semibold">{fechaActual || 'Cargando...'}</span>
+            </div>
+          </div>
           <div className="overflow-hidden shadow-sm border border-gray-200 rounded-lg">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -512,9 +521,6 @@ export default function AsistenciaControl() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Horarios
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Entrada/Salida
@@ -549,29 +555,22 @@ export default function AsistenciaControl() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {estudiante.horarioClase ? (
+                      {estudiante.horaEntrada && estudiante.horaSalida ? (
+                        // Ambas registradas
                         <div>
-                          <div>Inicio: {estudiante.horarioClase.horaInicio}</div>
-                          <div>Fin: {estudiante.horarioClase.horaFin}</div>
-                          {estudiante.horarioClase.materia && (
-                            <div className="text-xs text-gray-400">{estudiante.horarioClase.materia}</div>
-                          )}
+                          <div>Entrada: {estudiante.horaEntrada}</div>
+                          <div>Salida: {estudiante.horaSalida}</div>
                         </div>
-                      ) : (
-                        <div className="text-gray-400">Sin horario</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {estudiante.horaEntrada ? (
+                      ) : estudiante.horaEntrada ? (
+                        // Solo entrada
                         <div>Entrada: {estudiante.horaEntrada}</div>
+                      ) : estudiante.horaSalida ? (
+                        // Solo salida (caso raro pero posible)
+                        <div>Salida: {estudiante.horaSalida}</div>
                       ) : (
+                        // Sin registro
                         <div className="text-gray-400">Sin entrada</div>
                       )}
-                      {estudiante.horaSalida ? (
-                        <div>Salida: {estudiante.horaSalida}</div>
-                      ) : estudiante.estado !== 'AUSENTE' ? (
-                        <div className="text-gray-400">Sin salida</div>
-                      ) : null}
                     </td>
                   </tr>
                 ))}

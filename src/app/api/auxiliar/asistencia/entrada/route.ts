@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
+import { notificarEntradaSalida } from '@/lib/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,75 +68,95 @@ export async function POST(request: NextRequest) {
 
     // Obtener fecha y hora actual
     const ahora = new Date()
-    const fechaHoy = new Date(ahora.toISOString().split('T')[0])
-    const horaActual = ahora
+    const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
     console.log('📅 Registrando entrada para:', estudiante.usuario.nombre, estudiante.usuario.apellido)
-    console.log('🕐 Hora de entrada:', horaActual.toTimeString().slice(0, 8))
+    console.log('🕐 Hora de entrada:', ahora.toTimeString().slice(0, 8))
 
-    // Verificar si ya tiene asistencia registrada hoy
-    const asistenciaExistente = await prisma.asistencia.findFirst({
+    // Verificar si ya tiene entrada registrada hoy en AsistenciaIE
+    const asistenciaExistente = await prisma.asistenciaIE.findFirst({
       where: {
         idEstudiante: estudiante.idEstudiante,
-        fecha: fechaHoy
+        fecha: {
+          gte: fechaHoy,
+          lt: new Date(fechaHoy.getTime() + 24 * 60 * 60 * 1000)
+        }
       }
     })
 
-    if (asistenciaExistente) {
+    if (asistenciaExistente && asistenciaExistente.horaIngreso) {
       return NextResponse.json({ 
-        error: 'El estudiante ya tiene asistencia registrada hoy' 
+        error: 'El estudiante ya tiene entrada registrada hoy',
+        horaIngreso: asistenciaExistente.horaIngreso.toTimeString().slice(0, 5)
       }, { status: 400 })
     }
 
-    // Obtener horario del estudiante para determinar si es tardanza
-    let horarioClase = null
-    if (estudiante.idGradoSeccion) {
-      horarioClase = await prisma.horarioClase.findFirst({
-        where: {
-          idGradoSeccion: estudiante.idGradoSeccion,
-          diaSemana: ahora.getDay() === 0 ? 7 : ahora.getDay(), // Domingo = 7
-          activo: true
+    // Registrar entrada en AsistenciaIE
+    let nuevaAsistenciaIE
+    if (asistenciaExistente) {
+      // Actualizar registro existente
+      nuevaAsistenciaIE = await prisma.asistenciaIE.update({
+        where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
+        data: {
+          horaIngreso: ahora,
+          estado: 'INGRESADO',
+          registradoIngresoPor: userInfo.idUsuario
+        }
+      })
+    } else {
+      // Crear nuevo registro
+      nuevaAsistenciaIE = await prisma.asistenciaIE.create({
+        data: {
+          idEstudiante: estudiante.idEstudiante,
+          idIe: ieId,
+          fecha: fechaHoy,
+          horaIngreso: ahora,
+          estado: 'INGRESADO',
+          registradoIngresoPor: userInfo.idUsuario
         }
       })
     }
 
-    let estado = 'PRESENTE'
-    let toleranciaMin = 10 // Tolerancia por defecto
+    console.log(`✅ Entrada registrada manualmente`)
 
-    if (horarioClase) {
-      toleranciaMin = horarioClase.toleranciaMin || 10
-      
-      // Convertir hora de inicio del horario a Date para comparar
-      const horaInicioHorario = new Date(fechaHoy)
-      const [horas, minutos] = horarioClase.horaInicio.toTimeString().slice(0, 5).split(':')
-      horaInicioHorario.setHours(parseInt(horas), parseInt(minutos), 0, 0)
-      
-      // Agregar tolerancia
-      const horaLimiteTolerancia = new Date(horaInicioHorario.getTime() + (toleranciaMin * 60 * 1000))
-      
-      if (horaActual > horaLimiteTolerancia) {
-        estado = 'TARDANZA'
+    // Enviar notificaciones al apoderado
+    try {
+      const apoderado = await prisma.apoderado.findFirst({
+        where: {
+          estudiantes: {
+            some: {
+              idEstudiante: estudiante.idEstudiante
+            }
+          }
+        },
+        include: {
+          usuario: true
+        }
+      })
+
+      if (apoderado && apoderado.usuario.email) {
+        console.log(`📧 Enviando notificación de entrada al apoderado...`)
+        
+        await notificarEntradaSalida({
+          estudianteNombre: estudiante.usuario.nombre || '',
+          estudianteApellido: estudiante.usuario.apellido || '',
+          estudianteDNI: estudiante.usuario.dni,
+          grado: estudiante.gradoSeccion?.grado?.nombre || '',
+          seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+          accion: 'entrada',
+          hora: ahora.toISOString(),
+          fecha: fechaHoy.toISOString(),
+          emailApoderado: apoderado.usuario.email,
+          telefonoApoderado: apoderado.usuario.telefono || ''
+        })
       }
+    } catch (notifError) {
+      console.error(`⚠️ Error al enviar notificación:`, notifError)
     }
-
-    // Crear registro de asistencia
-    const nuevaAsistencia = await prisma.asistencia.create({
-      data: {
-        idEstudiante: estudiante.idEstudiante,
-        idIe: ieId,
-        fecha: fechaHoy,
-        horaEntrada: horaActual,
-        sesion: 'MAÑANA', // Por defecto mañana
-        observaciones: `Entrada registrada por auxiliar: ${userInfo.nombre} ${userInfo.apellido}`,
-        registradoPor: userInfo.idUsuario
-      }
-    })
-
-    console.log(`✅ Entrada registrada - Estado: ${estado}`)
 
     return NextResponse.json({
       success: true,
-      message: `Entrada registrada como ${estado}`,
+      message: `Entrada registrada exitosamente`,
       estudiante: {
         id: estudiante.idEstudiante,
         nombre: estudiante.usuario.nombre,
@@ -146,10 +165,9 @@ export async function POST(request: NextRequest) {
         seccion: estudiante.gradoSeccion?.seccion?.nombre
       },
       asistencia: {
-        id: nuevaAsistencia.idAsistencia,
-        estado: estado,
-        horaEntrada: nuevaAsistencia.horaEntrada?.toTimeString().slice(0, 5),
-        toleranciaMin
+        id: nuevaAsistenciaIE.idAsistenciaIE,
+        estado: nuevaAsistenciaIE.estado,
+        horaIngreso: nuevaAsistenciaIE.horaIngreso?.toTimeString().slice(0, 5)
       }
     })
 
@@ -159,7 +177,5 @@ export async function POST(request: NextRequest) {
       error: 'Error interno del servidor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }

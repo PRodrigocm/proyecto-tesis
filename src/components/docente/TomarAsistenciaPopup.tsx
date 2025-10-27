@@ -186,6 +186,7 @@ export default function TomarAsistenciaPopup({
         })
       })
 
+      // Leer el body una sola vez
       const data = await response.json()
       
       if (response.ok) {
@@ -244,13 +245,13 @@ export default function TomarAsistenciaPopup({
         }, 4000)
         
       } else {
-        const error = await response.json()
+        // El body ya fue leído en 'data', usarlo directamente
         if (response.status === 404) {
-          mostrarNotificacion(error.details || 'Estudiante no encontrado en esta clase', 'error', 4000)
+          mostrarNotificacion(data.details || 'Estudiante no encontrado en esta clase', 'error', 4000)
         } else if (response.status === 403) {
-          mostrarNotificacion(error.details || 'No autorizado para esta clase', 'error', 4000)
+          mostrarNotificacion(data.details || 'No autorizado para esta clase', 'error', 4000)
         } else {
-          mostrarNotificacion(`Error: ${error.error || 'Error desconocido'}`, 'error', 4000)
+          mostrarNotificacion(`Error: ${data.error || 'Error desconocido'}`, 'error', 4000)
         }
         setProcesandoEscaneo(false)
       }

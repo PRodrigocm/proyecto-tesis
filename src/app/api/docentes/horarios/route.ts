@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     try {
       decoded = jwt.verify(token, JWT_SECRET)
+      console.log('🔑 Token decodificado:', decoded)
     } catch (error) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
@@ -28,7 +29,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No tienes permisos para acceder a esta información' }, { status: 403 })
     }
 
-    console.log('🔍 Buscando horarios para docente:', decoded.idUsuario)
+    // Obtener userId de diferentes posibles campos
+    const userId = decoded.idUsuario || decoded.userId || decoded.id
+    console.log('🔍 Buscando horarios para docente con userId:', userId)
 
     // Si es administrador, mostrar todos los horarios
     if (decoded.rol === 'ADMINISTRATIVO') {
@@ -80,15 +83,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Para docentes, buscar sus horarios específicos
+    if (!userId) {
+      console.error('❌ No se pudo obtener userId del token')
+      return NextResponse.json({ error: 'Token inválido: falta userId' }, { status: 401 })
+    }
+
     const docente = await prisma.docente.findFirst({
       where: {
-        idUsuario: decoded.idUsuario
+        idUsuario: userId
       }
     })
 
     if (!docente) {
+      console.error('❌ No se encontró docente con idUsuario:', userId)
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 })
     }
+
+    console.log('✅ Docente encontrado:', docente.idDocente)
 
     const horariosClase = await prisma.horarioClase.findMany({
       where: {
@@ -135,71 +146,14 @@ export async function GET(request: NextRequest) {
       }
     }))
 
-    // Si no hay horarios, devolver datos de ejemplo
+    // Si no hay horarios, devolver array vacío
     if (horariosTransformados.length === 0) {
-      console.log('⚠️ No se encontraron horarios, devolviendo datos de ejemplo')
+      console.log('⚠️ No se encontraron horarios para este docente')
       return NextResponse.json({
         success: true,
-        horarios: [
-          {
-            id: '1',
-            grado: '3',
-            seccion: 'A',
-            diaSemana: 'LUNES',
-            horaInicio: '08:00',
-            horaFin: '09:30',
-            materia: 'Matemáticas',
-            toleranciaMin: 10,
-            aula: 'Aula 201',
-            tipoActividad: 'CLASE_REGULAR',
-            activo: true,
-            docente: {
-              id: '1',
-              nombre: 'Ana',
-              apellido: 'Rodríguez',
-              especialidad: 'Matemáticas'
-            }
-          },
-          {
-            id: '2',
-            grado: '3',
-            seccion: 'A',
-            diaSemana: 'MARTES',
-            horaInicio: '10:00',
-            horaFin: '11:30',
-            materia: 'Comunicación',
-            toleranciaMin: 15,
-            aula: 'Aula 201',
-            tipoActividad: 'CLASE_REGULAR',
-            activo: true,
-            docente: {
-              id: '1',
-              nombre: 'Ana',
-              apellido: 'Rodríguez',
-              especialidad: 'Comunicación'
-            }
-          },
-          {
-            id: '3',
-            grado: '4',
-            seccion: 'B',
-            diaSemana: 'MIERCOLES',
-            horaInicio: '14:00',
-            horaFin: '15:30',
-            materia: 'Ciencia y Tecnología',
-            toleranciaMin: 10,
-            aula: 'Lab. Ciencias',
-            tipoActividad: 'CLASE_REGULAR',
-            activo: true,
-            docente: {
-              id: '1',
-              nombre: 'Ana',
-              apellido: 'Rodríguez',
-              especialidad: 'Ciencias'
-            }
-          }
-        ],
-        total: 3
+        horarios: [],
+        total: 0,
+        message: 'No hay horarios asignados a este docente'
       })
     }
 

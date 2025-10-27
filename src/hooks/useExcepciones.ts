@@ -54,7 +54,9 @@ export const useExcepciones = (ieId?: number) => {
         params.append('tipo', filtros.tipo)
       }
 
-      const response = await fetch(`/api/excepciones?${params.toString()}`, {
+      // Usar calendario-escolar en lugar de excepciones
+      const year = filtros?.fecha ? new Date(filtros.fecha).getFullYear() : new Date().getFullYear()
+      const response = await fetch(`/api/calendario-escolar?year=${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -63,11 +65,30 @@ export const useExcepciones = (ieId?: number) => {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al cargar excepciones')
+        throw new Error(errorData.error || 'Error al cargar calendario escolar')
       }
 
       const data = await response.json()
-      setExcepciones(data.data || [])
+      // Filtrar solo los días NO lectivos (excepciones) y transformar al formato esperado
+      const excepciones = (data.data || [])
+        .filter((item: any) => !item.esLectivo)
+        .map((item: any) => ({
+          id: item.idCalendario?.toString() || item.fecha,
+          fecha: item.fecha,
+          fechaFin: item.fecha,
+          tipoExcepcion: item.motivo?.toLowerCase().includes('feriado') ? 'FERIADO' :
+                        item.motivo?.toLowerCase().includes('vacacion') ? 'VACACIONES' :
+                        item.motivo?.toLowerCase().includes('suspension') ? 'SUSPENSION_CLASES' : 'OTRO',
+          tipoHorario: 'AMBOS',
+          motivo: item.motivo || 'Sin motivo',
+          descripcion: item.motivo || '',
+          activo: true,
+          institucion: 'IE',
+          createdAt: new Date().toISOString()
+        }))
+      
+      console.log('📋 Excepciones transformadas:', excepciones)
+      setExcepciones(excepciones)
 
     } catch (error) {
       console.error('Error loading excepciones:', error)
@@ -90,21 +111,27 @@ export const useExcepciones = (ieId?: number) => {
         throw new Error('No hay token de autenticación')
       }
 
-      const response = await fetch('/api/excepciones', {
+      // Mapear a formato de calendario-escolar
+      const calendarioData = {
+        fechaInicio: excepcionData.fecha,
+        fechaFin: excepcionData.fecha,
+        tipoDia: excepcionData.tipoExcepcion === 'FERIADO' ? 'FERIADO' : 
+                 excepcionData.tipoExcepcion === 'VACACIONES' ? 'VACACIONES' : 'EVENTO',
+        descripcion: excepcionData.motivo
+      }
+
+      const response = await fetch('/api/calendario', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ieId,
-          ...excepcionData
-        })
+        body: JSON.stringify(calendarioData)
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al crear excepción')
+        throw new Error(errorData.error || 'Error al crear evento')
       }
 
       const result = await response.json()
@@ -128,7 +155,8 @@ export const useExcepciones = (ieId?: number) => {
         throw new Error('No hay token de autenticación')
       }
 
-      const response = await fetch(`/api/excepciones?id=${id}`, {
+      // Actualizar en calendario-escolar
+      const response = await fetch(`/api/calendario-escolar?id=${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -139,7 +167,7 @@ export const useExcepciones = (ieId?: number) => {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al actualizar excepción')
+        throw new Error(errorData.error || 'Error al actualizar evento')
       }
 
       // Recargar la lista de excepciones
@@ -161,7 +189,8 @@ export const useExcepciones = (ieId?: number) => {
         throw new Error('No hay token de autenticación')
       }
 
-      const response = await fetch(`/api/excepciones?id=${id}`, {
+      // Eliminar de calendario-escolar
+      const response = await fetch(`/api/calendario-escolar?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -171,7 +200,7 @@ export const useExcepciones = (ieId?: number) => {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al eliminar excepción')
+        throw new Error(errorData.error || 'Error al eliminar evento')
       }
 
       // Recargar la lista de excepciones

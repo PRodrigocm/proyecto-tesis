@@ -326,11 +326,24 @@ export default function QRScannerModal({
       } else {
         let errorMsg = 'Error desconocido'
         try {
-          const error = await response.json()
-          errorMsg = error.error || error.mensaje || error.details || 'Error al procesar código QR'
-          console.error('❌ Error de API:', error)
+          const responseText = await response.text()
+          console.log('📄 Respuesta del servidor:', responseText)
+          
+          if (responseText) {
+            try {
+              const error = JSON.parse(responseText)
+              errorMsg = error.error || error.mensaje || error.details || 'Error al procesar código QR'
+              console.error('❌ Error de API:', error)
+            } catch (parseError) {
+              console.error('❌ Respuesta no es JSON válido:', responseText)
+              errorMsg = `Error del servidor (${response.status}): ${responseText.substring(0, 100)}`
+            }
+          } else {
+            errorMsg = `Error del servidor (${response.status}): Respuesta vacía`
+          }
         } catch (e) {
-          console.error('❌ Error al parsear respuesta:', e)
+          console.error('❌ Error al leer respuesta:', e)
+          errorMsg = `Error al leer respuesta del servidor (${response.status})`
         }
         alert(`❌ ${errorMsg}`)
         setEstudianteEscaneado(null)
@@ -736,19 +749,66 @@ export default function QRScannerModal({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 md:gap-3 mt-3 md:mt-6 pt-3 md:pt-6 border-t flex-shrink-0">
+          <div className="flex justify-between items-center gap-2 md:gap-3 mt-3 md:mt-6 pt-3 md:pt-6 border-t flex-shrink-0">
             <button
               onClick={() => setEstudiantesEscaneados([])}
               className="px-3 md:px-4 py-2 border border-gray-300 text-black text-sm font-medium rounded-md hover:bg-gray-50"
             >
               Limpiar Lista
             </button>
-            <button
-              onClick={handleClose}
-              className="px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-            >
-              Cerrar
-            </button>
+            
+            <div className="flex gap-2 md:gap-3">
+              <button
+                onClick={async () => {
+                  if (estudiantesEscaneados.length === 0) {
+                    alert('No hay estudiantes para guardar')
+                    return
+                  }
+                  
+                  // Aquí se guardará la asistencia
+                  try {
+                    const token = localStorage.getItem('token')
+                    const response = await fetch('/api/auxiliar/asistencia/guardar', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        estudiantes: estudiantesEscaneados,
+                        fecha: new Date().toISOString().split('T')[0]
+                      })
+                    })
+                    
+                    if (response.ok) {
+                      alert(`✅ Asistencia guardada exitosamente para ${estudiantesEscaneados.length} estudiantes`)
+                      setEstudiantesEscaneados([])
+                      onClose()
+                    } else {
+                      const error = await response.json()
+                      alert(`❌ Error: ${error.message || 'No se pudo guardar la asistencia'}`)
+                    }
+                  } catch (error) {
+                    console.error('Error guardando asistencia:', error)
+                    alert('❌ Error al guardar la asistencia')
+                  }
+                }}
+                disabled={estudiantesEscaneados.length === 0}
+                className="px-3 md:px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Guardar Asistencia
+              </button>
+              
+              <button
+                onClick={handleClose}
+                className="px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       </div>

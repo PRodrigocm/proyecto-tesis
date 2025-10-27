@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// Función para convertir hora de 24h a 12h con AM/PM
+function formatTo12Hour(hour24: number, minutes: number): string {
+  const period = hour24 >= 12 ? 'pm' : 'am'
+  const hour12 = hour24 % 12 || 12 // Convertir 0 a 12
+  const minutesStr = String(minutes).padStart(2, '0')
+  return `${hour12}:${minutesStr} ${period}`
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -64,7 +72,7 @@ export async function GET(
       const { gradoSeccion, tipoAsignacion } = docenteAula
       
       // Obtener el horario del grado-sección
-      let horario = '08:00-13:30' // Horario por defecto
+      let horario = '8:30 am-1:30 pm' // Horario por defecto (8:30 a.m - 1:30 p.m)
       
       try {
         const horarioClase = await prisma.horarioClase.findFirst({
@@ -78,9 +86,43 @@ export async function GET(
         })
         
         if (horarioClase) {
-          const horaInicio = horarioClase.horaInicio.toTimeString().slice(0, 5)
-          const horaFin = horarioClase.horaFin.toTimeString().slice(0, 5)
-          horario = `${horaInicio}-${horaFin}`
+          // Log del objeto completo
+          console.log('🔍 Objeto horarioClase completo:', horarioClase)
+          
+          // Extraer horas usando diferentes métodos para ver cuál funciona
+          const horaInicioDate = new Date(horarioClase.horaInicio)
+          const horaFinDate = new Date(horarioClase.horaFin)
+          
+          console.log('📅 Fechas completas:', {
+            horaInicio: horarioClase.horaInicio,
+            horaFin: horarioClase.horaFin,
+            horaInicioDate,
+            horaFinDate
+          })
+          
+          // Método 1: toTimeString
+          const metodo1Inicio = horarioClase.horaInicio.toTimeString().slice(0, 5)
+          const metodo1Fin = horarioClase.horaFin.toTimeString().slice(0, 5)
+          
+          // Extraer horas y minutos en UTC
+          const horaInicioHour = horaInicioDate.getUTCHours()
+          const horaInicioMin = horaInicioDate.getUTCMinutes()
+          const horaFinHour = horaFinDate.getUTCHours()
+          const horaFinMin = horaFinDate.getUTCMinutes()
+          
+          console.log('🔧 Horas extraídas (UTC):', {
+            inicio: `${horaInicioHour}:${horaInicioMin}`,
+            fin: `${horaFinHour}:${horaFinMin}`
+          })
+          
+          // Convertir a formato 12 horas con AM/PM
+          const horaInicio12 = formatTo12Hour(horaInicioHour, horaInicioMin)
+          const horaFin12 = formatTo12Hour(horaFinHour, horaFinMin)
+          
+          horario = `${horaInicio12}-${horaFin12}`
+          console.log('✅ Horario FINAL asignado (12h):', horario)
+        } else {
+          console.log('⚠️ No se encontró horario en BD, usando default:', horario)
         }
       } catch (error) {
         console.error('Error obteniendo horario:', error)
@@ -88,7 +130,7 @@ export async function GET(
       
       return {
         id: docenteAula.idDocenteAula,
-        nombre: `${tipoAsignacion.nombre} - ${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre}`,
+        nombre: `${tipoAsignacion.nombre} (${horario})`,
         grado: gradoSeccion.grado.nombre,
         seccion: gradoSeccion.seccion.nombre,
         tipoAsignacion: tipoAsignacion.nombre,

@@ -6,14 +6,6 @@ interface CalendarioEscolarItem {
   motivo?: string
 }
 
-interface ExcepcionItem {
-  fecha: string
-  fechaFin?: string
-  tipoExcepcion: 'FERIADO' | 'DIA_NO_LABORABLE' | 'SUSPENSION_CLASES' | 'HORARIO_ESPECIAL' | 'VACACIONES' | 'CAPACITACION' | 'OTRO'
-  motivo?: string
-  descripcion?: string
-}
-
 interface ReunionItem {
   fecha: string
   titulo: string
@@ -23,9 +15,8 @@ interface ReunionItem {
 interface CalendarioAnualProps {
   year: number
   calendarioEscolar: CalendarioEscolarItem[]
-  excepciones: ExcepcionItem[]
   reuniones?: ReunionItem[]
-  onDateClick: (date: Date, evento?: ExcepcionItem) => void
+  onDateClick: (date: Date, evento?: any) => void
 }
 
 const meses = [
@@ -35,7 +26,10 @@ const meses = [
 
 const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
-export default function CalendarioAnual({ year, calendarioEscolar, excepciones, reuniones = [], onDateClick }: CalendarioAnualProps) {
+export default function CalendarioAnual({ year, calendarioEscolar, reuniones = [], onDateClick }: CalendarioAnualProps) {
+  
+  // Log para debug
+  console.log('📅 CalendarioAnual - Reuniones recibidas:', reuniones.length, reuniones)
   
   const getDayType = (date: Date): 'lectivo' | 'feriado' | 'suspension' | 'vacaciones' | 'reunion' | 'weekend' | 'normal' => {
     const dateStr = date.toISOString().split('T')[0]
@@ -48,87 +42,57 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
     // Verificar si hay reunión en esta fecha
     const reunion = reuniones.find(r => {
       const reunionFecha = new Date(r.fecha)
-      return reunionFecha.toISOString().split('T')[0] === dateStr
+      const reunionDateStr = reunionFecha.toISOString().split('T')[0]
+      const match = reunionDateStr === dateStr
+      
+      if (match) {
+        console.log('🎯 Reunión encontrada para', dateStr, ':', r)
+      }
+      
+      return match
     })
     
     if (reunion) {
       return 'reunion'
     }
     
-    // Debug logging para todas las fechas cuando hay excepciones
-    if (excepciones.length > 0) {
-      console.log(`🔍 Verificando fecha ${dateStr} contra ${excepciones.length} excepciones`)
-    }
+    // Verificar en calendario escolar
+    const diaCalendario = calendarioEscolar.find(item => item.fecha === dateStr)
     
-    // Verificar excepciones (días NO lectivos)
-    const excepcion = excepciones.find(exc => {
-      const excFecha = new Date(exc.fecha)
-      const excFechaFin = exc.fechaFin ? new Date(exc.fechaFin) : excFecha
-      
-      // Normalizar fechas para comparación (solo fecha, sin hora)
-      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-      const excFechaOnly = new Date(excFecha.getFullYear(), excFecha.getMonth(), excFecha.getDate())
-      const excFechaFinOnly = new Date(excFechaFin.getFullYear(), excFechaFin.getMonth(), excFechaFin.getDate())
-      
-      const isInRange = dateOnly >= excFechaOnly && dateOnly <= excFechaFinOnly
-      
-      // Debug logging más detallado
-      if (isInRange || dateStr === excFecha.toISOString().split('T')[0]) {
-        console.log(`🔍 Comparando ${dateStr}:`)
-        console.log('  - Excepción:', exc)
-        console.log('  - Fecha excepción:', excFecha.toISOString().split('T')[0])
-        console.log('  - Fecha normalizada:', excFechaOnly.toISOString().split('T')[0])
-        console.log('  - Está en rango:', isInRange)
-      }
-      
-      return isInRange
-    })
-    
-    // Si hay una excepción, el día NO es lectivo
-    if (excepcion) {
-      console.log(`❌ Día ${dateStr} NO es lectivo por excepción:`, excepcion.tipoExcepcion)
-      
-      switch (excepcion.tipoExcepcion) {
-        case 'FERIADO':
-        case 'DIA_NO_LABORABLE':
-          return 'feriado'
-        case 'SUSPENSION_CLASES':
-          return 'suspension'
-        case 'VACACIONES':
-          return 'vacaciones'
-        default:
-          return 'normal'
+    if (diaCalendario) {
+      // Si está en el calendario y NO es lectivo, determinar el tipo
+      if (!diaCalendario.esLectivo) {
+        const motivo = diaCalendario.motivo?.toLowerCase() || ''
+        if (motivo.includes('feriado')) return 'feriado'
+        if (motivo.includes('vacacion')) return 'vacaciones'
+        if (motivo.includes('suspension')) return 'suspension'
+        return 'normal'
       }
     }
     
     // Por defecto, todos los días de semana son LECTIVOS
-    // (excepto fines de semana y excepciones)
-    console.log(`✅ Día ${dateStr} es LECTIVO por defecto`)
     return 'lectivo'
   }
 
   const getDayClass = (dayType: string, isToday: boolean): string => {
     const baseClass = 'w-8 h-8 flex items-center justify-center text-sm rounded cursor-pointer hover:ring-2 hover:ring-indigo-300 transition-all font-medium'
-    
-    if (isToday) {
-      return `${baseClass} ring-2 ring-indigo-500 font-bold text-indigo-900 bg-indigo-100`
-    }
+    const todayRing = isToday ? 'ring-2 ring-indigo-500 font-bold' : ''
     
     switch (dayType) {
       case 'lectivo':
-        return `${baseClass} bg-green-200 text-green-900 hover:bg-green-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-green-200 text-green-900 hover:bg-green-300 font-semibold`
       case 'feriado':
-        return `${baseClass} bg-red-200 text-red-900 hover:bg-red-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-red-200 text-red-900 hover:bg-red-300 font-semibold`
       case 'suspension':
-        return `${baseClass} bg-yellow-200 text-yellow-900 hover:bg-yellow-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-yellow-200 text-yellow-900 hover:bg-yellow-300 font-semibold`
       case 'vacaciones':
-        return `${baseClass} bg-blue-200 text-blue-900 hover:bg-blue-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-blue-200 text-blue-900 hover:bg-blue-300 font-semibold`
       case 'reunion':
-        return `${baseClass} bg-orange-200 text-orange-900 hover:bg-orange-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-orange-200 text-orange-900 hover:bg-orange-300 font-semibold`
       case 'weekend':
-        return `${baseClass} bg-gray-200 text-gray-800 hover:bg-gray-300 font-semibold`
+        return `${baseClass} ${todayRing} bg-gray-200 text-gray-800 hover:bg-gray-300 font-semibold`
       default:
-        return `${baseClass} hover:bg-gray-100 text-gray-900 font-semibold`
+        return `${baseClass} ${todayRing} hover:bg-gray-100 text-gray-900 font-semibold`
     }
   }
 
@@ -145,12 +109,6 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
       return reunionFecha.toISOString().split('T')[0] === date.toISOString().split('T')[0]
     })
     
-    const excepcion = excepciones.find(exc => {
-      const excFecha = new Date(exc.fecha)
-      const excFechaFin = exc.fechaFin ? new Date(exc.fechaFin) : excFecha
-      return date >= excFecha && date <= excFechaFin
-    })
-    
     const calendarioItem = calendarioEscolar.find(item => 
       item.fecha === date.toISOString().split('T')[0]
     )
@@ -159,9 +117,6 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
     
     if (reunion) {
       tooltip += `\n📅 Reunión: ${reunion.titulo}`
-    } else if (excepcion) {
-      tooltip += `\n${excepcion.tipoExcepcion}`
-      if (excepcion.motivo) tooltip += `\n${excepcion.motivo}`
     } else if (calendarioItem && calendarioItem.motivo) {
       tooltip += `\n${calendarioItem.motivo}`
     }
@@ -188,14 +143,7 @@ export default function CalendarioAnual({ year, calendarioEscolar, excepciones, 
       
       // Buscar si hay un evento en esta fecha
       const dateStr = currentDate.toISOString().split('T')[0]
-      const eventoEnFecha = excepciones.find(exc => {
-        const excFecha = new Date(exc.fecha)
-        const excFechaFin = exc.fechaFin ? new Date(exc.fechaFin) : excFecha
-        const dateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
-        const excFechaOnly = new Date(excFecha.getFullYear(), excFecha.getMonth(), excFecha.getDate())
-        const excFechaFinOnly = new Date(excFechaFin.getFullYear(), excFechaFin.getMonth(), excFechaFin.getDate())
-        return dateOnly >= excFechaOnly && dateOnly <= excFechaFinOnly
-      })
+      const eventoEnFecha = calendarioEscolar.find(item => item.fecha === dateStr && !item.esLectivo)
       
       days.push(
         <div
