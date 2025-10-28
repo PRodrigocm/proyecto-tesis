@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { getEstudiantesDelApoderado, inicializarEstadosRetiro } from '@/lib/retiros-utils'
 
-const prisma = new PrismaClient()
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const decoded = jwt.verify(token, JWT_SECRET) as any
 
     if (decoded.rol !== 'APODERADO') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -23,8 +23,24 @@ export async function GET(request: NextRequest) {
     // Inicializar estados de retiro si no existen
     await inicializarEstadosRetiro()
 
+    // Obtener el ID del usuario
+    const apoderadoUserId = decoded.userId || decoded.idUsuario || decoded.id
+
+    // Buscar el apoderado
+    const apoderado = await prisma.apoderado.findFirst({
+      where: {
+        idUsuario: apoderadoUserId
+      }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json({ 
+        error: 'No se encontró el apoderado'
+      }, { status: 404 })
+    }
+
     // Obtener estudiantes del apoderado
-    const estudianteIds = await getEstudiantesDelApoderado(decoded.userId)
+    const estudianteIds = await getEstudiantesDelApoderado(apoderado.idApoderado)
 
     // Si no hay estudiantes, retornar historial vacío
     if (estudianteIds.length === 0) {
@@ -66,28 +82,83 @@ export async function GET(request: NextRequest) {
     const historialRetiros = retiros.map(retiro => ({
       id: `retiro_${retiro.idRetiro}`,
       tipo: 'RETIRO' as const,
-      fecha: retiro.fecha.toISOString().split('T')[0],
-      hora: retiro.hora.toISOString().split('T')[1].substring(0, 5),
+      fecha: retiro.fecha.toISOString(),
       estudiante: {
         nombre: retiro.estudiante.usuario.nombre || '',
         apellido: retiro.estudiante.usuario.apellido || '',
         grado: retiro.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
         seccion: retiro.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
       },
-      estado: retiro.estadoRetiro?.nombre || 'Sin estado',
-      estadoCodigo: retiro.estadoRetiro?.codigo || '',
-      tipoRetiro: retiro.tipoRetiro?.nombre || 'No especificado',
+      estado: retiro.estadoRetiro?.codigo || 'PENDIENTE',
+      motivo: retiro.tipoRetiro?.nombre || 'Retiro',
       descripcion: retiro.observaciones || '',
-      origen: retiro.origen || 'Sistema',
       fechaCreacion: retiro.createdAt.toISOString(),
-      fechaActualizacion: retiro.updatedAt?.toISOString(),
-      verificadoPor: retiro.usuarioVerificador ? 
+      fechaAprobacion: retiro.updatedAt?.toISOString(),
+      aprobadoPor: retiro.usuarioVerificador ? 
         `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}` : 
         undefined
     }))
 
-    // TODO: Agregar historial de justificaciones cuando se implemente la tabla
-    const historialJustificaciones: any[] = []
+    // Obtener historial de justificaciones
+    const justificaciones = await prisma.justificacion.findMany({
+      where: {
+        idEstudiante: {
+          in: estudianteIds
+        }
+      },
+      include: {
+        asistenciasAfectadas: {
+          include: {
+            asistencia: {
+              include: {
+                estudiante: {
+                  include: {
+                    usuario: true,
+                    gradoSeccion: {
+                      include: {
+                        grado: true,
+                        seccion: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        estadoJustificacion: true,
+        usuarioRevisor: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    // Convertir justificaciones al formato del historial
+    const historialJustificaciones = justificaciones.map(justificacion => {
+      // Obtener el primer estudiante afectado
+      const primeraAsistencia = justificacion.asistenciasAfectadas[0]?.asistencia
+      
+      return {
+        id: `justificacion_${justificacion.idJustificacion}`,
+        tipo: 'JUSTIFICACION' as const,
+        fecha: primeraAsistencia?.fecha.toISOString() || justificacion.createdAt.toISOString(),
+        estudiante: {
+          nombre: primeraAsistencia?.estudiante.usuario.nombre || '',
+          apellido: primeraAsistencia?.estudiante.usuario.apellido || '',
+          grado: primeraAsistencia?.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
+          seccion: primeraAsistencia?.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
+        },
+        estado: justificacion.estadoJustificacion?.codigo || 'PENDIENTE',
+        motivo: justificacion.motivo || 'Justificación',
+        descripcion: justificacion.observaciones || '',
+        fechaCreacion: justificacion.createdAt.toISOString(),
+        fechaAprobacion: justificacion.fechaRevision?.toISOString(),
+        aprobadoPor: justificacion.usuarioRevisor ? 
+          `${justificacion.usuarioRevisor.nombre} ${justificacion.usuarioRevisor.apellido}` : 
+          undefined
+      }
+    })
 
     // Combinar y ordenar todo el historial
     const historialCompleto = [...historialRetiros, ...historialJustificaciones]
@@ -104,7 +175,5 @@ export async function GET(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

@@ -2,32 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-interface Estudiante {
-  id: string
-  nombre: string
-  apellido: string
-  dni: string
-  grado: string
-  seccion: string
-  codigoEstudiante: string
-}
-
-interface InasistenciaPendiente {
-  id: string
-  fecha: string
-  sesion: string
-  estudiante: {
-    id: string
-    nombre: string
-    apellido: string
-    dni: string
-    grado: string
-    seccion: string
-  }
-  estado: string
-  fechaRegistro: string
-}
+import { 
+  estudiantesService, 
+  justificacionesService,
+  type Estudiante,
+  type InasistenciaPendiente
+} from '@/services/apoderado.service'
 
 interface JustificacionForm {
   inasistenciaId: string
@@ -97,17 +77,8 @@ export default function JustificarInasistencias() {
 
   const loadEstudiantes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/estudiantes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setEstudiantes(data.estudiantes || [])
-      }
+      const data = await estudiantesService.getAll()
+      setEstudiantes(data)
     } catch (error) {
       console.error('Error loading estudiantes:', error)
     }
@@ -115,21 +86,8 @@ export default function JustificarInasistencias() {
 
   const loadInasistenciasPendientes = async (estudianteId?: string) => {
     try {
-      const token = localStorage.getItem('token')
-      const url = estudianteId 
-        ? `/api/apoderados/justificaciones/pendientes?estudianteId=${estudianteId}`
-        : '/api/apoderados/justificaciones/pendientes'
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setInasistenciasPendientes(data.inasistencias || [])
-      }
+      const data = await justificacionesService.getPendientes(estudianteId)
+      setInasistenciasPendientes(data)
     } catch (error) {
       console.error('Error loading inasistencias pendientes:', error)
     }
@@ -183,7 +141,6 @@ export default function JustificarInasistencias() {
 
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('token')
       const formDataToSend = new FormData()
       
       formDataToSend.append('inasistenciaId', formData.inasistenciaId)
@@ -195,25 +152,13 @@ export default function JustificarInasistencias() {
         formDataToSend.append('documento', formData.documentoAdjunto)
       }
 
-      const response = await fetch('/api/apoderados/justificaciones/crear', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formDataToSend
-      })
-
-      if (response.ok) {
-        alert('Justificación enviada exitosamente')
-        setShowJustificarModal(false)
-        loadInasistenciasPendientes(selectedEstudiante || undefined)
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.message || 'No se pudo enviar la justificación'}`)
-      }
-    } catch (error) {
+      await justificacionesService.crear(formDataToSend)
+      alert('Justificación enviada exitosamente')
+      setShowJustificarModal(false)
+      loadInasistenciasPendientes(selectedEstudiante || undefined)
+    } catch (error: any) {
       console.error('Error submitting justificacion:', error)
-      alert('Error al enviar la justificación')
+      alert(error.message || 'Error al enviar la justificación')
     } finally {
       setSubmitting(false)
     }

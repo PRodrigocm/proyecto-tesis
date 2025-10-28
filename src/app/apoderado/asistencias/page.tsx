@@ -1,54 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
-interface Estudiante {
-  id: string
-  nombre: string
-  apellido: string
-  dni: string
-  grado: string
-  seccion: string
-}
-
-interface AsistenciaIE {
-  id: string
-  fecha: string
-  horaEntrada?: string
-  horaSalida?: string
-  estado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA'
-  estudiante: Estudiante
-}
-
-interface AsistenciaAula {
-  id: string
-  fecha: string
-  hora: string
-  materia: string
-  aula: string
-  estado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'JUSTIFICADO'
-  estudiante: Estudiante
-}
-
-interface NotificacionConfig {
-  estudianteId: string
-  entradaIE: {
-    email: boolean
-    telefono: boolean
-  }
-  salidaIE: {
-    email: boolean
-    telefono: boolean
-  }
-  asistenciaAulas: {
-    email: boolean
-    telefono: boolean
-  }
-  asistenciaTalleres: {
-    email: boolean
-    telefono: boolean
-  }
-}
+import {
+  estudiantesService,
+  asistenciasService,
+  notificacionesService,
+  type Estudiante,
+  type AsistenciaIE,
+  type AsistenciaAula,
+  type NotificacionConfig
+} from '@/services/apoderado.service'
 
 export default function AsistenciasPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
@@ -57,7 +18,7 @@ export default function AsistenciasPage() {
   const [asistenciasAulas, setAsistenciasAulas] = useState<AsistenciaAula[]>([])
   const [notificaciones, setNotificaciones] = useState<NotificacionConfig[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'ie' | 'aulas' | 'talleres' | 'notificaciones'>('ie')
+  const [activeTab, setActiveTab] = useState<'ie' | 'aulas' | 'notificaciones'>('ie')
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
 
@@ -78,19 +39,10 @@ export default function AsistenciasPage() {
 
   const loadEstudiantes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/estudiantes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setEstudiantes(data.estudiantes || [])
-        if (data.estudiantes?.length > 0) {
-          setSelectedEstudiante(data.estudiantes[0].id)
-        }
+      const data = await estudiantesService.getAll()
+      setEstudiantes(data)
+      if (data.length > 0) {
+        setSelectedEstudiante(data[0].id)
       }
     } catch (error) {
       console.error('Error loading estudiantes:', error)
@@ -104,31 +56,14 @@ export default function AsistenciasPage() {
     
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      
-      // Cargar asistencias de IE
-      const responseIE = await fetch(`/api/apoderados/asistencias/ie?estudianteId=${selectedEstudiante}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      // Cargar asistencias de IE y aulas en paralelo
+      const [dataIE, dataAulas] = await Promise.all([
+        asistenciasService.getIE(selectedEstudiante, fechaInicio, fechaFin),
+        asistenciasService.getAulas(selectedEstudiante, fechaInicio, fechaFin)
+      ])
 
-      if (responseIE.ok) {
-        const dataIE = await responseIE.json()
-        setAsistenciasIE(dataIE.asistencias || [])
-      }
-
-      // Cargar asistencias de aulas
-      const responseAulas = await fetch(`/api/apoderados/asistencias/aulas?estudianteId=${selectedEstudiante}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (responseAulas.ok) {
-        const dataAulas = await responseAulas.json()
-        setAsistenciasAulas(dataAulas.asistencias || [])
-      }
+      setAsistenciasIE(dataIE)
+      setAsistenciasAulas(dataAulas)
 
       // Cargar configuración de notificaciones
       loadNotificaciones()
@@ -142,17 +77,8 @@ export default function AsistenciasPage() {
 
   const loadNotificaciones = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/notificaciones/config', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setNotificaciones(data.configuraciones || [])
-      }
+      const data = await notificacionesService.getConfig()
+      setNotificaciones(data)
     } catch (error) {
       console.error('Error loading notificaciones config:', error)
     }
@@ -160,22 +86,11 @@ export default function AsistenciasPage() {
 
   const updateNotificacionConfig = async (estudianteId: string, config: Partial<NotificacionConfig>) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/notificaciones/config', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          estudianteId,
-          ...config
-        })
+      await notificacionesService.updateConfig({
+        estudianteId,
+        ...config
       })
-
-      if (response.ok) {
-        loadNotificaciones()
-      }
+      loadNotificaciones()
     } catch (error) {
       console.error('Error updating notification config:', error)
     }
@@ -199,7 +114,6 @@ export default function AsistenciasPage() {
   const tabs = [
     { id: 'ie', name: 'Entrada/Salida IE', icon: '🏫' },
     { id: 'aulas', name: 'Asistencia Aulas', icon: '📚' },
-    { id: 'talleres', name: 'Asistencia Talleres', icon: '🎨' },
     { id: 'notificaciones', name: 'Notificaciones', icon: '🔔' }
   ]
 
@@ -364,7 +278,6 @@ export default function AsistenciasPage() {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Materia</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aula</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                       </tr>
@@ -377,9 +290,6 @@ export default function AsistenciasPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {asistencia.hora}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asistencia.materia}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {asistencia.aula}
@@ -398,15 +308,6 @@ export default function AsistenciasPage() {
             </div>
           )}
 
-          {activeTab === 'talleres' && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Asistencia a Talleres</h3>
-              <div className="text-center py-8">
-                <p className="text-gray-500">Funcionalidad en desarrollo</p>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'notificaciones' && (
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Configuración de Notificaciones</h3>
@@ -417,8 +318,7 @@ export default function AsistenciasPage() {
                   estudianteId: estudiante.id,
                   entradaIE: { email: false, telefono: false },
                   salidaIE: { email: false, telefono: false },
-                  asistenciaAulas: { email: false, telefono: false },
-                  asistenciaTalleres: { email: false, telefono: false }
+                  asistenciaAulas: { email: false, telefono: false }
                 }
 
                 return (
@@ -512,33 +412,6 @@ export default function AsistenciasPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <h5 className="font-medium text-gray-700">Asistencia a Talleres</h5>
-                        <div className="space-y-2">
-                          <label className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={config.asistenciaTalleres.email}
-                              onChange={(e) => updateNotificacionConfig(estudiante.id, {
-                                asistenciaTalleres: { ...config.asistenciaTalleres, email: e.target.checked }
-                              })}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Notificar por Email</span>
-                          </label>
-                          <label className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={config.asistenciaTalleres.telefono}
-                              onChange={(e) => updateNotificacionConfig(estudiante.id, {
-                                asistenciaTalleres: { ...config.asistenciaTalleres, telefono: e.target.checked }
-                              })}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">Notificar por SMS</span>
-                          </label>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )

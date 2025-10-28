@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 
-const prisma = new PrismaClient()
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const decoded = jwt.verify(token, JWT_SECRET) as any
 
     if (decoded.rol !== 'APODERADO') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -31,10 +31,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Obtener el ID del usuario
+    const apoderadoUserId = decoded.userId || decoded.idUsuario || decoded.id
+
+    // Buscar el apoderado
+    const apoderado = await prisma.apoderado.findFirst({
+      where: {
+        idUsuario: apoderadoUserId
+      }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json({ 
+        error: 'No se encontró el apoderado'
+      }, { status: 404 })
+    }
+
     // Verificar que el estudiante pertenece al apoderado
     const estudianteApoderado = await prisma.estudianteApoderado.findFirst({
       where: {
-        idApoderado: decoded.userId,
+        idApoderado: apoderado.idApoderado,
         idEstudiante: parseInt(estudianteId)
       }
     })
@@ -100,7 +116,5 @@ export async function GET(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

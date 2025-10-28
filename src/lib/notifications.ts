@@ -1,10 +1,7 @@
-import { Resend } from 'resend'
-
-// Inicializar Resend
-const resend = new Resend(process.env.RESEND_API_KEY)
+import nodemailer from 'nodemailer'
 
 /**
- * Enviar email usando Resend
+ * Enviar email usando Gmail SMTP
  */
 export async function enviarEmail(
   destinatario: string,
@@ -12,46 +9,51 @@ export async function enviarEmail(
   contenidoHTML: string
 ): Promise<boolean> {
   try {
-    // Debug: Verificar credenciales de Resend
-    console.log('🔍 Verificando credenciales de Resend:')
-    console.log('   RESEND_API_KEY:', process.env.RESEND_API_KEY ? '✅ Configurado' : '❌ No configurado')
+    // Debug: Verificar credenciales de Gmail
+    console.log('🔍 Verificando credenciales de Gmail SMTP:')
+    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
+    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
     
-    if (!process.env.RESEND_API_KEY) {
-      console.error('❌ RESEND_API_KEY no configurado en .env')
-      console.error('💡 Obtén tu API key en: https://resend.com/api-keys')
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error('❌ Credenciales de Gmail no configuradas en .env')
+      console.error('💡 Configura GMAIL_USER y GMAIL_APP_PASSWORD')
       return false
     }
 
-    // Enviar siempre a tivem16330@filipx.com (email registrado en Resend)
-    const emailDestinatario = 'tivem16330@filipx.com'
+    console.log(`📧 Enviando desde: ${process.env.GMAIL_USER}`)
+    console.log(`📧 Enviando a: ${destinatario}`)
     
-    console.log(`📧 Enviando desde: onboarding@resend.dev`)
-    console.log(`📧 Enviando a: ${emailDestinatario}`)
-    console.log(`📧 Destinatario original: ${destinatario}`)
-    
-    const { data, error } = await resend.emails.send({
-      from: 'Sistema Escolar <onboarding@resend.dev>',
-      to: emailDestinatario,
-      subject: asunto,
-      html: contenidoHTML
+    // Crear transportador de Nodemailer con Gmail
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
     })
 
-    if (error) {
-      console.error('❌ Error enviando email con Resend:', error)
-      return false
+    // Configurar el email
+    const mailOptions = {
+      from: `"Sistema de Asistencia Escolar" <${process.env.GMAIL_USER}>`,
+      to: destinatario,
+      subject: asunto,
+      html: contenidoHTML
     }
 
-    console.log('✅ Email enviado via Resend:', data?.id)
+    // Enviar el email
+    const info = await transporter.sendMail(mailOptions)
+
+    console.log('✅ Email enviado via Gmail SMTP:', info.messageId)
     return true
   } catch (error: any) {
-    console.error('❌ Error enviando email:', error.message || error)
+    console.error('❌ Error enviando email via Gmail:', error.message || error)
     return false
   }
 }
 
 /**
- * Enviar SMS usando Twilio
- * Usa Messaging Service SID para envío automático
+ * Enviar SMS usando SMSChef
+ * API de SMS para Perú
  */
 export async function enviarSMS(
   telefono: string,
@@ -59,56 +61,82 @@ export async function enviarSMS(
 ): Promise<boolean> {
   try {
     // Debug: Verificar variables de entorno
-    console.log('🔍 Verificando credenciales de Twilio:')
-    console.log('   TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? '✅ Configurado' : '❌ No configurado')
-    console.log('   TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? '✅ Configurado' : '❌ No configurado')
-    console.log('   TWILIO_MESSAGING_SERVICE_SID:', process.env.TWILIO_MESSAGING_SERVICE_SID ? '✅ Configurado' : '❌ No configurado')
+    console.log('🔍 Verificando credenciales de SMSChef:')
+    console.log('   SMSCHEF_API_KEY:', process.env.SMSCHEF_API_KEY ? '✅ Configurado' : '❌ No configurado')
+    console.log('   SMSCHEF_SENDER_ID:', process.env.SMSCHEF_SENDER_ID ? '✅ Configurado' : '❌ No configurado')
     
-    // Verificar si las credenciales de Twilio están configuradas
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-      console.log('⚠️ Credenciales de Twilio no configuradas. SMS no enviado.')
+    // Verificar si las credenciales de SMSChef están configuradas
+    if (!process.env.SMSCHEF_API_KEY) {
+      console.log('⚠️ Credenciales de SMSChef no configuradas. SMS no enviado.')
       return false
     }
 
-    // Formatear número de teléfono (agregar +51 si no tiene código de país)
-    let telefonoFormateado = telefono.trim()
-    if (!telefonoFormateado.startsWith('+')) {
-      // Si no tiene +, agregar +51 (Perú)
-      telefonoFormateado = '+51' + telefonoFormateado
+    // Formatear número de teléfono (solo números, sin +51)
+    let telefonoFormateado = telefono.trim().replace(/\D/g, '')
+    
+    // Si empieza con 51, quitarlo (SMSChef espera solo el número local)
+    if (telefonoFormateado.startsWith('51')) {
+      telefonoFormateado = telefonoFormateado.substring(2)
+    }
+    
+    // Validar que sea un número peruano válido (9 dígitos que empieza con 9)
+    if (telefonoFormateado.length !== 9 || !telefonoFormateado.startsWith('9')) {
+      console.log(`⚠️ Número de teléfono inválido: ${telefono}`)
+      return false
     }
     
     console.log(`📱 Número formateado: ${telefono} → ${telefonoFormateado}`)
 
-    const twilio = require('twilio')
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    )
-
-    // Configurar el mensaje
-    const messageData: any = {
-      body: mensaje,
-      to: telefonoFormateado
+    // Preparar datos para SMSChef
+    const requestBody = {
+      api_key: process.env.SMSCHEF_API_KEY,
+      sender_id: process.env.SMSCHEF_SENDER_ID || 'COLEGIO',
+      to: telefonoFormateado,
+      message: mensaje,
+      schedule: null // Enviar inmediatamente
     }
 
-    // Usar número de teléfono si está disponible, sino usar Messaging Service SID
-    if (process.env.TWILIO_PHONE_NUMBER) {
-      messageData.from = process.env.TWILIO_PHONE_NUMBER
-      console.log(`📱 Enviando desde: ${process.env.TWILIO_PHONE_NUMBER}`)
-    } else if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
-      messageData.messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
-      console.log(`📱 Usando Messaging Service: ${process.env.TWILIO_MESSAGING_SERVICE_SID}`)
+    console.log('📱 Enviando SMS via SMSChef...')
+    console.log('📱 URL:', 'https://api.smschef.com/v1/sms/send')
+    console.log('📱 Datos:', JSON.stringify(requestBody, null, 2))
+
+    const response = await fetch('https://api.smschef.com/v1/sms/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    console.log('📱 Status HTTP:', response.status, response.statusText)
+
+    const result = await response.json()
+    console.log('📱 Respuesta completa:', JSON.stringify(result, null, 2))
+
+    if (response.ok && result.success) {
+      console.log('✅ SMS enviado via SMSChef:', result.message_id || 'OK')
+      return true
     } else {
-      console.log('⚠️ No se configuró TWILIO_PHONE_NUMBER ni TWILIO_MESSAGING_SERVICE_SID')
+      console.error('❌ Error en respuesta de SMSChef:', result)
       return false
     }
-
-    const result = await client.messages.create(messageData)
-
-    console.log('✅ SMS enviado via Twilio:', result.sid)
-    return true
   } catch (error: any) {
-    console.error('❌ Error enviando SMS via Twilio:', error.message || error)
+    console.error('❌ Error enviando SMS via SMSChef:')
+    console.error('   Tipo:', error.constructor.name)
+    console.error('   Mensaje:', error.message)
+    console.error('   Causa:', error.cause)
+    console.error('   Stack:', error.stack)
+    
+    // Si es un error de fetch, puede ser problema de red o SSL
+    if (error.message.includes('fetch failed')) {
+      console.error('💡 Posibles causas:')
+      console.error('   1. Problema de conexión a internet')
+      console.error('   2. La API de SMSChef no está disponible')
+      console.error('   3. Problema con certificados SSL')
+      console.error('   4. Firewall bloqueando la conexión')
+    }
+    
     return false
   }
 }
@@ -333,6 +361,7 @@ export async function notificarEntradaSalida(data: {
   fecha: string
   emailApoderado: string
   telefonoApoderado: string
+  textoPersonalizado?: string // Texto personalizado para asistencia de clase
 }): Promise<{ emailEnviado: boolean; smsEnviado: boolean }> {
   
   const {
@@ -345,7 +374,8 @@ export async function notificarEntradaSalida(data: {
     hora,
     fecha,
     emailApoderado,
-    telefonoApoderado
+    telefonoApoderado,
+    textoPersonalizado
   } = data
 
   // Formatear fecha y hora
@@ -361,11 +391,35 @@ export async function notificarEntradaSalida(data: {
     minute: '2-digit'
   })
 
-  // Determinar emoji y colores según acción
-  const accionEmoji = accion === 'entrada' ? '🟢' : '🔵'
-  const accionTexto = accion === 'entrada' ? 'ENTRADA' : 'SALIDA'
-  const accionColor = accion === 'entrada' ? '#10b981' : '#3b82f6'
-  const accionBg = accion === 'entrada' ? '#d1fae5' : '#dbeafe'
+  // Determinar emoji y colores según el estado de asistencia
+  let accionEmoji = '🟢'
+  let accionColor = '#10b981'
+  let accionBg = '#d1fae5'
+  
+  if (textoPersonalizado) {
+    const textoUpper = textoPersonalizado.toUpperCase()
+    
+    if (textoUpper.includes('PRESENTE')) {
+      accionEmoji = '✅' // Check para presente
+      accionColor = '#10b981' // Verde
+      accionBg = '#d1fae5'
+    } else if (textoUpper.includes('TARDANZA')) {
+      accionEmoji = '⚠️' // Signo de riesgo para tardanza
+      accionColor = '#f59e0b' // Amarillo/naranja
+      accionBg = '#fef3c7'
+    } else if (textoUpper.includes('PENDIENTE') || textoUpper.includes('SIN REGISTRAR')) {
+      accionEmoji = '⚡' // Signo de atención para pendiente
+      accionColor = '#ef4444' // Rojo
+      accionBg = '#fee2e2'
+    }
+  } else {
+    // Para entrada/salida normal (sin texto personalizado)
+    accionEmoji = accion === 'entrada' ? '🟢' : '🔵'
+    accionColor = accion === 'entrada' ? '#10b981' : '#3b82f6'
+    accionBg = accion === 'entrada' ? '#d1fae5' : '#dbeafe'
+  }
+  
+  const accionTexto = textoPersonalizado || (accion === 'entrada' ? 'ENTRADA' : 'SALIDA')
 
   // CONTENIDO DEL EMAIL
   const asuntoEmail = `${accionEmoji} ${accionTexto} Registrada - ${estudianteNombre} ${estudianteApellido}`
@@ -399,7 +453,7 @@ export async function notificarEntradaSalida(data: {
         
         <div class="content">
           <h2>Estimado Apoderado,</h2>
-          <p>Le informamos que se ha registrado la <strong>${accion}</strong> de su hijo/a:</p>
+          <p>Le informamos que se ha registrado la <strong>${textoPersonalizado ? 'asistencia' : accion}</strong> de su hijo/a:</p>
           
           <div style="text-align: center; margin: 20px 0;">
             <span class="accion-badge">${accionEmoji} ${accionTexto}</span>
@@ -438,7 +492,7 @@ export async function notificarEntradaSalida(data: {
           </div>
 
           <p style="margin-top: 20px; padding: 15px; background: ${accionBg}; border-radius: 8px; border-left: 4px solid ${accionColor};">
-            <strong>📱 Registro automático:</strong> Esta ${accion} fue registrada mediante el sistema de control de asistencia escolar.
+            <strong>📱 Registro automático:</strong> Esta ${textoPersonalizado ? 'asistencia' : accion} fue registrada mediante el sistema de control de asistencia escolar.
           </p>
         </div>
 

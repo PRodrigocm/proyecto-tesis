@@ -46,13 +46,81 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Obtener justificaciones pendientes (simulado por ahora)
-    // TODO: Implementar tabla de justificaciones
-    const justificacionesPendientes = 0
+    // Obtener justificaciones pendientes (inasistencias sin justificar)
+    let justificacionesPendientes = 0
+    if (estudianteIds.length > 0) {
+      // Buscar el estado "AUSENTE" o "INASISTENCIA"
+      const estadoAusente = await prisma.estadoAsistencia.findFirst({
+        where: {
+          OR: [
+            { codigo: 'AUSENTE' },
+            { codigo: 'INASISTENCIA' }
+          ]
+        }
+      })
 
-    // Calcular asistencia promedio (simulado por ahora)
-    // TODO: Implementar cálculo real basado en asistencias
-    const asistenciaPromedio = 85.5
+      if (estadoAusente) {
+        // Contar inasistencias sin justificación
+        const inasistencias = await prisma.asistencia.findMany({
+          where: {
+            idEstudiante: {
+              in: estudianteIds
+            },
+            idEstadoAsistencia: estadoAusente.idEstadoAsistencia
+          },
+          include: {
+            justificacionesAfectadas: true
+          }
+        })
+
+        // Filtrar las que no tienen justificación
+        justificacionesPendientes = inasistencias.filter(
+          asist => asist.justificacionesAfectadas.length === 0
+        ).length
+      }
+    }
+
+    // Calcular asistencia promedio real
+    let asistenciaPromedio = 0
+    if (estudianteIds.length > 0) {
+      // Obtener estados de asistencia positivos (PRESENTE, TARDANZA)
+      const estadosPositivos = await prisma.estadoAsistencia.findMany({
+        where: {
+          OR: [
+            { codigo: 'PRESENTE' },
+            { codigo: 'TARDANZA' }
+          ]
+        }
+      })
+
+      const estadosPositivosIds = estadosPositivos.map(e => e.idEstadoAsistencia)
+
+      // Contar asistencias totales
+      const totalAsistencias = await prisma.asistencia.count({
+        where: {
+          idEstudiante: {
+            in: estudianteIds
+          }
+        }
+      })
+
+      // Contar asistencias positivas
+      const asistenciasPositivas = await prisma.asistencia.count({
+        where: {
+          idEstudiante: {
+            in: estudianteIds
+          },
+          idEstadoAsistencia: {
+            in: estadosPositivosIds
+          }
+        }
+      })
+
+      // Calcular porcentaje
+      if (totalAsistencias > 0) {
+        asistenciaPromedio = Math.round((asistenciasPositivas / totalAsistencias) * 100 * 10) / 10
+      }
+    }
 
     const estadisticas = {
       totalEstudiantes,

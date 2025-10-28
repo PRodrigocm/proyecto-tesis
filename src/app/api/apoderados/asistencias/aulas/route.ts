@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 
-const prisma = new PrismaClient()
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const decoded = jwt.verify(token, JWT_SECRET) as any
 
     if (decoded.rol !== 'APODERADO') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -31,10 +31,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Obtener el ID del usuario
+    const apoderadoUserId = decoded.userId || decoded.idUsuario || decoded.id
+
+    // Buscar el apoderado
+    const apoderado = await prisma.apoderado.findFirst({
+      where: {
+        idUsuario: apoderadoUserId
+      }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json({ 
+        error: 'No se encontró el apoderado'
+      }, { status: 404 })
+    }
+
     // Verificar que el estudiante pertenece al apoderado
     const estudianteApoderado = await prisma.estudianteApoderado.findFirst({
       where: {
-        idApoderado: decoded.userId,
+        idApoderado: apoderado.idApoderado,
         idEstudiante: parseInt(estudianteId)
       }
     })
@@ -46,76 +62,53 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener asistencias de clases/aulas
-    // Nota: Esta consulta asume que existe una tabla de asistencias por clase
-    // Por ahora simulamos datos ya que la estructura exacta puede variar
-    
-    // Simulación de datos de asistencia a clases
-    const asistenciasSimuladas = [
-      {
-        id: '1',
-        fecha: '2024-10-01',
-        hora: '08:00',
-        materia: 'Matemáticas',
-        aula: 'Aula 101',
-        estado: 'PRESENTE'
-      },
-      {
-        id: '2',
-        fecha: '2024-10-01',
-        hora: '09:00',
-        materia: 'Comunicación',
-        aula: 'Aula 102',
-        estado: 'PRESENTE'
-      },
-      {
-        id: '3',
-        fecha: '2024-10-02',
-        hora: '08:00',
-        materia: 'Matemáticas',
-        aula: 'Aula 101',
-        estado: 'TARDANZA'
-      },
-      {
-        id: '4',
-        fecha: '2024-10-02',
-        hora: '10:00',
-        materia: 'Ciencias',
-        aula: 'Laboratorio',
-        estado: 'AUSENTE'
-      }
-    ].filter(asistencia => {
-      const fechaAsistencia = new Date(asistencia.fecha)
-      const inicio = new Date(fechaInicio)
-      const fin = new Date(fechaFin)
-      return fechaAsistencia >= inicio && fechaAsistencia <= fin
-    })
-
-    // Obtener información del estudiante
-    const estudiante = await prisma.estudiante.findUnique({
+    // Obtener asistencias de clases/aulas desde la BD
+    const asistencias = await prisma.asistencia.findMany({
       where: {
-        idEstudiante: parseInt(estudianteId)
+        idEstudiante: parseInt(estudianteId),
+        fecha: {
+          gte: new Date(fechaInicio),
+          lte: new Date(fechaFin)
+        }
       },
       include: {
-        usuario: true,
-        gradoSeccion: {
+        estadoAsistencia: true,
+        horarioClase: true,
+        estudiante: {
           include: {
-            grado: true,
-            seccion: true
+            usuario: true,
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
+              }
+            }
           }
         }
+      },
+      orderBy: {
+        fecha: 'desc'
       }
     })
 
-    const asistenciasFormateadas = asistenciasSimuladas.map(asistencia => ({
-      ...asistencia,
+    // Formatear asistencias
+    const asistenciasFormateadas = asistencias.map(asistencia => ({
+      id: asistencia.idAsistencia.toString(),
+      fecha: asistencia.fecha.toISOString(),
+      hora: asistencia.horaRegistro?.toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }) || 'N/A',
+      materia: asistencia.horarioClase?.materia || 'Sin especificar',
+      aula: asistencia.horarioClase?.aula || 'Sin especificar',
+      estado: asistencia.estadoAsistencia?.codigo || 'PENDIENTE',
       estudiante: {
-        id: estudiante?.idEstudiante.toString(),
-        nombre: estudiante?.usuario.nombre,
-        apellido: estudiante?.usuario.apellido,
-        dni: estudiante?.usuario.dni,
-        grado: estudiante?.gradoSeccion?.grado.nombre,
-        seccion: estudiante?.gradoSeccion?.seccion.nombre
+        id: asistencia.estudiante.idEstudiante.toString(),
+        nombre: asistencia.estudiante.usuario.nombre || '',
+        apellido: asistencia.estudiante.usuario.apellido || '',
+        dni: asistencia.estudiante.usuario.dni,
+        grado: asistencia.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
+        seccion: asistencia.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
       }
     }))
 
@@ -130,7 +123,5 @@ export async function GET(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

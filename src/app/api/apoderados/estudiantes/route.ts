@@ -15,14 +15,39 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7)
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
 
+    console.log('🔍 Token decoded:', decoded)
+    console.log('🔍 User ID:', decoded.userId || decoded.idUsuario || decoded.id)
+    console.log('🔍 Rol:', decoded.rol)
+
     if (decoded.rol !== 'APODERADO') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    // Obtener el ID del usuario (puede venir como userId, idUsuario o id)
+    const apoderadoUserId = decoded.userId || decoded.idUsuario || decoded.id
+
+    console.log('🔍 Buscando apoderado con usuario ID:', apoderadoUserId)
+
+    // Primero buscar el apoderado por idUsuario
+    const apoderado = await prisma.apoderado.findFirst({
+      where: {
+        idUsuario: apoderadoUserId
+      }
+    })
+
+    console.log('🔍 Apoderado encontrado:', apoderado)
+
+    if (!apoderado) {
+      return NextResponse.json({ 
+        error: 'No se encontró el apoderado',
+        debug: { apoderadoUserId, decoded }
+      }, { status: 404 })
     }
 
     // Obtener estudiantes del apoderado
     const estudiantesApoderado = await prisma.estudianteApoderado.findMany({
       where: {
-        idApoderado: decoded.userId
+        idApoderado: apoderado.idApoderado
       },
       include: {
         estudiante: {

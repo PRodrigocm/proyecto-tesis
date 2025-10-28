@@ -137,6 +137,7 @@ export default function DocenteAsistencias() {
     }
   }, [claseSeleccionada, fechaSeleccionada, token])
 
+
   const loadClases = async (tokenData: string, userData: any) => {
     try {
       const userId = userData.idUsuario || userData.id
@@ -220,9 +221,15 @@ export default function DocenteAsistencias() {
   }
 
   const loadEstudiantes = async () => {
+    if (!token) {
+      console.warn('⚠️ No hay token disponible para cargar estudiantes')
+      return
+    }
+    
     try {
       setLoading(true)
       console.log('🔍 Cargando estudiantes para clase:', claseSeleccionada, 'fecha:', fechaSeleccionada)
+      console.log('🔑 Token disponible:', token ? 'SÍ' : 'NO')
 
       const response = await fetch(`/api/docentes/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
         headers: {
@@ -230,12 +237,15 @@ export default function DocenteAsistencias() {
         }
       })
 
+      console.log('📡 Respuesta de estudiantes:', response.status, response.statusText)
+
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Estudiantes cargados:', data.estudiantes)
+        console.log('✅ Estudiantes cargados desde API:', data.estudiantes)
+        console.log('📊 Estados de estudiantes:', data.estudiantes.map((e: any) => ({ nombre: e.nombre, estado: e.estado })))
         setEstudiantes(data.estudiantes || [])
       } else {
-        console.error('❌ Error al cargar estudiantes')
+        console.error('❌ Error al cargar estudiantes:', response.status)
         // Datos de fallback
         setEstudiantes([
           {
@@ -291,12 +301,8 @@ export default function DocenteAsistencias() {
   }
 
   const handleTomarAsistenciaQR = async (estudiantesActualizados: any[]) => {
-    console.log('📥 Recibiendo estudiantes actualizados del modal QR:', estudiantesActualizados)
-    
-    // Actualizar inmediatamente el estado local con los datos del modal
-    setEstudiantes(estudiantesActualizados)
-    
-    console.log('✅ Lista de estudiantes actualizada en tiempo real')
+    console.log('📥 Callback directo recibido (no se usa, se prefiere el evento)')
+    // No hacer nada aquí, el listener de eventos se encargará de recargar
   }
 
   const getEstadoColor = (estado: string, estadoVisual?: string) => {

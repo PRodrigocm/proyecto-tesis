@@ -2,24 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-interface HistorialItem {
-  id: string
-  tipo: 'RETIRO' | 'JUSTIFICACION'
-  fecha: string
-  estudiante: {
-    nombre: string
-    apellido: string
-    grado: string
-    seccion: string
-  }
-  estado: string
-  motivo: string
-  descripcion?: string
-  fechaCreacion: string
-  fechaAprobacion?: string
-  aprobadoPor?: string
-}
+import { historialService, type HistorialItem } from '@/services/apoderado.service'
 
 export default function HistorialApoderado() {
   const router = useRouter()
@@ -60,17 +43,8 @@ export default function HistorialApoderado() {
   const loadHistorial = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/historial', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setHistorial(data.historial || [])
-      }
+      const data = await historialService.get()
+      setHistorial(data)
     } catch (error) {
       console.error('Error loading historial:', error)
     } finally {

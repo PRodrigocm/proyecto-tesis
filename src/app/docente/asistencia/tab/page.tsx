@@ -36,12 +36,21 @@ function TomarAsistenciaTabContent() {
   }, [searchParams])
 
   const handleSave = (estudiantes: Estudiante[]) => {
+    console.log('📤 handleSave llamado con estudiantes:', estudiantes)
+    console.log('🔍 window.opener existe:', !!window.opener)
+    console.log('🔍 window.opener cerrado:', window.opener?.closed)
+    
     // Notificar a la pestaña padre sobre los cambios
     if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({
+      const mensaje = {
         type: 'ASISTENCIA_UPDATED',
         data: { claseId, fecha, estudiantes }
-      }, window.location.origin)
+      }
+      console.log('📨 Enviando mensaje a ventana padre:', mensaje)
+      window.opener.postMessage(mensaje, window.location.origin)
+      console.log('✅ Mensaje enviado exitosamente')
+    } else {
+      console.warn('⚠️ No se pudo enviar mensaje: ventana padre no disponible')
     }
   }
 

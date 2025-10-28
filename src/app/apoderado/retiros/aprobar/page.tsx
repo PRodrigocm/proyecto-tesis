@@ -2,26 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-interface RetiroPendiente {
-  id: string
-  fecha: string
-  hora: string
-  motivo: string
-  observaciones: string
-  tipoRetiro: string
-  estado: string
-  estudiante: {
-    id: string
-    nombre: string
-    apellido: string
-    dni: string
-    grado: string
-    seccion: string
-  }
-  solicitadoPor: string
-  fechaSolicitud: string
-}
+import { retirosService, type RetiroPendiente } from '@/services/apoderado.service'
 
 export default function AprobarRetiros() {
   const router = useRouter()
@@ -60,17 +41,8 @@ export default function AprobarRetiros() {
   const loadRetirosPendientes = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/retiros/pendientes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRetirosPendientes(data.retiros || [])
-      }
+      const retiros = await retirosService.getPendientes()
+      setRetirosPendientes(retiros)
     } catch (error) {
       console.error('Error loading retiros pendientes:', error)
     } finally {
@@ -85,25 +57,11 @@ export default function AprobarRetiros() {
 
     setProcesando(retiroId)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/apoderados/retiros/${retiroId}/aprobar`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        alert('Retiro aprobado exitosamente')
-        loadRetirosPendientes() // Recargar la lista
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.message || 'No se pudo aprobar el retiro'}`)
-      }
-    } catch (error) {
-      console.error('Error aprobando retiro:', error)
-      alert('Error al aprobar el retiro')
+      await retirosService.aprobar(retiroId)
+      alert('Retiro aprobado exitosamente')
+      loadRetirosPendientes() // Recargar la lista
+    } catch (error: any) {
+      alert(error.message || 'Error al aprobar retiro')
     } finally {
       setProcesando(null)
     }
@@ -111,30 +69,17 @@ export default function AprobarRetiros() {
 
   const handleRechazarRetiro = async (retiroId: string) => {
     const motivo = prompt('Ingrese el motivo del rechazo:')
-    if (!motivo) return
+    if (!motivo) {
+      return
+    }
 
     setProcesando(retiroId)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/apoderados/retiros/${retiroId}/rechazar`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ motivo })
-      })
-
-      if (response.ok) {
-        alert('Retiro rechazado')
-        loadRetirosPendientes() // Recargar la lista
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.message || 'No se pudo rechazar el retiro'}`)
-      }
-    } catch (error) {
-      console.error('Error rechazando retiro:', error)
-      alert('Error al rechazar el retiro')
+      await retirosService.rechazar(retiroId, motivo)
+      alert('Retiro rechazado exitosamente')
+      loadRetirosPendientes() // Recargar la lista
+    } catch (error: any) {
+      alert(error.message || 'Error al rechazar retiro')
     } finally {
       setProcesando(null)
     }

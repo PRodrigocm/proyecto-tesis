@@ -2,16 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-interface Estudiante {
-  id: string
-  nombre: string
-  apellido: string
-  dni: string
-  grado: string
-  seccion: string
-  codigoEstudiante: string
-}
+import { estudiantesService, retirosService, type Estudiante } from '@/services/apoderado.service'
 
 interface SolicitudRetiro {
   estudianteId: string
@@ -80,17 +71,8 @@ export default function SolicitarRetiro() {
   const loadEstudiantes = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/estudiantes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setEstudiantes(data.estudiantes || [])
-      }
+      const data = await estudiantesService.getAll()
+      setEstudiantes(data)
     } catch (error) {
       console.error('Error loading estudiantes:', error)
     } finally {
@@ -116,26 +98,12 @@ export default function SolicitarRetiro() {
 
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/retiros/solicitar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      })
-
-      if (response.ok) {
-        alert('Solicitud de retiro enviada exitosamente')
-        router.push('/apoderado/dashboard')
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.message || 'No se pudo enviar la solicitud'}`)
-      }
-    } catch (error) {
-      console.error('Error submitting solicitud:', error)
-      alert('Error al enviar la solicitud')
+      await retirosService.solicitar(formData)
+      alert('Solicitud de retiro enviada exitosamente')
+      router.push('/apoderado/retiros')
+    } catch (error: any) {
+      console.error('Error submitting retiro:', error)
+      alert(error.message || 'Error al enviar la solicitud')
     } finally {
       setSubmitting(false)
     }

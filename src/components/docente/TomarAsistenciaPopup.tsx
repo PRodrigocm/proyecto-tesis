@@ -218,7 +218,11 @@ export default function TomarAsistenciaPopup({
             : est
         )
         setEstudiantes(estudiantesActualizados)
+        
+        console.log('🔔 Llamando a onSave con estudiantes actualizados:', estudiantesActualizados.length)
+        console.log('📋 Estudiantes para enviar:', estudiantesActualizados.map(e => ({ nombre: e.nombre, estado: e.estado })))
         onSave(estudiantesActualizados)
+        console.log('✅ onSave ejecutado')
         
         // Mostrar confirmación
         setEstudianteEscaneado({ 
@@ -330,6 +334,36 @@ export default function TomarAsistenciaPopup({
     
     return () => {
       detenerEscaner()
+    }
+  }, [claseSeleccionada, fechaSeleccionada])
+
+  // Auto-refresh cada 0.5 segundos para actualizar tarjetas en tiempo real
+  useEffect(() => {
+    if (!claseSeleccionada || !fechaSeleccionada) return
+
+    console.log('🔄 Auto-refresh activado (cada 0.5s)')
+    
+    const interval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        const response = await fetch(`/api/docentes/asistencia/tomar?claseId=${claseSeleccionada}&fecha=${fechaSeleccionada}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setEstudiantes(data.estudiantes)
+        }
+      } catch (error) {
+        // Silencioso para no saturar consola
+      }
+    }, 3000) // Cada 3 segundos
+
+    return () => {
+      console.log('🛑 Auto-refresh detenido')
+      clearInterval(interval)
     }
   }, [claseSeleccionada, fechaSeleccionada])
 

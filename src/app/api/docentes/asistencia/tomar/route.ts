@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { notificarEntradaSalida } from '@/lib/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -202,6 +203,55 @@ export async function POST(request: NextRequest) {
       hora: ahora.toLocaleTimeString()
     })
 
+    // ENVIAR NOTIFICACIÓN AL APODERADO
+    try {
+      console.log(`🔍 Buscando apoderado para estudiante ID: ${estudiante.idEstudiante}`)
+      
+      const apoderado = await prisma.apoderado.findFirst({
+        where: {
+          estudiantes: {
+            some: {
+              idEstudiante: estudiante.idEstudiante
+            }
+          }
+        },
+        include: {
+          usuario: true
+        }
+      })
+
+      console.log(`📋 Apoderado encontrado:`, apoderado ? 'SÍ' : 'NO')
+      if (apoderado) {
+        console.log(`   Email: ${apoderado.usuario.email || 'NO TIENE'}`)
+        console.log(`   Teléfono: ${apoderado.usuario.telefono || 'NO TIENE'}`)
+      }
+
+      if (apoderado && apoderado.usuario.email) {
+        console.log(`📧 Enviando notificación de asistencia al apoderado...`)
+        
+        const resultadoNotificacion = await notificarEntradaSalida({
+          estudianteNombre: estudiante.usuario.nombre || '',
+          estudianteApellido: estudiante.usuario.apellido || '',
+          estudianteDNI: estudiante.usuario.dni,
+          grado: estudiante.gradoSeccion?.grado?.nombre || '',
+          seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+          accion: 'entrada',
+          hora: ahora.toISOString(),
+          fecha: fechaAsistencia.toISOString(),
+          emailApoderado: apoderado.usuario.email,
+          telefonoApoderado: apoderado.usuario.telefono || '',
+          textoPersonalizado: estadoCodigo === 'PRESENTE' ? 'PRESENTE EN EL AULA' : 'TARDANZA EN EL AULA'
+        })
+
+        console.log(`📧 Notificación enviada: Email=${resultadoNotificacion.emailEnviado}, SMS=${resultadoNotificacion.smsEnviado}`)
+      } else {
+        console.log(`⚠️ No se encontró apoderado con email para ${estudiante.usuario.nombre}`)
+      }
+    } catch (notifError) {
+      console.error(`⚠️ Error al enviar notificación (no crítico):`, notifError)
+      // No fallar el registro de asistencia si la notificación falla
+    }
+
     return NextResponse.json({
       success: true,
       mensaje: `✅ Asistencia registrada: ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} - ${estadoCodigo}`,
@@ -317,13 +367,40 @@ export async function GET(request: NextRequest) {
     const estudiantesTransformados = estudiantes.map(estudiante => {
       const asistenciaDelDia = estudiante.asistencias[0]
       
+      // Mapear estados de la BD al formato del frontend
+      let estadoFrontend = 'sin_registrar'
+      if (asistenciaDelDia?.estadoAsistencia?.codigo) {
+        const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toUpperCase()
+        switch (codigoEstado) {
+          case 'PRESENTE':
+            estadoFrontend = 'presente'
+            break
+          case 'TARDANZA':
+            estadoFrontend = 'tardanza'
+            break
+          case 'AUSENTE':
+          case 'INASISTENCIA':
+            estadoFrontend = 'inasistencia'
+            break
+          case 'JUSTIFICADA':
+          case 'JUSTIFICADO':
+            estadoFrontend = 'justificada'
+            break
+          case 'RETIRADO':
+            estadoFrontend = 'retirado'
+            break
+          default:
+            estadoFrontend = 'sin_registrar'
+        }
+      }
+      
       return {
         id: estudiante.idEstudiante,
-        nombre: estudiante.usuario.nombre,
+        nombre: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
         apellido: estudiante.usuario.apellido,
         dni: estudiante.usuario.dni,
-        codigo: estudiante.codigoQR || estudiante.usuario.dni, // Usar codigoQR del estudiante
-        estado: asistenciaDelDia?.estadoAsistencia?.codigo.toLowerCase() || 'pendiente',
+        codigo: estudiante.codigoQR || estudiante.usuario.dni,
+        estado: estadoFrontend,
         horaLlegada: asistenciaDelDia?.horaRegistro ? 
           asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
             hour: '2-digit', 

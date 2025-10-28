@@ -3,40 +3,24 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import NotificacionesPanel from '@/components/apoderado/NotificacionesPanel'
-
-interface Estudiante {
-  id: string
-  nombre: string
-  apellido: string
-  dni: string
-  grado: string
-  seccion: string
-  codigoEstudiante: string
-}
-
-interface RetiroPendiente {
-  id: string
-  fecha: string
-  hora: string
-  motivo: string
-  estado: string
-  estudiante: string
-}
-
-interface Inasistencia {
-  id: string
-  fecha: string
-  estudiante: string
-  estado: string
-}
+import { 
+  estudiantesService, 
+  estadisticasService, 
+  retirosService, 
+  justificacionesService,
+  type Estudiante,
+  type RetiroPendiente,
+  type InasistenciaPendiente,
+  type Estadisticas
+} from '@/services/apoderado.service'
 
 export default function ApoderadoDashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [retirosPendientes, setRetirosPendientes] = useState<RetiroPendiente[]>([])
-  const [inasistenciasPendientes, setInasistenciasPendientes] = useState<Inasistencia[]>([])
-  const [stats, setStats] = useState({
+  const [inasistenciasPendientes, setInasistenciasPendientes] = useState<InasistenciaPendiente[]>([])
+  const [stats, setStats] = useState<Estadisticas>({
     totalEstudiantes: 0,
     retirosPendientes: 0,
     justificacionesPendientes: 0,
@@ -92,17 +76,8 @@ export default function ApoderadoDashboard() {
 
   const loadEstudiantes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/estudiantes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setEstudiantes(data.estudiantes || [])
-      }
+      const data = await estudiantesService.getAll()
+      setEstudiantes(data)
     } catch (error) {
       console.error('Error loading estudiantes:', error)
     }
@@ -110,17 +85,8 @@ export default function ApoderadoDashboard() {
 
   const loadRetirosPendientes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/retiros/pendientes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRetirosPendientes(data.retiros || [])
-      }
+      const data = await retirosService.getPendientes()
+      setRetirosPendientes(data)
     } catch (error) {
       console.error('Error loading retiros pendientes:', error)
     }
@@ -128,17 +94,8 @@ export default function ApoderadoDashboard() {
 
   const loadInasistenciasPendientes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/justificaciones/pendientes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setInasistenciasPendientes(data.inasistencias || [])
-      }
+      const data = await justificacionesService.getPendientes()
+      setInasistenciasPendientes(data)
     } catch (error) {
       console.error('Error loading inasistencias pendientes:', error)
     }
@@ -146,17 +103,8 @@ export default function ApoderadoDashboard() {
 
   const loadEstadisticas = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/apoderados/estadisticas', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data.estadisticas || stats)
-      }
+      const data = await estadisticasService.get()
+      setStats(data)
     } catch (error) {
       console.error('Error loading estadisticas:', error)
     }
