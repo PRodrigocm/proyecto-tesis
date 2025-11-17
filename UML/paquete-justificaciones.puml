@@ -1,0 +1,170 @@
+@startuml Paquete - Justificaciones
+
+' Configuración
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam groupInheritance 2
+hide circle
+skinparam shadowing false
+
+title Paquete: Justificaciones
+
+' ============================================
+' CLASES DEL PAQUETE
+' ============================================
+
+class Justificacion {
+  +idJustificacion: int
+  +idEstudiante: int
+  +idIe: int
+  +idTipoJustificacion: int
+  +idEstadoJustificacion: int
+  +idEstadoAsistencia: int
+  +fechaInicio: DateTime
+  +fechaFin: DateTime
+  +motivo: string
+  +observaciones: string
+  +fechaPresentacion: DateTime
+  +presentadoPor: int
+  +revisadoPor: int
+  +fechaRevision: DateTime
+  +observacionesRevision: string
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  --
+  +presentar(): Justificacion
+  +actualizar(): void
+  +eliminar(): void
+  +aprobar(usuario: Usuario, observaciones: string): void
+  +rechazar(usuario: Usuario, observaciones: string): void
+  +adjuntarDocumento(documento: DocumentoJustificacion): void
+  +aplicarAAsistencias(asistencias: Asistencia[]): void
+  +obtenerDocumentos(): DocumentoJustificacion[]
+  +estaVigente(): boolean
+}
+
+class TipoJustificacion {
+  +idTipoJustificacion: int
+  +nombre: string
+  +codigo: string
+  +requiereDocumento: boolean
+  +diasMaximos: int
+  +activo: boolean
+  --
+  +crear(): TipoJustificacion
+  +actualizar(): void
+  +eliminar(): void
+  +activar(): void
+  +desactivar(): void
+  +listarTodos(): TipoJustificacion[]
+}
+
+class EstadoJustificacion {
+  +idEstadoJustificacion: int
+  +nombre: string
+  +codigo: string
+  +esFinal: boolean
+  +activo: boolean
+  --
+  +crear(): EstadoJustificacion
+  +actualizar(): void
+  +eliminar(): void
+  +listarTodos(): EstadoJustificacion[]
+}
+
+class DocumentoJustificacion {
+  +idDocumento: int
+  +idJustificacion: int
+  +nombreArchivo: string
+  +rutaArchivo: string
+  +tipoArchivo: string
+  +tamanioBytes: int
+  +descripcion: string
+  +subidoPor: int
+  +createdAt: DateTime
+  --
+  +subir(): DocumentoJustificacion
+  +eliminar(): void
+  +descargar(): byte[]
+  +validarTipo(): boolean
+  +validarTamanio(): boolean
+}
+
+class AsistenciaJustificacion {
+  +idAsistencia: int
+  +idJustificacion: int
+  +fechaAplicacion: DateTime
+  +aplicadoPor: int
+  --
+  +aplicar(): void
+  +remover(): void
+  +obtenerPorJustificacion(idJustificacion: int): AsistenciaJustificacion[]
+}
+
+' ============================================
+' RELACIONES DEL PAQUETE
+' ============================================
+
+' Asociación: Clasificadores de Justificacion
+TipoJustificacion -- Justificacion
+EstadoJustificacion -- Justificacion
+
+' Composición: Justificacion contiene Documentos
+Justificacion *-- DocumentoJustificacion
+
+' Asociación: Clase asociativa para asistencias justificadas
+Justificacion -- AsistenciaJustificacion
+
+note right of Justificacion
+  **Justificación**
+  Documento presentado por el
+  apoderado para justificar
+  inasistencias o tardanzas
+  del estudiante.
+  
+  **Flujo:**
+  1. Apoderado presenta
+  2. Docente/Admin revisa
+  3. Se aprueba o rechaza
+  4. Se aplica a asistencias
+end note
+
+note left of TipoJustificacion
+  **Tipos de Justificación:**
+  - Enfermedad
+  - Cita médica
+  - Viaje
+  - Duelo familiar
+  - Trámite personal
+  - Otros
+  
+  Algunos requieren documento
+  de respaldo obligatorio.
+end note
+
+note bottom of EstadoJustificacion
+  **Estados de Justificación:**
+  - Pendiente
+  - En revisión
+  - Aprobada
+  - Rechazada
+  - Vencida
+end note
+
+note top of DocumentoJustificacion
+  **Documentos de Respaldo**
+  Archivos adjuntos como:
+  - Certificados médicos
+  - Constancias
+  - Cartas
+  - Otros documentos
+end note
+
+note bottom of AsistenciaJustificacion
+  **Asistencias Justificadas**
+  Clase asociativa que vincula
+  una justificación con las
+  asistencias que afecta.
+end note
+
+@enduml

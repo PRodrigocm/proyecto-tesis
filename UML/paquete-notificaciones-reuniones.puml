@@ -1,0 +1,125 @@
+@startuml Paquete - Notificaciones y Reuniones
+
+' Configuración
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam groupInheritance 2
+hide circle
+skinparam shadowing false
+
+title Paquete: Notificaciones y Reuniones
+
+' ============================================
+' CLASES DEL PAQUETE
+' ============================================
+
+class Notificacion {
+  +idNotificacion: int
+  +idUsuario: int
+  +titulo: string
+  +mensaje: string
+  +tipo: string
+  +leida: boolean
+  +fechaEnvio: DateTime
+  +fechaLectura: DateTime
+  +origen: string
+  --
+  +enviar(): Notificacion
+  +marcarComoLeida(): void
+  +eliminar(): void
+  +obtenerPorUsuario(idUsuario: int): Notificacion[]
+  +obtenerNoLeidas(idUsuario: int): Notificacion[]
+  +contarNoLeidas(idUsuario: int): int
+}
+
+class Reunion {
+  +idReunion: int
+  +idIe: int
+  +titulo: string
+  +descripcion: string
+  +fecha: DateTime
+  +horaInicio: DateTime
+  +horaFin: DateTime
+  +tipo: TipoReunionEnum
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  --
+  +crear(): Reunion
+  +actualizar(): void
+  +eliminar(): void
+  +convocar(grados: Grado[], secciones: Seccion[]): void
+  +notificarAsistentes(): void
+  +obtenerConvocados(): Usuario[]
+  +estaProxima(): boolean
+  +yaOcurrio(): boolean
+}
+
+enum TipoReunionEnum {
+  GENERAL
+  ENTREGA_LIBRETAS
+  ASAMBLEA_PADRES
+  TUTORIAL
+  EMERGENCIA
+  OTRO
+}
+
+' ============================================
+' RELACIONES DEL PAQUETE
+' ============================================
+
+' Dependencia: Reunion usa TipoReunionEnum
+Reunion ..> TipoReunionEnum
+
+note right of Notificacion
+  **Notificación**
+  Sistema de mensajería interna
+  para comunicar eventos importantes
+  a los usuarios.
+  
+  **Tipos de notificación:**
+  - Asistencia (inasistencias, tardanzas)
+  - Justificación (aprobada, rechazada)
+  - Retiro (solicitado, completado)
+  - Reunión (convocatoria)
+  - Sistema (general)
+  
+  **Orígenes:**
+  - Sistema automático
+  - Docente
+  - Administrativo
+  - IE
+end note
+
+note left of Reunion
+  **Reunión**
+  Convocatoria a reuniones
+  para apoderados, docentes
+  o estudiantes.
+  
+  **Características:**
+  - Se puede convocar por grado/sección
+  - Envía notificaciones automáticas
+  - Registra fecha y hora
+  - Especifica tipo de reunión
+  
+  **Convocados:**
+  - Apoderados de estudiantes
+  - Docentes asignados
+  - Personal administrativo
+end note
+
+note bottom of TipoReunionEnum
+  **Tipos de Reunión:**
+  
+  - **GENERAL**: Reunión general de apoderados
+  - **ENTREGA_LIBRETAS**: Entrega de libretas/boletas
+  - **ASAMBLEA_PADRES**: Asamblea de padres de familia
+  - **TUTORIAL**: Reunión tutorial (por aula)
+  - **EMERGENCIA**: Reunión de emergencia
+  - **OTRO**: Otros tipos de reunión
+  
+  Cada tipo puede tener diferentes
+  destinatarios y propósitos.
+end note
+
+@enduml

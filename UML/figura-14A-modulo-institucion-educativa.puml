@@ -1,0 +1,187 @@
+@startuml Figura 14A - Módulo Institución Educativa
+
+' Configuración
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam groupInheritance 2
+hide circle
+skinparam shadowing false
+
+title Figura 14A. Diagrama de Clases – Módulo Institución Educativa
+
+' ============================================
+' CLASES DEL MÓDULO INSTITUCIÓN EDUCATIVA
+' ============================================
+
+class Modalidad {
+  +idModalidad: int
+  +nombre: string
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +listarTodos()
+}
+
+class Ie {
+  +idIe: int
+  +nombre: string
+  +codigoIe: string
+  +direccion: string
+  +email: string
+  +telefono: string
+  +idModalidad: int
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +obtenerEstudiantes()
+  +obtenerDocentes()
+  +obtenerNiveles()
+  +generarReporteAsistencia()
+}
+
+class Nivel {
+  +idNivel: int
+  +idIe: int
+  +nombre: string
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +obtenerGrados()
+  +listarPorIE()
+}
+
+class Grado {
+  +idGrado: int
+  +idNivel: int
+  +nombre: string
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +obtenerSecciones()
+  +listarPorNivel()
+}
+
+class Seccion {
+  +idSeccion: int
+  +nombre: string
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +listarTodos()
+}
+
+class GradoSeccion {
+  +idGradoSeccion: int
+  +idGrado: int
+  +idSeccion: int
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +obtenerEstudiantes()
+  +obtenerHorarios()
+  +obtenerDocentes()
+  +generarListaAsistencia()
+}
+
+class CalendarioEscolar {
+  +idCalendario: int
+  +idIe: int
+  +fechaInicio: DateTime
+  +fechaFin: DateTime
+  +tipoDia: string
+  +descripcion: string
+  +creadoEn: DateTime
+  --
+  +crear()
+  +actualizar()
+  +eliminar()
+  +esDiaHabil()
+  +obtenerEventos()
+}
+
+' ============================================
+' RELACIONES
+' ============================================
+
+Modalidad -- Ie
+Ie *-- Nivel
+Ie *-- CalendarioEscolar
+Nivel *-- Grado
+Grado o-- GradoSeccion
+Seccion o-- GradoSeccion
+
+' ============================================
+' NOTAS EXPLICATIVAS
+' ============================================
+
+note top of Ie
+  **Institución Educativa**
+  
+  Entidad principal que representa
+  la institución educativa.
+  
+  Agrupa:
+  • Niveles educativos
+  • Calendario escolar
+  • Usuarios
+  • Estudiantes
+end note
+
+note right of GradoSeccion
+  **Aula**
+  
+  Representa la combinación de
+  un grado con una sección.
+  
+  Ejemplo:
+  • 1° Grado + Sección A = 1°A
+  • 5° Grado + Sección B = 5°B
+  
+  Agrupa:
+  • Estudiantes del aula
+  • Horarios de clases
+  • Docentes asignados
+end note
+
+note bottom of CalendarioEscolar
+  **Calendario Escolar**
+  
+  Define los días hábiles,
+  feriados y eventos especiales
+  de la IE.
+  
+  Tipos de día:
+  • Hábil
+  • Feriado
+  • Evento especial
+  • Vacaciones
+end note
+
+legend right
+  **Módulo Institución Educativa**
+  
+  **Responsabilidad:**
+  Gestiona la estructura organizacional
+  de la institución educativa.
+  
+  **Jerarquía:**
+  IE → Nivel → Grado → Sección
+       → GradoSeccion (Aula)
+  
+  **Clases:** 7
+  
+  **Relaciones:**
+  *-- Composición
+  o-- Agregación
+  --  Asociación
+endlegend
+
+@enduml

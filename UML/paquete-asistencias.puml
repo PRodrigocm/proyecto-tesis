@@ -1,0 +1,140 @@
+@startuml Paquete - Asistencias
+
+' Configuración
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam groupInheritance 2
+hide circle
+skinparam shadowing false
+
+title Paquete: Asistencias
+
+' ============================================
+' CLASES DEL PAQUETE
+' ============================================
+
+class Asistencia {
+  +idAsistencia: int
+  +idEstudiante: int
+  +idHorarioClase: int
+  +fecha: DateTime
+  +idEstadoAsistencia: int
+  +horaRegistro: DateTime
+  +registradoPor: int
+  +observaciones: string
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  --
+  +registrar(): Asistencia
+  +actualizar(): void
+  +eliminar(): void
+  +cambiarEstado(nuevoEstado: EstadoAsistencia, usuario: Usuario): void
+  +aplicarJustificacion(justificacion: Justificacion): void
+  +obtenerHistorico(): HistoricoEstadoAsistencia[]
+  +esTardanza(): boolean
+  +esInasistencia(): boolean
+}
+
+class AsistenciaIE {
+  +idAsistenciaIE: int
+  +idEstudiante: int
+  +idIe: int
+  +fecha: DateTime
+  +horaIngreso: DateTime
+  +horaSalida: DateTime
+  +estado: string
+  +registradoIngresoPor: int
+  +registradoSalidaPor: int
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  --
+  +registrarIngreso(usuario: Usuario): void
+  +registrarSalida(usuario: Usuario): void
+  +actualizar(): void
+  +calcularTiempoEstancia(): int
+  +estaEnIE(): boolean
+}
+
+class EstadoAsistencia {
+  +idEstadoAsistencia: int
+  +nombreEstado: string
+  +activo: boolean
+  +afectaAsistencia: boolean
+  +codigo: string
+  +requiereJustificacion: boolean
+  --
+  +crear(): EstadoAsistencia
+  +actualizar(): void
+  +eliminar(): void
+  +activar(): void
+  +desactivar(): void
+  +listarTodos(): EstadoAsistencia[]
+}
+
+class HistoricoEstadoAsistencia {
+  +idHistorico: int
+  +idAsistencia: int
+  +idEstadoAsistencia: int
+  +fechaCambio: DateTime
+  +cambiadoPor: int
+  --
+  +registrar(): void
+  +obtenerPorAsistencia(idAsistencia: int): HistoricoEstadoAsistencia[]
+}
+
+' ============================================
+' RELACIONES DEL PAQUETE
+' ============================================
+
+' Asociación: EstadoAsistencia clasifica Asistencias
+EstadoAsistencia -- Asistencia
+
+' Composición: Asistencia contiene su Histórico
+Asistencia *-- HistoricoEstadoAsistencia
+
+' Asociación: EstadoAsistencia en Histórico
+EstadoAsistencia -- HistoricoEstadoAsistencia
+
+note right of Asistencia
+  **Asistencia por Clase**
+  Registra la asistencia de un
+  estudiante a una clase específica
+  según el horario.
+  
+  **Estados posibles:**
+  - Presente
+  - Tardanza
+  - Falta
+  - Justificado
+  - Permiso
+end note
+
+note left of AsistenciaIE
+  **Asistencia a IE**
+  Registra el ingreso y salida
+  del estudiante a la institución
+  educativa (control de portería).
+  
+  Independiente de las asistencias
+  por clase.
+end note
+
+note bottom of HistoricoEstadoAsistencia
+  **Histórico de Estados**
+  Mantiene un registro de todos
+  los cambios de estado de una
+  asistencia, incluyendo quién
+  y cuándo realizó el cambio.
+end note
+
+note top of EstadoAsistencia
+  **Estados de Asistencia:**
+  - Presente
+  - Tardanza
+  - Falta
+  - Justificado
+  - Permiso
+  - Falta Injustificada
+end note
+
+@enduml
