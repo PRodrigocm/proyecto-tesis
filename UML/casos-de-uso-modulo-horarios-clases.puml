@@ -1,0 +1,78 @@
+@startuml
+
+left to right direction
+
+skinparam usecase {
+  BackgroundColor #F4F7F9
+  BorderColor #2B6CB0
+}
+
+actor "Docente" as Docente
+actor "Auxiliar\n(Personal IE)" as Auxiliar
+actor "Administrador\n(Personal Admin)" as Admin
+
+rectangle "Módulo Horarios y Clases\n(configuración académica y asignaciones)" {
+
+  ' Autenticación
+  usecase UC_Login as "Autenticarse / Iniciar sesión\n(JWT, roles, permisos)"
+
+  ' Gestión de horarios y aulas
+  usecase UC_GestionarHorarios as "Gestionar horarios clases\n(crear/editar/eliminar)"
+  usecase UC_GestionarTalleres as "Gestionar talleres y actividades\n(inscripciones, horarios)"
+  usecase UC_ConfigurarCalendario as "Configurar calendario escolar\n(feriados, días no laborables)"
+
+  ' Asignación académica
+  usecase UC_AsignarDocentes as "Asignar docentes a grados/secciones\n(docente-aula)"
+  usecase UC_AsignarTalleres as "Asignar talleres a estudiantes\n(cupos, horarios)"
+
+  ' Uso de horarios en el día a día
+  usecase UC_ConsultarHorariosDocente as "Consultar horarios de clase\n(vista docente)"
+  usecase UC_ConsultarHorariosAula as "Consultar horarios por aula\n(grado/sección)"
+
+  ' Relación con asistencias
+  usecase UC_RegistrarAsistenciaAula as "Registrar asistencia en aula (QR)\n(por materia, horarios)"
+}
+
+' Relaciones actores - casos de uso
+Admin --> UC_Login
+Admin --> UC_GestionarHorarios
+Admin --> UC_GestionarTalleres
+Admin --> UC_ConfigurarCalendario
+Admin --> UC_AsignarDocentes
+Admin --> UC_AsignarTalleres
+
+Docente --> UC_Login
+Docente --> UC_ConsultarHorariosDocente
+Docente --> UC_RegistrarAsistenciaAula
+
+Auxiliar --> UC_Login
+Auxiliar --> UC_ConsultarHorariosAula
+
+' Relaciones internas
+UC_GestionarHorarios ..> UC_ConfigurarCalendario : <<include>>
+UC_RegistrarAsistenciaAula ..> UC_ConsultarHorariosDocente : <<include>>
+
+note right of UC_GestionarHorarios
+  Gestión de horarios:
+  - Definir días y horas de clase
+  - Asignar aulas y docentes
+  - Evitar solapamientos
+  - Ajustes por cambios de turno
+end note
+
+note bottom of UC_ConfigurarCalendario
+  Calendario escolar:
+  - Registrar feriados oficiales
+  - Días no laborables
+  - Suspensiones de clases
+  - Inicio y fin de períodos
+end note
+
+note left of UC_ConsultarHorariosDocente
+  Vista del docente:
+  - Horario semanal por día
+  - Detalle por curso/aula
+  - Identificación rápida de huecos
+end note
+
+@enduml

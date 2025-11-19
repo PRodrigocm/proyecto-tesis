@@ -160,6 +160,70 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
     }
   }
 
+  const actualizarEvento = async (eventoId: string, eventoData: {
+    fechaInicio: Date
+    fechaFin?: Date
+    tipo: 'LECTIVO' | 'FERIADO' | 'SUSPENSION' | 'VACACIONES' | 'EVENTO'
+    descripcion?: string
+  }) => {
+    console.log('🔄 Actualizando evento:', eventoId, eventoData)
+    try {
+      const token = localStorage.getItem('token')
+      
+      let tipoDia = 'EVENTO'
+      switch (eventoData.tipo) {
+        case 'FERIADO':
+          tipoDia = 'FERIADO'
+          break
+        case 'SUSPENSION':
+        case 'VACACIONES':
+          tipoDia = 'VACACIONES'
+          break
+        case 'EVENTO':
+          tipoDia = 'EVENTO'
+          break
+      }
+
+      const requestBody = {
+        fechaInicio: eventoData.fechaInicio.toISOString().split('T')[0],
+        fechaFin: (eventoData.fechaFin || eventoData.fechaInicio).toISOString().split('T')[0],
+        tipoDia,
+        descripcion: eventoData.descripcion || 'Evento actualizado'
+      }
+
+      console.log('📅 Enviando actualización a /api/calendario-escolar:', requestBody)
+      
+      const response = await fetch(`/api/calendario-escolar/${eventoId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('📊 Respuesta del servidor (actualización):', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ Error del servidor (actualización):', errorData)
+        throw new Error(`Error al actualizar evento: ${errorData.error || response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('✅ Evento actualizado exitosamente:', result)
+
+      // Recargar datos
+      console.log('🔄 Recargando datos del calendario...')
+      await loadCalendarioEscolar()
+      console.log('✅ Datos recargados exitosamente')
+      
+    } catch (error) {
+      console.error('Error updating evento:', error)
+      throw error
+    }
+  }
+
   const eliminarEvento = async (fecha: string) => {
     try {
       const token = localStorage.getItem('token')
@@ -195,6 +259,7 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
     stats,
     loadCalendarioEscolar,
     registrarEvento,
+    actualizarEvento,
     eliminarEvento
   }
 }

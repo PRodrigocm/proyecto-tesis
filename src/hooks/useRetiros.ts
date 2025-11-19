@@ -12,6 +12,7 @@ export interface Retiro {
   autorizado: boolean
   fechaAutorizacion?: string
   observacionesAutorizacion?: string
+  idEstadoRetiro?: number
   estudiante: {
     id: string
     nombre: string
@@ -194,8 +195,10 @@ export const useRetiros = () => {
     observaciones?: string
     personaRecoge?: string
     dniPersonaRecoge?: string
+    idEstadoRetiro?: string
   }) => {
     try {
+      console.log('Modificando retiro:', retiroId, 'con datos:', data)
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/retiros/${retiroId}`, {
         method: 'PUT',
@@ -206,9 +209,16 @@ export const useRetiros = () => {
         body: JSON.stringify(data)
       })
 
+      console.log('Respuesta del servidor:', response.status, response.statusText)
+      
       if (response.ok) {
+        const result = await response.json()
+        console.log('Resultado de la actualización:', result)
         loadRetiros()
         return true
+      } else {
+        const error = await response.json()
+        console.error('Error del servidor:', error)
       }
       return false
     } catch (error) {

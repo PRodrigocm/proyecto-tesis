@@ -26,28 +26,92 @@ interface HijoRelacion {
   esTitular: boolean
 }
 
+const createInitialFormData = () => ({
+  dni: '',
+  nombre: '',
+  apellido: '',
+  email: '',
+  telefono: '',
+  ocupacion: '',
+  direccion: '',
+  password: ''
+})
+
+const createInitialHijos = (): HijoRelacion[] => ([
+  { estudianteId: '', parentesco: 'PADRE', esTitular: false }
+])
+
 export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: CreateApoderadoModalProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    dni: '',
-    nombre: '',
-    apellido: '',
-    email: '',
-    telefono: '',
-    ocupacion: '',
-    direccion: '',
-    password: ''
-  })
+  const [formData, setFormData] = useState(createInitialFormData)
   
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [loadingEstudiantes, setLoadingEstudiantes] = useState(false)
-  const [hijosRelaciones, setHijosRelaciones] = useState<HijoRelacion[]>([
-    { estudianteId: '', parentesco: 'PADRE', esTitular: false }
-  ])
+  const [hijosRelaciones, setHijosRelaciones] = useState<HijoRelacion[]>(createInitialHijos)
+  const [fieldErrors, setFieldErrors] = useState<{ dni?: string; email?: string }>({})
+
+  const resetForm = () => {
+    setFormData(createInitialFormData())
+    setHijosRelaciones(createInitialHijos())
+    setFieldErrors({})
+  }
+
+  // Validar DNI duplicado
+  const validateDNI = async (dni: string) => {
+    if (dni.length !== 8) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-dni?dni=${dni}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            dni: `El DNI ${dni} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, dni: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating DNI:', error)
+    }
+  }
+
+  // Validar email duplicado
+  const validateEmail = async (email: string) => {
+    if (!email || !email.includes('@')) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-email?email=${encodeURIComponent(email)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            email: `El email ${email} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, email: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating email:', error)
+    }
+  }
 
   // Cargar estudiantes cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
+      resetForm()
       loadEstudiantes()
     }
   }, [isOpen])
@@ -82,6 +146,13 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Verificar si hay errores de validación
+    if (fieldErrors.dni || fieldErrors.email) {
+      alert('Por favor, corrige los errores antes de continuar')
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -122,36 +193,50 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
         alert('Apoderado creado exitosamente')
         onSuccess()
         onClose()
-        setFormData({
-          dni: '',
-          nombre: '',
-          apellido: '',
-          email: '',
-          telefono: '',
-          ocupacion: '',
-          direccion: '',
-          password: ''
-        })
-        setHijosRelaciones([
-          { estudianteId: '', parentesco: 'PADRE', esTitular: false }
-        ])
+        resetForm()
       } else {
         const error = await response.json()
-        alert(`Error: ${error.message || 'No se pudo crear el apoderado'}`)
+        const errorMessage = error.error || error.message || 'No se pudo crear el apoderado'
+
+        if (errorMessage.toLowerCase().includes('dni')) {
+          setFieldErrors(prev => ({ ...prev, dni: errorMessage }))
+        }
+
+        alert(`Error: ${errorMessage}`)
       }
     } catch (error) {
       console.error('Error creating apoderado:', error)
       alert('Error al crear el apoderado')
     } finally {
       setLoading(false)
+      resetForm()
     }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    
+    // Limpiar errores cuando el usuario empiece a escribir
+    if (name === 'dni') {
+      setFieldErrors(prev => ({ ...prev, dni: undefined }))
+    } else if (name === 'email') {
+      setFieldErrors(prev => ({ ...prev, email: undefined }))
+    }
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     })
+
+    // Validar DNI cuando tenga 8 dígitos
+    if (name === 'dni' && value.length === 8 && /^\d{8}$/.test(value)) {
+      validateDNI(value)
+    }
+
+    // Validar email cuando tenga formato válido
+    if (name === 'email' && value.includes('@') && value.includes('.')) {
+      validateEmail(value)
+    }
   }
 
   const agregarHijo = () => {
@@ -203,7 +288,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-base font-semibold text-gray-800 mb-2">DNI *</label>
@@ -215,10 +300,14 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 required
                 maxLength={8}
                 pattern="[0-9]{8}"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="12345678"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.dni ? 'border-red-400' : 'border-gray-300'}`}
+                placeholder="Numero de DNI"
+                autoComplete="off"
               />
               <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
+              {fieldErrors.dni && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.dni}</p>
+              )}
             </div>
 
             <div>
@@ -229,8 +318,13 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                autoComplete="off"
+                placeholder="Correo Electronico"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -241,6 +335,8 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 value={formData.nombre}
                 onChange={handleChange}
                 required
+                autoComplete="off"
+                placeholder="Nombres"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
@@ -253,6 +349,8 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 value={formData.apellido}
                 onChange={handleChange}
                 required
+                autoComplete="off"
+                placeholder="Apellidos"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
@@ -268,7 +366,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 maxLength={9}
                 pattern="[0-9]{9}"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="999999999"
+                placeholder="Numero de telefono"
               />
               <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 9 dígitos</p>
             </div>
@@ -281,6 +379,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 name="ocupacion"
                 value={formData.ocupacion}
                 onChange={handleChange}
+                autoComplete="off"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Profesión u ocupación"
               />
@@ -294,6 +393,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 value={formData.direccion}
                 onChange={handleChange}
                 required
+                autoComplete="off"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Dirección completa del domicilio"
               />
@@ -304,7 +404,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-3 border-t pt-4">
                 <h4 className="text-md font-medium text-gray-900">
-                  Hijos (Opcional)
+                  Hijos
                 </h4>
                 <button
                   type="button"
@@ -415,6 +515,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                 value={formData.password}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
                 className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Mínimo 6 caracteres"
                 minLength={6}

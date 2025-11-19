@@ -458,7 +458,7 @@ export default function ReportesPage() {
                 <option value="" className="text-gray-500">Todos los grados</option>
                 {grados.map((grado, index) => (
                   <option key={`grado-${grado.idGrado || index}`} value={grado.idGrado} className="text-black font-medium">
-                    {grado.nombre}° Grado
+                    {grado.nombre} Grado
                   </option>
                 ))}
               </select>

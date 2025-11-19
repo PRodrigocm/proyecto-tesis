@@ -58,10 +58,67 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
       })
       
       // Load grados, secciones and tipos de asignación
-      loadGrados()
-      loadTiposAsignacion()
+      loadInitialData()
     }
   }, [docente, isOpen])
+
+  const loadInitialData = async () => {
+    await loadGrados()
+    await loadTiposAsignacion()
+  }
+
+  // Precargar valores cuando se cargan los datos
+  useEffect(() => {
+    if (docente && grados.length > 0) {
+      const gradoEncontrado = grados.find(g => g.nombre === docente.grado)
+      if (gradoEncontrado) {
+        setFormData(prev => ({ ...prev, gradoId: gradoEncontrado.idGrado.toString() }))
+        loadSecciones(gradoEncontrado.idGrado.toString())
+      }
+    }
+  }, [docente, grados])
+
+  useEffect(() => {
+    if (docente && secciones.length > 0) {
+      const seccionEncontrada = secciones.find(s => s.nombre === docente.seccion)
+      if (seccionEncontrada) {
+        setFormData(prev => ({ ...prev, seccionId: seccionEncontrada.idSeccion.toString() }))
+      }
+    }
+  }, [docente, secciones])
+
+  useEffect(() => {
+    if (docente && tiposAsignacion.length > 0) {
+      // Necesitamos obtener el tipo de asignación del docente desde la API
+      loadDocenteAsignacion()
+    }
+  }, [docente, tiposAsignacion])
+
+  const loadDocenteAsignacion = async () => {
+    if (!docente) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/docentes/${docente.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const docenteData = data.data
+        
+        // Si el docente tiene tipo de asignación, precargar el valor
+        if (docenteData.tipoAsignacion && docenteData.tipoAsignacion.idTipoAsignacion) {
+          setFormData(prev => ({ 
+            ...prev, 
+            tipoAsignacionId: docenteData.tipoAsignacion.idTipoAsignacion.toString() 
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error loading docente asignacion:', error)
+    }
+  }
 
   const loadGrados = async () => {
     try {
@@ -301,7 +358,7 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
                   <option value="">Seleccionar grado...</option>
                   {grados.map((grado) => (
                     <option key={grado.idGrado} value={grado.idGrado}>
-                      {grado.nombre}°
+                      {grado.nombre}
                     </option>
                   ))}
                 </select>

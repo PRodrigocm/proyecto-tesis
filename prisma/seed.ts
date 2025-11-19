@@ -160,10 +160,10 @@ async function main() {
   // 9. ESTADOS DE RETIRO
   console.log('🚪 Creando Estados de Retiro...')
   const estadosRetiro = [
-    { codigo: 'RETIRADO', nombre: 'Retirado' },
-    { codigo: 'PENDIENTE', nombre: 'Pendiente' },
-    { codigo: 'AUTORIZADO', nombre: 'Autorizado' },
-    { codigo: 'RECHAZADO', nombre: 'Rechazado' }
+    { codigo: 'PENDIENTE', nombre: 'Pendiente', orden: 1 },
+    { codigo: 'AUTORIZADO', nombre: 'Autorizado', orden: 2 },
+    { codigo: 'COMPLETADO', nombre: 'Completado', orden: 3 },
+    { codigo: 'RECHAZADO', nombre: 'Rechazado', orden: 4 }
   ]
 
   for (const estado of estadosRetiro) {
@@ -172,7 +172,8 @@ async function main() {
       update: {},
       create: {
         codigo: estado.codigo,
-        nombre: estado.nombre
+        nombre: estado.nombre,
+        orden: estado.orden
       }
     })
   }

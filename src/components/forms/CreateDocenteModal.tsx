@@ -30,10 +30,81 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
   const [loadingGrados, setLoadingGrados] = useState(false)
   const [loadingSecciones, setLoadingSecciones] = useState(false)
   const [loadingTipos, setLoadingTipos] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ dni?: string; email?: string }>({})
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      dni: '',
+      nombre: '',
+      apellido: '',
+      email: '',
+      telefono: '',
+      especialidad: '',
+      grado: '',
+      seccion: '',
+      tipoAsignacion: '',
+      password: ''
+    })
+    setFieldErrors({})
+  }
+
+  // Validar DNI duplicado
+  const validateDNI = async (dni: string) => {
+    if (dni.length !== 8) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-dni?dni=${dni}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            dni: `El DNI ${dni} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, dni: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating DNI:', error)
+    }
+  }
+
+  // Validar email duplicado
+  const validateEmail = async (email: string) => {
+    if (!email || !email.includes('@')) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-email?email=${encodeURIComponent(email)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            email: `El email ${email} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, email: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating email:', error)
+    }
+  }
 
   // Cargar grados y tipos de asignación cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
+      resetForm()
       loadGrados()
       loadTiposAsignacion()
     }
@@ -129,6 +200,13 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Verificar si hay errores de validación
+    if (fieldErrors.dni || fieldErrors.email) {
+      alert('Por favor, corrige los errores antes de continuar')
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -193,10 +271,27 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
     
+    // Limpiar errores cuando el usuario empiece a escribir
+    if (name === 'dni') {
+      setFieldErrors(prev => ({ ...prev, dni: undefined }))
+    } else if (name === 'email') {
+      setFieldErrors(prev => ({ ...prev, email: undefined }))
+    }
+    
     setFormData({
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     })
+
+    // Validar DNI cuando tenga 8 dígitos
+    if (name === 'dni' && value.length === 8 && /^\d{8}$/.test(value)) {
+      validateDNI(value)
+    }
+
+    // Validar email cuando tenga formato válido
+    if (name === 'email' && value.includes('@') && value.includes('.')) {
+      validateEmail(value)
+    }
   }
 
   if (!isOpen) return null
@@ -226,10 +321,13 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 required
                 maxLength={8}
                 pattern="[0-9]{8}"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.dni ? 'border-red-400' : 'border-gray-300'}`}
                 placeholder="12345678"
               />
               <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
+              {fieldErrors.dni && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.dni}</p>
+              )}
             </div>
 
             <div>
@@ -240,8 +338,11 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>

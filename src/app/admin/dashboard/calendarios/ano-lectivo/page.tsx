@@ -15,12 +15,43 @@ export default function AnoLectivoPage() {
   const [selectedEvento, setSelectedEvento] = useState<any | null>(null)
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [reuniones, setReuniones] = useState<any[]>([])
+
+  // Helper function to format time
+  const formatTime = (timeValue: any) => {
+    if (!timeValue) return 'No especificada'
+    
+    try {
+      // Si ya es una cadena con formato HH:MM
+      if (typeof timeValue === 'string' && timeValue.includes(':')) {
+        return timeValue.slice(0, 5)
+      }
+      
+      // Si es una fecha completa
+      if (timeValue instanceof Date || (typeof timeValue === 'string' && timeValue.includes('T'))) {
+        return new Date(timeValue).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+      }
+      
+      // Si es solo tiempo (HH:MM:SS)
+      if (typeof timeValue === 'string') {
+        const timeParts = timeValue.split(':')
+        if (timeParts.length >= 2) {
+          return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`
+        }
+      }
+      
+      return timeValue.toString()
+    } catch (error) {
+      console.error('Error formatting time:', timeValue, error)
+      return 'Formato inválido'
+    }
+  }
   
   const {
     calendarioEscolar,
     loading,
     loadCalendarioEscolar,
     registrarEvento,
+    actualizarEvento,
     eliminarEvento,
     stats
   } = useAnoLectivo(currentYear)
@@ -32,10 +63,23 @@ export default function AnoLectivoPage() {
   }
 
   const handleRegistrarEvento = async (eventoData: any) => {
-    await registrarEvento(eventoData)
-    setIsModalOpen(false)
-    setSelectedDate(null)
-    setSelectedEvento(null)
+    try {
+      if (selectedEvento) {
+        // Es una edición - usar actualizarEvento
+        console.log('🔄 Editando evento existente:', selectedEvento.idCalendario)
+        await actualizarEvento(selectedEvento.idCalendario, eventoData)
+      } else {
+        // Es un nuevo evento - usar registrarEvento
+        console.log('➕ Creando nuevo evento')
+        await registrarEvento(eventoData)
+      }
+      setIsModalOpen(false)
+      setSelectedDate(null)
+      setSelectedEvento(null)
+    } catch (error) {
+      console.error('Error al procesar evento:', error)
+      alert('Error al procesar el evento. Por favor, inténtalo de nuevo.')
+    }
   }
 
   const handleEliminarEvento = async (idExcepcion: string) => {
@@ -94,8 +138,19 @@ export default function AnoLectivoPage() {
 
   // Cargar reuniones cuando cambie el año
   useEffect(() => {
+    console.log('🔄 useEffect triggered, loading reuniones for year:', currentYear)
     loadReuniones()
   }, [currentYear])
+
+  // Debug: log current state
+  useEffect(() => {
+    console.log('📊 Current state:', {
+      reuniones: reuniones.length,
+      calendarioEscolar: calendarioEscolar.length,
+      loading,
+      currentYear
+    })
+  }, [reuniones, calendarioEscolar, loading, currentYear])
 
   // Asegurar que siempre inicie en el año actual
   useEffect(() => {
@@ -348,11 +403,9 @@ export default function AnoLectivoPage() {
 
       {/* Modal para ver lista de reuniones */}
       {isReunionesListModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setIsReunionesListModalOpen(false)}></div>
-            
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-600 bg-opacity-50">
+          <div className="flex items-center justify-center min-h-screen px-4 py-8">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">
@@ -383,7 +436,7 @@ export default function AnoLectivoPage() {
                                   <span className="font-medium">📅 Fecha:</span> {new Date(reunion.fecha).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                 </p>
                                 <p className="text-sm text-gray-600">
-                                  <span className="font-medium">🕐 Hora:</span> {new Date(reunion.horaInicio).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                  <span className="font-medium">🕐 Hora:</span> {formatTime(reunion.horaInicio)}
                                 </p>
                                 {reunion.descripcion && (
                                   <p className="text-sm text-gray-600">
@@ -430,11 +483,9 @@ export default function AnoLectivoPage() {
 
       {/* Modal para ver lista de eventos */}
       {isEventosListModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setIsEventosListModalOpen(false)}></div>
-            
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-600 bg-opacity-50">
+          <div className="flex items-center justify-center min-h-screen px-4 py-8">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">
@@ -451,40 +502,75 @@ export default function AnoLectivoPage() {
                 </div>
                 
                 <div className="mt-4 max-h-96 overflow-y-auto">
+                  <div className="mb-2 text-xs text-gray-500">
+                    Debug: {calendarioEscolar.length} items total, {calendarioEscolar.filter(item => !item.esLectivo).length} eventos
+                  </div>
                   {calendarioEscolar.filter(item => !item.esLectivo).length === 0 ? (
                     <p className="text-center text-gray-500 py-8">No hay eventos registrados para este año</p>
                   ) : (
-                    <div className="space-y-3">
-                      {calendarioEscolar.filter(item => !item.esLectivo).map((evento: any) => (
-                        <div key={evento.idExcepcion} className={`border rounded-lg p-4 transition-colors ${
-                          evento.tipoEvento === 'FERIADO' ? 'border-red-200 hover:bg-red-50' :
-                          evento.tipoEvento === 'SUSPENSION' ? 'border-yellow-200 hover:bg-yellow-50' :
-                          'border-blue-200 hover:bg-blue-50'
-                        }`}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="text-md font-semibold text-gray-900">{evento.motivo}</h4>
-                              <div className="mt-2 space-y-1">
-                                <p className="text-sm text-gray-600">
-                                  <span className="font-medium">📅 Fecha:</span> {new Date(evento.fecha).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                </p>
-                                {evento.descripcion && (
-                                  <p className="text-sm text-gray-600">
-                                    <span className="font-medium">📝 Descripción:</span> {evento.descripcion}
-                                  </p>
-                                )}
+                    <div className="space-y-4">
+                      {(() => {
+                        // Agrupar eventos por mes
+                        const eventosPorMes = calendarioEscolar
+                          .filter(item => !item.esLectivo)
+                          .reduce((grupos: any, evento: any) => {
+                            const fecha = new Date(evento.fecha)
+                            const mesAno = `${fecha.getFullYear()}-${fecha.getMonth()}`
+                            const nombreMes = fecha.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })
+                            
+                            if (!grupos[mesAno]) {
+                              grupos[mesAno] = {
+                                nombre: nombreMes,
+                                eventos: []
+                              }
+                            }
+                            grupos[mesAno].eventos.push(evento)
+                            return grupos
+                          }, {})
+
+                        return Object.entries(eventosPorMes)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([mesAno, grupo]: [string, any]) => (
+                            <div key={mesAno} className="border-l-4 border-indigo-500 pl-4">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-3 capitalize">
+                                📅 {grupo.nombre}
+                              </h3>
+                              <div className="space-y-2">
+                                {grupo.eventos.map((evento: any, index: number) => (
+                                  <div key={evento.idExcepcion || evento.idCalendario || `evento-${mesAno}-${index}`} 
+                                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-3">
+                                        <span className={`w-3 h-3 rounded-full ${
+                                          evento.tipoEvento === 'FERIADO' ? 'bg-red-500' :
+                                          evento.tipoEvento === 'SUSPENSION' ? 'bg-yellow-500' :
+                                          'bg-blue-500'
+                                        }`}></span>
+                                        <div>
+                                          <p className="font-medium text-gray-900">{evento.motivo}</p>
+                                          <p className="text-sm text-gray-600">
+                                            {new Date(evento.fecha).toLocaleDateString('es-PE', { 
+                                              weekday: 'long', 
+                                              day: 'numeric' 
+                                            })}
+                                            {evento.descripcion && ` • ${evento.descripcion}`}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                      evento.tipoEvento === 'FERIADO' ? 'bg-red-100 text-red-700' :
+                                      evento.tipoEvento === 'SUSPENSION' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {evento.tipoEvento}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                            <span className={`ml-4 px-3 py-1 text-xs font-medium rounded-full ${
-                              evento.tipoEvento === 'FERIADO' ? 'bg-red-100 text-red-800' :
-                              evento.tipoEvento === 'SUSPENSION' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
-                              {evento.tipoEvento}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                          ))
+                      })()}
                     </div>
                   )}
                 </div>

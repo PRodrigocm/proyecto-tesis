@@ -59,7 +59,7 @@ export default function DocentesFiltersComponent({
             <option value="" className="text-black">Todos</option>
             {[...new Set(grados)].map((grado, index) => (
               <option key={`grado-${grado}-${index}`} value={grado} className="text-black">
-                {grado}°
+                {grado}
               </option>
             ))}
           </select>

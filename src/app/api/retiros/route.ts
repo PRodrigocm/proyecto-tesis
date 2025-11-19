@@ -71,8 +71,7 @@ async function actualizarAsistenciaPorRetiro(tx: any, params: {
   const asistenciaExistente = await tx.asistencia.findFirst({
     where: {
       idEstudiante: estudianteId,
-      fecha: fechaSoloFecha,
-      sesion: 'AM' // Asumir sesión de mañana por defecto
+      fecha: fechaSoloFecha
     }
   })
   
@@ -82,9 +81,7 @@ async function actualizarAsistenciaPorRetiro(tx: any, params: {
       where: { idAsistencia: asistenciaExistente.idAsistencia },
       data: {
         idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
-        horaSalida: horaRetiro,
         observaciones: observacionesAsistencia,
-        fuente: 'RETIRO_AUTOMATICO',
         registradoPor: userId
       }
     })
@@ -95,14 +92,9 @@ async function actualizarAsistenciaPorRetiro(tx: any, params: {
     await tx.asistencia.create({
       data: {
         idEstudiante: estudianteId,
-        idIe: ieId,
         fecha: fechaSoloFecha,
-        sesion: 'AM',
-        horaEntrada: null, // No se registró entrada
-        horaSalida: horaRetiro,
         idEstadoAsistencia: estadoAsistencia?.idEstadoAsistencia,
         observaciones: observacionesAsistencia,
-        fuente: 'RETIRO_AUTOMATICO',
         registradoPor: userId
       }
     })
@@ -197,6 +189,11 @@ export async function GET(request: NextRequest) {
         },
         estadoRetiro: true,
         tipoRetiro: true,
+        apoderadoRetira: {
+          include: {
+            usuario: true
+          }
+        },
         usuarioVerificador: {
           select: {
             nombre: true,
@@ -226,18 +223,25 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Retiros después de filtros: ${filteredRetiros.length}`)
 
     const transformedRetiros = filteredRetiros.map(retiro => {
-      // Extraer persona que recoge de las observaciones si existe
-      const observaciones = retiro.observaciones || ''
-      const personaRecogeMatch = observaciones.match(/Persona que recoge: ([^|]+)/)
-      const personaRecoge = personaRecogeMatch ? personaRecogeMatch[1].trim() : ''
-      const observacionesLimpias = observaciones.replace(/\s*\|\s*Persona que recoge: [^|]+/, '').trim()
+      // Obtener persona que recoge desde la relación apoderadoRetira o desde observaciones
+      let personaRecoge = ''
+      if (retiro.apoderadoRetira?.usuario) {
+        personaRecoge = `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
+      } else {
+        // Fallback: extraer de observaciones si existe el patrón
+        const observaciones = retiro.observaciones || ''
+        const personaRecogeMatch = observaciones.match(/Persona que recoge: ([^|]+)/)
+        if (personaRecogeMatch) {
+          personaRecoge = personaRecogeMatch[1].trim()
+        }
+      }
 
       return {
         id: retiro.idRetiro.toString(),
         fecha: retiro.fecha.toISOString(),
         horaRetiro: retiro.hora.toTimeString().slice(0, 5),
         motivo: retiro.tipoRetiro?.nombre || 'Retiro',
-        observaciones: observacionesLimpias,
+        observaciones: retiro.observaciones || '',
         personaRecoge: personaRecoge,
         dniPersonaRecoge: retiro.dniVerificado || '',
         estado: retiro.estadoRetiro?.nombre || 'PENDIENTE',

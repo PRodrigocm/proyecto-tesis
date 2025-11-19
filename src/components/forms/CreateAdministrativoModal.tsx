@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 // import { XMarkIcon } from '@heroicons/react/24/outline'
 
 interface CreateAdministrativoModalProps {
@@ -19,9 +19,89 @@ export default function CreateAdministrativoModal({ isOpen, onClose, onSuccess }
     telefono: '',
     password: ''
   })
+  const [fieldErrors, setFieldErrors] = useState<{ dni?: string; email?: string }>({})
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      dni: '',
+      nombre: '',
+      apellido: '',
+      email: '',
+      telefono: '',
+      password: ''
+    })
+    setFieldErrors({})
+  }
+
+  // Validar DNI duplicado
+  const validateDNI = async (dni: string) => {
+    if (dni.length !== 8) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-dni?dni=${dni}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            dni: `El DNI ${dni} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, dni: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating DNI:', error)
+    }
+  }
+
+  // Validar email duplicado
+  const validateEmail = async (email: string) => {
+    if (!email || !email.includes('@')) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/usuarios/validate-email?email=${encodeURIComponent(email)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.exists) {
+          setFieldErrors(prev => ({ 
+            ...prev, 
+            email: `El email ${email} ya está registrado` 
+          }))
+        } else {
+          setFieldErrors(prev => ({ ...prev, email: undefined }))
+        }
+      }
+    } catch (error) {
+      console.error('Error validating email:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm()
+    }
+  }, [isOpen])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Verificar si hay errores de validación
+    if (fieldErrors.dni || fieldErrors.email) {
+      alert('Por favor, corrige los errores antes de continuar')
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -73,10 +153,29 @@ export default function CreateAdministrativoModal({ isOpen, onClose, onSuccess }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    
+    // Limpiar errores cuando el usuario empiece a escribir
+    if (name === 'dni') {
+      setFieldErrors(prev => ({ ...prev, dni: undefined }))
+    } else if (name === 'email') {
+      setFieldErrors(prev => ({ ...prev, email: undefined }))
+    }
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     })
+
+    // Validar DNI cuando tenga 8 dígitos
+    if (name === 'dni' && value.length === 8 && /^\d{8}$/.test(value)) {
+      validateDNI(value)
+    }
+
+    // Validar email cuando tenga formato válido
+    if (name === 'email' && value.includes('@') && value.includes('.')) {
+      validateEmail(value)
+    }
   }
 
   if (!isOpen) return null
@@ -106,10 +205,13 @@ export default function CreateAdministrativoModal({ isOpen, onClose, onSuccess }
                 required
                 maxLength={8}
                 pattern="[0-9]{8}"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.dni ? 'border-red-400' : 'border-gray-300'}`}
                 placeholder="12345678"
               />
               <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
+              {fieldErrors.dni && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.dni}</p>
+              )}
             </div>
 
             <div>
@@ -120,8 +222,11 @@ export default function CreateAdministrativoModal({ isOpen, onClose, onSuccess }
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>

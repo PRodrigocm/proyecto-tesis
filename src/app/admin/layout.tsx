@@ -107,7 +107,7 @@ export default function AdminLayout({
     },
     {
       name: 'Calendario',
-      href: '/admin/dashboard/calendarios',
+      href: '/admin/dashboard/calendarios/ano-lectivo',
       icon: '📅',
       current: pathname.startsWith('/admin/dashboard/calendarios') || pathname.startsWith('/admin/dashboard/horarios'),
       children: [

@@ -14,8 +14,10 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
     motivo: '',
     observaciones: '',
     personaRecoge: '',
-    dniPersonaRecoge: ''
+    dniPersonaRecoge: '',
+    idEstadoRetiro: ''
   })
+  const [estadosRetiro, setEstadosRetiro] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   const motivosComunes = [
@@ -34,10 +36,39 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
         motivo: retiro.motivo || '',
         observaciones: retiro.observaciones || '',
         personaRecoge: retiro.personaRecoge || '',
-        dniPersonaRecoge: retiro.dniPersonaRecoge || ''
+        dniPersonaRecoge: retiro.dniPersonaRecoge || '',
+        idEstadoRetiro: retiro.idEstadoRetiro?.toString() || ''
       })
     }
   }, [retiro, isOpen])
+
+  // Cargar estados de retiro
+  useEffect(() => {
+    if (isOpen) {
+      loadEstadosRetiro()
+    }
+  }, [isOpen])
+
+  const loadEstadosRetiro = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/estados-retiro', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Estados retiro cargados:', data.estados)
+        setEstadosRetiro(data.estados || [])
+      } else {
+        console.error('Error response:', response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error('Error loading estados retiro:', error)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -50,9 +81,13 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
 
     setLoading(true)
     try {
+      console.log('Enviando datos del retiro:', formData)
       const success = await onSave(retiro.id, formData)
       if (success) {
+        console.log('Retiro actualizado exitosamente')
         onClose()
+      } else {
+        console.error('Error: onSave retornó false')
       }
     } catch (error) {
       console.error('Error al actualizar retiro:', error)
@@ -205,6 +240,27 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
               />
             </div>
+          </div>
+
+          {/* Estado del Retiro */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Estado del Retiro *
+            </label>
+            <select
+              name="idEstadoRetiro"
+              value={formData.idEstadoRetiro}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+            >
+              <option value="">Seleccionar estado</option>
+              {estadosRetiro.map((estado) => (
+                <option key={estado.idEstadoRetiro} value={estado.idEstadoRetiro}>
+                  {getEstadoIcon(estado.codigo)} {estado.nombre}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Observaciones */}

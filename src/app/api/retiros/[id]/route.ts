@@ -48,7 +48,8 @@ export async function PUT(
       motivo,
       observaciones,
       personaRecoge,
-      dniPersonaRecoge
+      dniPersonaRecoge,
+      idEstadoRetiro
     } = body
 
     // Verificar que el retiro existe
@@ -95,8 +96,24 @@ export async function PUT(
     if (fecha) dataToUpdate.fecha = new Date(fecha)
     if (horaRetiro) dataToUpdate.hora = new Date(`1970-01-01T${horaRetiro}:00.000Z`)
     if (tipoRetiroId) dataToUpdate.idTipoRetiro = tipoRetiroId
-    if (observaciones !== undefined) dataToUpdate.observaciones = observaciones
     if (dniPersonaRecoge !== undefined) dataToUpdate.dniVerificado = dniPersonaRecoge
+    if (idEstadoRetiro) dataToUpdate.idEstadoRetiro = parseInt(idEstadoRetiro)
+    
+    // Manejar observaciones y personaRecoge
+    let observacionesFinales = observaciones || ''
+    if (personaRecoge) {
+      // Si hay persona que recoge, agregarla a las observaciones
+      if (observacionesFinales && !observacionesFinales.includes('Persona que recoge:')) {
+        observacionesFinales += ` | Persona que recoge: ${personaRecoge}`
+      } else if (!observacionesFinales) {
+        observacionesFinales = `Persona que recoge: ${personaRecoge}`
+      } else {
+        // Reemplazar persona que recoge existente
+        observacionesFinales = observacionesFinales.replace(/\s*\|\s*Persona que recoge: [^|]+/, '')
+        observacionesFinales += ` | Persona que recoge: ${personaRecoge}`
+      }
+    }
+    if (observacionesFinales !== undefined) dataToUpdate.observaciones = observacionesFinales
 
     // Actualizar el retiro
     const retiroActualizado = await prisma.retiro.update({
@@ -116,6 +133,11 @@ export async function PUT(
         },
         tipoRetiro: true,
         estadoRetiro: true,
+        apoderadoRetira: {
+          include: {
+            usuario: true
+          }
+        },
         usuarioVerificador: {
           select: {
             nombre: true,
@@ -140,9 +162,16 @@ export async function PUT(
         horaRetiro: retiroActualizado.hora.toTimeString().slice(0, 5),
         motivo: retiroActualizado.tipoRetiro?.nombre || 'Retiro',
         observaciones: retiroActualizado.observaciones || '',
-        personaRecoge: retiroActualizado.dniVerificado || '',
+        personaRecoge: retiroActualizado.apoderadoRetira?.usuario ? 
+          `${retiroActualizado.apoderadoRetira.usuario.nombre} ${retiroActualizado.apoderadoRetira.usuario.apellido}` : 
+          (() => {
+            const observaciones = retiroActualizado.observaciones || ''
+            const personaRecogeMatch = observaciones.match(/Persona que recoge: ([^|]+)/)
+            return personaRecogeMatch ? personaRecogeMatch[1].trim() : ''
+          })(),
         dniPersonaRecoge: retiroActualizado.dniVerificado || '',
         estado: retiroActualizado.estadoRetiro?.nombre || 'PENDIENTE',
+        idEstadoRetiro: retiroActualizado.idEstadoRetiro,
         estudiante: {
           id: retiroActualizado.estudiante.idEstudiante.toString(),
           nombre: retiroActualizado.estudiante.usuario.nombre,
