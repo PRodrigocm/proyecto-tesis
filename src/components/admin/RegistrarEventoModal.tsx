@@ -492,10 +492,11 @@ export default function RegistrarEventoModal({
                   type="button"
                   onClick={() => {
                     console.log('🗑️ Eliminando evento:', selectedEvento)
-                    const eventoId = selectedEvento.idExcepcion || selectedEvento.id
+                    const eventoId = selectedEvento.idCalendario || selectedEvento.idExcepcion || selectedEvento.id
                     if (eventoId) {
                       onDelete(String(eventoId))
                     } else {
+                      console.error('❌ No se encontró ID del evento:', selectedEvento)
                       alert('No se puede eliminar: ID de evento no encontrado')
                     }
                   }}

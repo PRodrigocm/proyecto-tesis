@@ -82,12 +82,18 @@ export default function AnoLectivoPage() {
     }
   }
 
-  const handleEliminarEvento = async (idExcepcion: string) => {
+  const handleEliminarEvento = async (eventoId: string) => {
     if (confirm('¿Estás seguro de que deseas eliminar este evento?')) {
-      await eliminarEvento(idExcepcion)
-      setIsModalOpen(false)
-      setSelectedDate(null)
-      setSelectedEvento(null)
+      try {
+        console.log('🗑️ Eliminando evento con ID:', eventoId)
+        await eliminarEvento(eventoId)
+        setIsModalOpen(false)
+        setSelectedDate(null)
+        setSelectedEvento(null)
+      } catch (error) {
+        console.error('Error al eliminar evento:', error)
+        alert('Error al eliminar el evento. Por favor, inténtalo de nuevo.')
+      }
     }
   }
 

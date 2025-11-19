@@ -224,24 +224,32 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
     }
   }
 
-  const eliminarEvento = async (fecha: string) => {
+  const eliminarEvento = async (eventoId: string) => {
+    console.log('🗑️ Eliminando evento con ID:', eventoId)
     try {
       const token = localStorage.getItem('token')
       
-      // Intentar eliminar de calendario escolar
-      await fetch(`/api/calendario-escolar?fecha=${fecha}`, {
+      // Eliminar usando el ID del evento
+      const response = await fetch(`/api/calendario-escolar/${eventoId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      // Intentar eliminar de excepciones
-      await fetch(`/api/excepciones-horario?fecha=${fecha}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      console.log('📊 Respuesta del servidor (eliminación):', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ Error del servidor (eliminación):', errorData)
+        throw new Error(`Error al eliminar evento: ${errorData.error || response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('✅ Evento eliminado exitosamente:', result)
 
       // Recargar datos
+      console.log('🔄 Recargando datos del calendario...')
       await loadCalendarioEscolar()
+      console.log('✅ Datos recargados exitosamente')
       
     } catch (error) {
       console.error('Error deleting evento:', error)
