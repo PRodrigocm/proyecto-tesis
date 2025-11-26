@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import TomarAsistenciaButton from '@/components/docente/TomarAsistenciaButton'
 
 export default function DocenteAsistencias() {
+  const router = useRouter()
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0])
   const [claseSeleccionada, setClaseSeleccionada] = useState('')
   const [estudiantes, setEstudiantes] = useState<any[]>([])
@@ -246,23 +248,7 @@ export default function DocenteAsistencias() {
         setEstudiantes(data.estudiantes || [])
       } else {
         console.error('❌ Error al cargar estudiantes:', response.status)
-        // Datos de fallback
-        setEstudiantes([
-          {
-            id: 1,
-            nombre: 'Juan Pérez',
-            codigo: 'EST001',
-            estado: 'sin_registrar',
-            horaLlegada: null
-          },
-          {
-            id: 2,
-            nombre: 'María González',
-            codigo: 'EST002',
-            estado: 'sin_registrar',
-            horaLlegada: null
-          }
-        ])
+        setEstudiantes([])
       }
     } catch (error) {
       console.error('Error loading estudiantes:', error)
@@ -293,11 +279,64 @@ export default function DocenteAsistencias() {
     }))
   }
 
-  const handleGuardarAsistencia = () => {
-    // Aquí se guardaría la asistencia
-    console.log('Guardando asistencia:', { fecha: fechaSeleccionada, clase: claseSeleccionada, estudiantes })
-    setModoEdicion(false)
-    alert('Asistencia guardada correctamente')
+  const handleGuardarAsistencia = async () => {
+    if (!token || !claseSeleccionada) return
+    
+    try {
+      setLoading(true)
+      const estudiantesEditados = estudiantes.filter(e => e.editado)
+      
+      if (estudiantesEditados.length === 0) {
+        alert('No hay cambios para guardar')
+        setModoEdicion(false)
+        return
+      }
+
+      // Guardar cada asistencia editada
+      for (const estudiante of estudiantesEditados) {
+        await fetch('/api/asistencias', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            estudianteId: estudiante.id,
+            claseId: claseSeleccionada,
+            fecha: fechaSeleccionada,
+            estado: estudiante.estado,
+            horaLlegada: estudiante.horaLlegada
+          })
+        })
+      }
+
+      alert(`✅ ${estudiantesEditados.length} asistencia(s) guardada(s) correctamente`)
+      setModoEdicion(false)
+      loadEstudiantes() // Recargar para ver cambios
+    } catch (error) {
+      console.error('Error guardando asistencia:', error)
+      alert('Error al guardar asistencia')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMarcarTodosPresentes = () => {
+    if (!claseSeleccionada || estudiantes.length === 0) {
+      alert('Primero selecciona una clase y carga los estudiantes')
+      return
+    }
+    
+    const horaActual = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    
+    setEstudiantes(prev => prev.map(est => ({
+      ...est,
+      estado: est.estado === 'sin_registrar' ? 'presente' : est.estado,
+      horaLlegada: est.estado === 'sin_registrar' ? horaActual : est.horaLlegada,
+      editado: est.estado === 'sin_registrar' ? true : est.editado
+    })))
+    
+    setModoEdicion(true)
   }
 
   const handleTomarAsistenciaQR = async (estudiantesActualizados: any[]) => {
@@ -688,7 +727,7 @@ export default function DocenteAsistencias() {
                   Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Horarios
+                  Hora
                 </th>
                 {modoEdicion && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -772,23 +811,32 @@ export default function DocenteAsistencias() {
 
       {/* Acciones Rápidas */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+        <button 
+          onClick={handleMarcarTodosPresentes}
+          disabled={!claseSeleccionada || estudiantes.length === 0 || !esFechaHoy()}
+          className={`bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left ${
+            !claseSeleccionada || estudiantes.length === 0 || !esFechaHoy() ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-900">Marcar Todos Presentes</p>
-              <p className="text-xs text-gray-500">Acción rápida para clases completas</p>
+              <p className="text-xs text-gray-500">Marca como presente a los sin registrar</p>
             </div>
           </div>
         </button>
 
-        <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+        <button 
+          onClick={() => router.push('/docente/reportes')}
+          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -799,12 +847,15 @@ export default function DocenteAsistencias() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-900">Generar Reporte</p>
-              <p className="text-xs text-gray-500">Exportar asistencia del día</p>
+              <p className="text-xs text-gray-500">Ir a reportes de asistencia</p>
             </div>
           </div>
         </button>
 
-        <button className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left">
+        <button 
+          onClick={() => router.push('/docente/horarios')}
+          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+        >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -814,8 +865,8 @@ export default function DocenteAsistencias() {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-900">Ver Historial</p>
-              <p className="text-xs text-gray-500">Consultar asistencias anteriores</p>
+              <p className="text-sm font-medium text-gray-900">Ver Horarios</p>
+              <p className="text-xs text-gray-500">Consultar horarios de clases</p>
             </div>
           </div>
         </button>

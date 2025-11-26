@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { enviarEmail, enviarSMS } from '@/lib/notifications'
-
-const prisma = new PrismaClient()
 
 // GET - Obtener reuniones
 export async function GET(request: NextRequest) {

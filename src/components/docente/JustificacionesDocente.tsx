@@ -87,58 +87,61 @@ export default function JustificacionesDocente() {
   const estadisticas = getEstadisticas()
 
   return (
-    <div className="bg-white rounded-lg shadow-md">
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-black mb-2">Justificaciones de Estudiantes</h2>
-        <p className="text-black">
-          Revisa y aprueba las justificaciones presentadas por los estudiantes
-        </p>
-      </div>
-
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
       {/* Filtros y búsqueda */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="flex-1">
+      <div className="p-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <input
               type="text"
               placeholder="Buscar por estudiante, DNI o motivo..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white shadow-sm transition-all"
             />
           </div>
-          <div>
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
-            >
-              <option value="">Todos los estados</option>
-              <option value="PENDIENTE">Pendientes</option>
-              <option value="APROBADA">Aprobadas</option>
-              <option value="RECHAZADA">Rechazadas</option>
-            </select>
+          <div className="flex gap-2">
+            {['', 'PENDIENTE', 'APROBADA', 'RECHAZADA'].map((estado) => (
+              <button
+                key={estado}
+                onClick={() => setFiltroEstado(estado)}
+                className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                  filtroEstado === estado
+                    ? estado === 'PENDIENTE' ? 'bg-yellow-500 text-white shadow-md'
+                    : estado === 'APROBADA' ? 'bg-green-500 text-white shadow-md'
+                    : estado === 'RECHAZADA' ? 'bg-red-500 text-white shadow-md'
+                    : 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {estado === '' ? 'Todos' : estado === 'PENDIENTE' ? '⏳ Pendientes' : estado === 'APROBADA' ? '✅ Aprobadas' : '❌ Rechazadas'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
-            <div className="text-sm text-black">Total</div>
+        {/* Estadísticas compactas */}
+        <div className="grid grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 text-center text-white shadow-md">
+            <div className="text-2xl font-bold">{estadisticas.total}</div>
+            <div className="text-xs opacity-90">Total</div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</div>
-            <div className="text-sm text-black">Pendientes</div>
+          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl p-3 text-center text-white shadow-md">
+            <div className="text-2xl font-bold">{estadisticas.pendientes}</div>
+            <div className="text-xs opacity-90">Pendientes</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{estadisticas.aprobadas}</div>
-            <div className="text-sm text-black">Aprobadas</div>
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-3 text-center text-white shadow-md">
+            <div className="text-2xl font-bold">{estadisticas.aprobadas}</div>
+            <div className="text-xs opacity-90">Aprobadas</div>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-red-600">{estadisticas.rechazadas}</div>
-            <div className="text-sm text-black">Rechazadas</div>
+          <div className="bg-gradient-to-br from-red-500 to-rose-600 rounded-xl p-3 text-center text-white shadow-md">
+            <div className="text-2xl font-bold">{estadisticas.rechazadas}</div>
+            <div className="text-xs opacity-90">Rechazadas</div>
           </div>
         </div>
       </div>
@@ -159,113 +162,108 @@ export default function JustificacionesDocente() {
       )}
 
       {/* Lista de justificaciones */}
-      <div className="p-6">
+      <div className="p-4">
         {justificacionesFiltradas.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-6xl mb-4">📋</div>
-            <h3 className="text-lg font-medium text-black mb-2">No hay justificaciones</h3>
-            <p className="text-black">
-              {busqueda ? 'No se encontraron justificaciones que coincidan con tu búsqueda' : 'No hay justificaciones para mostrar'}
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No hay justificaciones</h3>
+            <p className="text-gray-500 text-sm">
+              {busqueda ? 'No se encontraron resultados' : 'No hay justificaciones para mostrar'}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {justificacionesFiltradas.map((justificacion) => (
               <div
                 key={justificacion.idJustificacion}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className={`rounded-xl border-2 p-4 transition-all hover:shadow-lg ${
+                  justificacion.estadoJustificacion.codigo === 'PENDIENTE' 
+                    ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-white'
+                    : justificacion.estadoJustificacion.codigo === 'APROBADA'
+                    ? 'border-green-200 bg-gradient-to-r from-green-50 to-white'
+                    : 'border-red-200 bg-gradient-to-r from-red-50 to-white'
+                }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   {/* Información principal */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-black">
-                        {justificacion.estudiante.usuario.nombre} {justificacion.estudiante.usuario.apellido}
-                      </h3>
-                      <span className="text-sm text-black">
-                        DNI: {justificacion.estudiante.usuario.dni}
-                      </span>
-                      {justificacion.estudiante.gradoSeccion && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          {justificacion.estudiante.gradoSeccion.grado.nombre}° {justificacion.estudiante.gradoSeccion.seccion.nombre}
-                        </span>
-                      )}
-                      <span className={`px-2 py-1 text-xs rounded-full ${
+                    {/* Header de la tarjeta */}
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {justificacion.estudiante.usuario.nombre[0]}{justificacion.estudiante.usuario.apellido[0]}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">
+                          {justificacion.estudiante.usuario.nombre} {justificacion.estudiante.usuario.apellido}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>DNI: {justificacion.estudiante.usuario.dni}</span>
+                          {justificacion.estudiante.gradoSeccion && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                              {justificacion.estudiante.gradoSeccion.grado.nombre}° {justificacion.estudiante.gradoSeccion.seccion.nombre}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`ml-auto px-3 py-1 text-xs font-bold rounded-full ${
                         justificacion.estadoJustificacion.codigo === 'PENDIENTE' 
                           ? 'bg-yellow-100 text-yellow-800'
                           : justificacion.estadoJustificacion.codigo === 'APROBADA'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {justificacion.estadoJustificacion.nombre}
+                        {justificacion.estadoJustificacion.codigo === 'PENDIENTE' ? '⏳' : justificacion.estadoJustificacion.codigo === 'APROBADA' ? '✅' : '❌'} {justificacion.estadoJustificacion.nombre}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-black">Tipo:</span>
-                        <p className="text-black">{justificacion.tipoJustificacion.nombre}</p>
+                    {/* Info grid */}
+                    <div className="grid grid-cols-3 gap-3 text-sm mb-3">
+                      <div className="bg-white/50 rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs block">Tipo</span>
+                        <span className="font-medium text-gray-900">{justificacion.tipoJustificacion.nombre}</span>
                       </div>
-                      <div>
-                        <span className="font-medium text-black">Fechas:</span>
-                        <p className="text-black">
-                          {formatearRangoFechas(justificacion.fechaInicio, justificacion.fechaFin)}
-                        </p>
+                      <div className="bg-white/50 rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs block">Fechas</span>
+                        <span className="font-medium text-gray-900">{formatearRangoFechas(justificacion.fechaInicio, justificacion.fechaFin)}</span>
                       </div>
-                      <div>
-                        <span className="font-medium text-black">Presentado:</span>
-                        <p className="text-black">
-                          {formatearFecha(justificacion.fechaPresentacion)}
-                        </p>
+                      <div className="bg-white/50 rounded-lg p-2 border">
+                        <span className="text-gray-500 text-xs block">Presentado</span>
+                        <span className="font-medium text-gray-900">{formatearFecha(justificacion.fechaPresentacion)}</span>
                       </div>
                     </div>
 
-                    <div className="mt-3">
-                      <span className="font-medium text-black">Motivo:</span>
-                      <p className="text-black mt-1">{justificacion.motivo}</p>
+                    {/* Motivo */}
+                    <div className="bg-white/70 rounded-lg p-3 border mb-2">
+                      <span className="text-gray-500 text-xs block mb-1">Motivo</span>
+                      <p className="text-gray-900 text-sm">{justificacion.motivo}</p>
                     </div>
-
-                    {justificacion.observaciones && (
-                      <div className="mt-2">
-                        <span className="font-medium text-black">Observaciones:</span>
-                        <p className="text-black mt-1">{justificacion.observaciones}</p>
-                      </div>
-                    )}
 
                     {/* Documentos */}
                     {justificacion.documentos.length > 0 && (
-                      <div className="mt-3">
-                        <span className="font-medium text-black">Documentos adjuntos:</span>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {justificacion.documentos.map((doc) => (
-                            <span
-                              key={doc.idDocumento}
-                              className="px-2 py-1 bg-gray-100 text-black text-xs rounded border"
-                            >
-                              📎 {doc.nombreArchivo}
-                            </span>
-                          ))}
-                        </div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {justificacion.documentos.map((doc) => (
+                          <span key={doc.idDocumento} className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-200">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+                            </svg>
+                            {doc.nombreArchivo}
+                          </span>
+                        ))}
                       </div>
                     )}
 
-                    {/* Información de revisión */}
+                    {/* Info de revisión */}
                     {justificacion.usuarioRevisor && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded border">
-                        <div className="text-sm">
-                          <span className="font-medium text-black">Revisado por:</span>
-                          <span className="text-black ml-2">
-                            {justificacion.usuarioRevisor.nombre} {justificacion.usuarioRevisor.apellido}
-                          </span>
-                          <span className="text-black ml-4">
-                            el {formatearFecha(justificacion.fechaRevision!)}
-                          </span>
-                        </div>
+                      <div className="mt-2 p-2 bg-gray-100 rounded-lg text-xs text-gray-600">
+                        <span className="font-medium">Revisado por {justificacion.usuarioRevisor.nombre} {justificacion.usuarioRevisor.apellido}</span>
+                        <span className="mx-2">•</span>
+                        <span>{formatearFecha(justificacion.fechaRevision!)}</span>
                         {justificacion.observacionesRevision && (
-                          <div className="mt-2">
-                            <span className="font-medium text-black">Observaciones de revisión:</span>
-                            <p className="text-black mt-1">{justificacion.observacionesRevision}</p>
-                          </div>
+                          <p className="mt-1 text-gray-700">{justificacion.observacionesRevision}</p>
                         )}
                       </div>
                     )}
@@ -273,16 +271,16 @@ export default function JustificacionesDocente() {
 
                   {/* Acciones */}
                   {justificacion.estadoJustificacion.codigo === 'PENDIENTE' && (
-                    <div className="flex gap-2">
+                    <div className="flex lg:flex-col gap-2">
                       <button
                         onClick={() => handleRevisar(justificacion, 'APROBAR')}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="flex-1 lg:flex-none px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-md font-medium text-sm"
                       >
                         ✅ Aprobar
                       </button>
                       <button
                         onClick={() => handleRevisar(justificacion, 'RECHAZAR')}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        className="flex-1 lg:flex-none px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:from-red-600 hover:to-rose-700 transition-all shadow-md font-medium text-sm"
                       >
                         ❌ Rechazar
                       </button>
@@ -297,56 +295,80 @@ export default function JustificacionesDocente() {
 
       {/* Modal de confirmación */}
       {mostrarModal && justificacionSeleccionada && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-black mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header del modal */}
+            <div className={`p-4 ${accionModal === 'APROBAR' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
+              <h3 className="text-xl font-bold text-white flex items-center">
                 {accionModal === 'APROBAR' ? '✅ Aprobar Justificación' : '❌ Rechazar Justificación'}
               </h3>
-              
-              <div className="mb-4">
-                <p className="text-black mb-2">
-                  <strong>Estudiante:</strong> {justificacionSeleccionada.estudiante.usuario.nombre} {justificacionSeleccionada.estudiante.usuario.apellido}
-                </p>
-                <p className="text-black mb-2">
-                  <strong>Motivo:</strong> {justificacionSeleccionada.motivo}
-                </p>
-                <p className="text-black">
-                  <strong>Fechas:</strong> {formatearRangoFechas(justificacionSeleccionada.fechaInicio, justificacionSeleccionada.fechaFin)}
-                </p>
+            </div>
+            
+            <div className="p-5">
+              {/* Info del estudiante */}
+              <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {justificacionSeleccionada.estudiante.usuario.nombre[0]}{justificacionSeleccionada.estudiante.usuario.apellido[0]}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">
+                    {justificacionSeleccionada.estudiante.usuario.nombre} {justificacionSeleccionada.estudiante.usuario.apellido}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatearRangoFechas(justificacionSeleccionada.fechaInicio, justificacionSeleccionada.fechaFin)}
+                  </p>
+                </div>
               </div>
 
+              {/* Motivo */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <span className="text-xs text-blue-600 font-medium">Motivo</span>
+                <p className="text-gray-900 text-sm mt-1">{justificacionSeleccionada.motivo}</p>
+              </div>
+
+              {/* Observaciones */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-black mb-2">
-                  Observaciones de revisión (opcional):
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Observaciones (opcional):
                 </label>
                 <textarea
                   value={observacionesRevision}
                   onChange={(e) => setObservacionesRevision(e.target.value)}
-                  placeholder={`Escribe aquí las observaciones sobre ${accionModal === 'APROBAR' ? 'la aprobación' : 'el rechazo'}...`}
+                  placeholder={`Escribe aquí las observaciones...`}
                   rows={3}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white transition-all resize-none"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3">
+              {/* Botones */}
+              <div className="flex gap-3">
                 <button
                   onClick={() => setMostrarModal(false)}
                   disabled={procesando}
-                  className="px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 font-medium transition-all"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmarRevision}
                   disabled={procesando}
-                  className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                  className={`flex-1 px-4 py-3 text-white rounded-xl disabled:opacity-50 font-medium transition-all shadow-md ${
                     accionModal === 'APROBAR' 
-                      ? 'bg-green-600 hover:bg-green-700' 
-                      : 'bg-red-600 hover:bg-red-700'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' 
+                      : 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
                   }`}
                 >
-                  {procesando ? 'Procesando...' : `Confirmar ${accionModal === 'APROBAR' ? 'Aprobación' : 'Rechazo'}`}
+                  {procesando ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Procesando...
+                    </span>
+                  ) : (
+                    `Confirmar ${accionModal === 'APROBAR' ? 'Aprobación' : 'Rechazo'}`
+                  )}
                 </button>
               </div>
             </div>

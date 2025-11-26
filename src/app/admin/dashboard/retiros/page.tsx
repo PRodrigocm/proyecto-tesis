@@ -157,43 +157,45 @@ export default function RetirosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="sm:flex sm:items-center sm:justify-between">
+    <div className="space-y-8">
+      {/* Header mejorado */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestión de Retiros</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Administra los retiros de estudiantes
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Gestión de Retiros</h1>
+              <p className="text-slate-500">Administra los retiros de estudiantes</p>
+            </div>
+          </div>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          {/*<button
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Exportar
-          </button>*/}
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Nuevo Retiro
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Nuevo Retiro
+        </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow">
+      {/* Filters mejorados */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-2 mb-4">
+          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <h3 className="font-semibold text-slate-700">Filtros de búsqueda</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label htmlFor="fecha" className="block text-sm font-medium text-slate-700">
               Fecha
             </label>
             <input
@@ -201,29 +203,29 @@ export default function RetirosPage() {
               id="fecha"
               value={filters.fecha}
               onChange={(e) => updateFilters({ fecha: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">
               Grado y Sección
             </label>
-            <div className="flex space-x-2">
+            <div className="flex gap-2">
               <select
                 id="grado"
                 value={selectedGrado}
                 onChange={(e) => {
                   setSelectedGrado(e.target.value)
-                  setSelectedSeccion('') // Reset sección cuando cambia grado
+                  setSelectedSeccion('')
                   updateFilters({ grado: e.target.value })
                 }}
                 disabled={loadingGrados}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 disabled:bg-gray-100"
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
               >
                 <option value="">Grado</option>
                 {gradosDB.map((grado, index) => (
                   <option key={grado.idGrado || `grado-${index}`} value={grado.nombre}>
-                    {grado.nombre}
+                    {grado.nombre}°
                   </option>
                 ))}
               </select>
@@ -232,7 +234,7 @@ export default function RetirosPage() {
                 value={selectedSeccion}
                 onChange={(e) => setSelectedSeccion(e.target.value)}
                 disabled={loadingSecciones}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 disabled:bg-gray-100"
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
               >
                 <option value="">Sección</option>
                 {seccionesDB.map((seccion, index) => (
@@ -242,49 +244,50 @@ export default function RetirosPage() {
                 ))}
               </select>
             </div>
-            {(loadingGrados || loadingSecciones) && <p className="text-xs text-gray-500 mt-1">Cargando...</p>}
           </div>
-          <div>
-            <label htmlFor="estudiante" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label htmlFor="estudiante" className="block text-sm font-medium text-slate-700">
               Estudiante
             </label>
             <select
               id="estudiante"
               disabled={loadingEstudiantes}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 disabled:bg-gray-100"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
             >
-              <option value="">Todos los estudiantes</option>
+              <option value="">Todos</option>
               {estudiantesFiltrados.map((estudiante) => (
                 <option key={estudiante.id} value={estudiante.id}>
-                  {estudiante.nombre} {estudiante.apellido} - {estudiante.grado}° {estudiante.seccion}
+                  {estudiante.nombre} {estudiante.apellido}
                 </option>
               ))}
             </select>
-            {loadingEstudiantes && <p className="text-xs text-gray-500 mt-1">Cargando...</p>}
           </div>
-          <div>
-            <label htmlFor="estado" className="block text-sm font-medium text-gray-700 mb-1">
-              Estado del Retiro
+          <div className="space-y-2">
+            <label htmlFor="estado" className="block text-sm font-medium text-slate-700">
+              Estado
             </label>
             <select
               id="estado"
               value={filters.estado}
               onChange={(e) => updateFilters({ estado: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
             >
-              <option value="TODOS">📋 Todos los Estados</option>
-              <option value="PENDIENTE">⏳ Pendientes de Autorización</option>
-              <option value="AUTORIZADO">✅ Autorizados</option>
-              <option value="COMPLETADO">🏁 Completados</option>
-              <option value="RECHAZADO">❌ Rechazados</option>
+              <option value="TODOS">Todos los Estados</option>
+              <option value="PENDIENTE">Pendientes</option>
+              <option value="AUTORIZADO">Autorizados</option>
+              <option value="COMPLETADO">Completados</option>
+              <option value="RECHAZADO">Rechazados</option>
             </select>
           </div>
           <div className="flex items-end">
             <button
               onClick={loadRetiros}
-              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium"
+              className="w-full px-4 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all font-medium flex items-center justify-center gap-2"
             >
-              🔄 Actualizar
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Actualizar
             </button>
           </div>
         </div>
@@ -293,12 +296,17 @@ export default function RetirosPage() {
       {/* Stats */}
       <RetirosStats stats={stats} />
 
-      {/* Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Retiros ({retiros.length})
-          </h3>
+      {/* Table mejorada */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Lista de Retiros
+            </h3>
+            <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-full">
+              {retiros.length}
+            </span>
+          </div>
         </div>
         <RetirosTable
           retiros={retiros}

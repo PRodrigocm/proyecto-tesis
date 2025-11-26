@@ -1,4 +1,18 @@
 import { Retiro } from '@/hooks/useRetiros'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui'
+
+// Iconos
+const ExitIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+  </svg>
+)
+
+const ClockIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+)
 
 interface ViewRetiroModalProps {
   isOpen: boolean
@@ -10,182 +24,105 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
   if (!isOpen || !retiro) return null
 
   const formatFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    return new Date(fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   }
 
-  const getEstadoColor = (estado: string) => {
+  const getEstadoStyle = (estado: string) => {
     switch (estado) {
-      case 'PENDIENTE':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'AUTORIZADO':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'COMPLETADO':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'RECHAZADO':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const getEstadoIcon = (estado: string) => {
-    switch (estado) {
-      case 'PENDIENTE':
-        return '⏳'
-      case 'AUTORIZADO':
-        return '✅'
-      case 'COMPLETADO':
-        return '🏁'
-      case 'RECHAZADO':
-        return '❌'
-      default:
-        return '📋'
+      case 'PENDIENTE': return 'bg-amber-100 text-amber-700'
+      case 'AUTORIZADO': return 'bg-blue-100 text-blue-700'
+      case 'COMPLETADO': return 'bg-emerald-100 text-emerald-700'
+      case 'RECHAZADO': return 'bg-red-100 text-red-700'
+      default: return 'bg-slate-100 text-slate-700'
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-900">
-            📋 Detalles del Retiro
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <span className="sr-only">Cerrar</span>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalHeader 
+        icon={<ExitIcon />} 
+        subtitle={formatFecha(retiro.fecha)}
+        variant="red"
+        onClose={onClose}
+      >
+        Retiro #{retiro.id?.toString().slice(-4) || '0000'}
+      </ModalHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Información del Estudiante */}
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
-              👤 Información del Estudiante
-            </h4>
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3">
-                  {retiro.estudiante.nombre.charAt(0)}{retiro.estudiante.apellido.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {retiro.estudiante.nombre} {retiro.estudiante.apellido}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    DNI: {retiro.estudiante.dni}
-                  </p>
-                </div>
+      <ModalBody>
+        <div className="space-y-6">
+          {/* Estado y Hora */}
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                <ClockIcon />
               </div>
-              <div className="mt-3 pt-3 border-t border-blue-200">
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">Grado y Sección:</span> {retiro.estudiante.grado}° {retiro.estudiante.seccion}
-                </p>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{retiro.horaRetiro}</p>
+                <p className="text-sm text-slate-500">{retiro.motivo}</p>
               </div>
             </div>
+            <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getEstadoStyle(retiro.estado)}`}>
+              {retiro.estado}
+            </span>
           </div>
 
-          {/* Información del Retiro */}
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <h4 className="text-lg font-semibold text-green-900 mb-3 flex items-center">
-              📅 Información del Retiro
-            </h4>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Fecha:</p>
-                <p className="text-gray-900">{formatFecha(retiro.fecha)}</p>
+          {/* Estudiante */}
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-3">Estudiante</h4>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
+                {retiro.estudiante.nombre.charAt(0)}{retiro.estudiante.apellido.charAt(0)}
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700">Hora de Retiro:</p>
-                <p className="text-gray-900 font-mono text-lg">⏰ {retiro.horaRetiro}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Motivo:</p>
-                <p className="text-gray-900">{retiro.motivo}</p>
+                <p className="font-semibold text-slate-900">{retiro.estudiante.nombre} {retiro.estudiante.apellido}</p>
+                <p className="text-sm text-slate-500">DNI: {retiro.estudiante.dni} | {retiro.estudiante.grado}° {retiro.estudiante.seccion}</p>
               </div>
             </div>
           </div>
 
           {/* Persona que Recoge */}
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-            <h4 className="text-lg font-semibold text-purple-900 mb-3 flex items-center">
-              👥 Persona que Recoge
-            </h4>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Nombre:</p>
-                <p className="text-gray-900">{retiro.personaRecoge || 'No especificado'}</p>
+          <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+            <h4 className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-3">Persona que Recoge</h4>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 font-semibold">
+                {retiro.personaRecoge?.charAt(0) || '?'}
               </div>
-              {retiro.dniPersonaRecoge && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700">DNI:</p>
-                  <p className="text-gray-900 font-mono">{retiro.dniPersonaRecoge}</p>
-                </div>
-              )}
+              <div>
+                <p className="font-medium text-slate-900">{retiro.personaRecoge || 'No especificado'}</p>
+                {retiro.dniPersonaRecoge && <p className="text-sm text-slate-500 font-mono">DNI: {retiro.dniPersonaRecoge}</p>}
+              </div>
             </div>
           </div>
 
-          {/* Estado del Retiro */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-              🏷️ Estado del Retiro
-            </h4>
-            <div className="space-y-3">
-              <div>
-                <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-semibold border ${getEstadoColor(retiro.estado)}`}>
-                  <span className="mr-2">{getEstadoIcon(retiro.estado)}</span>
-                  {retiro.estado}
-                </div>
-              </div>
-              {retiro.autorizadoPor && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Autorizado por:</p>
-                  <p className="text-gray-900">
-                    {retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}
-                  </p>
-                </div>
-              )}
+          {/* Autorización */}
+          {retiro.autorizadoPor && (
+            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+              <h4 className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Autorizado por</h4>
+              <p className="font-medium text-slate-900">{retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}</p>
               {retiro.fechaAutorizacion && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Fecha de Autorización:</p>
-                  <p className="text-gray-900 text-sm">
-                    {new Date(retiro.fechaAutorizacion).toLocaleString('es-ES')}
-                  </p>
-                </div>
+                <p className="text-xs text-slate-500 mt-1">{new Date(retiro.fechaAutorizacion).toLocaleString('es-ES')}</p>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Observaciones */}
-        {retiro.observaciones && (
-          <div className="mt-6 bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-            <h4 className="text-lg font-semibold text-yellow-900 mb-2 flex items-center">
-              📝 Observaciones
-            </h4>
-            <p className="text-gray-800 whitespace-pre-wrap">{retiro.observaciones}</p>
-          </div>
-        )}
-
-        {/* Botones de acción */}
-        <div className="mt-6 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-          >
-            Cerrar
-          </button>
+          {/* Observaciones */}
+          {retiro.observaciones && (
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+              <h4 className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">Observaciones</h4>
+              <p className="text-slate-700 whitespace-pre-wrap">{retiro.observaciones}</p>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <button
+          onClick={onClose}
+          className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-600 text-white font-medium rounded-xl hover:from-red-700 hover:to-orange-700 transition-all shadow-lg shadow-red-500/30"
+        >
+          Cerrar
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

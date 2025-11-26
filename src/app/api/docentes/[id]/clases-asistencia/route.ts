@@ -128,13 +128,24 @@ export async function GET(
         console.error('Error obteniendo horario:', error)
       }
       
+      // Contar estudiantes activos
+      const cantidadEstudiantes = await prisma.estudiante.count({
+        where: {
+          idGradoSeccion: gradoSeccion.idGradoSeccion,
+          usuario: {
+            estado: 'ACTIVO'
+          }
+        }
+      })
+
       return {
         id: docenteAula.idDocenteAula,
-        nombre: `${tipoAsignacion.nombre} (${horario})`,
+        nombre: `${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre} - ${tipoAsignacion.nombre}`,
         grado: gradoSeccion.grado.nombre,
         seccion: gradoSeccion.seccion.nombre,
         tipoAsignacion: tipoAsignacion.nombre,
-        horario: horario
+        horario: horario,
+        estudiantes: cantidadEstudiantes
       }
     }))
 

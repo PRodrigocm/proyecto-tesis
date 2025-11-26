@@ -255,7 +255,7 @@ export default function JustificarInasistencias() {
                         {inasistencia.estudiante.grado}° {inasistencia.estudiante.seccion} • DNI: {inasistencia.estudiante.dni}
                       </p>
                       <p className="text-sm text-gray-500">
-                        Fecha: {new Date(inasistencia.fecha).toLocaleDateString('es-ES')} • Sesión: {inasistencia.sesion}
+                        Fecha: {new Date(inasistencia.fecha).toLocaleDateString('es-ES')} • Horario: {inasistencia.sesion || 'Sin especificar'}
                       </p>
                     </div>
                   </div>
@@ -313,8 +313,8 @@ export default function JustificarInasistencias() {
                     <p>{new Date(selectedInasistencia.fecha).toLocaleDateString('es-ES')}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-500">Sesión:</span>
-                    <p>{selectedInasistencia.sesion}</p>
+                    <span className="font-medium text-gray-500">Horario:</span>
+                    <p>{selectedInasistencia.sesion || 'Sin especificar'}</p>
                   </div>
                 </div>
               </div>

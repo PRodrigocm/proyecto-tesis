@@ -232,331 +232,347 @@ export default function CreateRetiroModal({ isOpen, onClose, onSubmit }: CreateR
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            📝 Crear Nuevo Retiro
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <span className="sr-only">Cerrar</span>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Filtros de búsqueda */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Grado y Sección
-              </label>
-              <select
-                value={gradoSeccionFilter}
-                onChange={(e) => setGradoSeccionFilter(e.target.value)}
-                disabled={loadingGradosSecciones}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 disabled:bg-gray-100"
-              >
-                <option value="">
-                  {loadingGradosSecciones ? 'Cargando grados y secciones...' : 'Todos los grados y secciones'}
-                </option>
-                {[...new Set(gradoSeccionCombinaciones)].map((combinacion, index) => (
-                  <option key={`grado-seccion-${combinacion}-${index}`} value={combinacion}>{combinacion}</option>
-                ))}
-              </select>
-              {loadingGradosSecciones && (
-                <p className="text-xs text-gray-500 mt-1">Cargando desde base de datos...</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Buscar Estudiante *
-              </label>
-              <input
-                type="text"
-                placeholder="Buscar por nombre o DNI..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-              />
-            </div>
-          </div>
-
-          {/* Lista de estudiantes */}
-          {(searchTerm || gradoSeccionFilter) && (
-            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md">
-              {filteredEstudiantes.map((estudiante) => (
-                <button
-                  key={estudiante.id}
-                  type="button"
-                  onClick={() => {
-                    // Buscar el idGradoSeccion correspondiente al estudiante
-                    const gradoSeccionCorrespondiente = gradosSecciones.find(gs => 
-                      gs.grado.nombre === estudiante.grado && gs.seccion.nombre === estudiante.seccion
-                    )
-                    
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      estudianteId: estudiante.id,
-                      idGradoSeccion: gradoSeccionCorrespondiente ? gradoSeccionCorrespondiente.idGradoSeccion.toString() : ''
-                    }))
-                    setSelectedEstudiante(estudiante)
-                    setSearchTerm(`${estudiante.nombre} ${estudiante.apellido} - ${estudiante.grado}° ${estudiante.seccion}`)
-                    loadApoderados(estudiante.id) // Cargar apoderados del estudiante
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                >
-                  <div className="font-medium text-gray-900">{estudiante.nombre} {estudiante.apellido}</div>
-                  <div className="text-sm text-gray-500">{estudiante.grado}° {estudiante.seccion} - DNI: {estudiante.dni}</div>
-                </button>
-              ))}
-              {filteredEstudiantes.length === 0 && (
-                <div className="px-3 py-2 text-gray-500 text-center">
-                  No se encontraron estudiantes
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Estudiante seleccionado */}
-          {selectedEstudiante && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+    <>
+      {/* Overlay con blur */}
+      <div 
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 transition-opacity"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+          {/* Header del modal */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Estudiante seleccionado: {selectedEstudiante.nombre} {selectedEstudiante.apellido}
-                  </p>
-                  <p className="text-sm text-blue-600">
-                    {selectedEstudiante.grado}° {selectedEstudiante.seccion} - DNI: {selectedEstudiante.dni}
-                  </p>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Crear Nuevo Retiro</h3>
+                  <p className="text-indigo-100 text-sm">Complete los datos del retiro</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Contenido del formulario */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+            {/* Sección: Búsqueda de estudiante */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">1</div>
+                Seleccionar Estudiante
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Grado y Sección
+                  </label>
+                  <select
+                    value={gradoSeccionFilter}
+                    onChange={(e) => setGradoSeccionFilter(e.target.value)}
+                    disabled={loadingGradosSecciones}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
+                  >
+                    <option value="">
+                      {loadingGradosSecciones ? 'Cargando...' : 'Todos los grados'}
+                    </option>
+                    {[...new Set(gradoSeccionCombinaciones)].map((combinacion, index) => (
+                      <option key={`grado-seccion-${combinacion}-${index}`} value={combinacion}>{combinacion}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Buscar Estudiante <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Nombre o DNI..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Motivo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Motivo del Retiro *
-              </label>
-              <select
-                value={formData.motivo}
-                onChange={(e) => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                required
-              >
-                <option value="">Seleccionar motivo</option>
-                {motivosComunes.map((motivo, index) => (
-                  <option key={`motivo-${motivo}-${index}`} value={motivo}>{motivo}</option>
+            {/* Lista de estudiantes */}
+            {(searchTerm || gradoSeccionFilter) && (
+              <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50">
+                {filteredEstudiantes.map((estudiante) => (
+                  <button
+                    key={estudiante.id}
+                    type="button"
+                    onClick={() => {
+                      const gradoSeccionCorrespondiente = gradosSecciones.find(gs => 
+                        gs.grado.nombre === estudiante.grado && gs.seccion.nombre === estudiante.seccion
+                      )
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        estudianteId: estudiante.id,
+                        idGradoSeccion: gradoSeccionCorrespondiente ? gradoSeccionCorrespondiente.idGradoSeccion.toString() : ''
+                      }))
+                      setSelectedEstudiante(estudiante)
+                      setSearchTerm(`${estudiante.nombre} ${estudiante.apellido} - ${estudiante.grado}° ${estudiante.seccion}`)
+                      loadApoderados(estudiante.id)
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 border-b border-slate-200 last:border-b-0 transition-colors"
+                  >
+                    <div className="font-medium text-slate-900">{estudiante.nombre} {estudiante.apellido}</div>
+                    <div className="text-sm text-slate-500">{estudiante.grado}° {estudiante.seccion} • DNI: {estudiante.dni}</div>
+                  </button>
                 ))}
-              </select>
+                {filteredEstudiantes.length === 0 && (
+                  <div className="px-4 py-6 text-slate-500 text-center">
+                    <svg className="w-8 h-8 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    No se encontraron estudiantes
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Estudiante seleccionado */}
+            {selectedEstudiante && (
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
+                    {selectedEstudiante.nombre.charAt(0)}{selectedEstudiante.apellido.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      {selectedEstudiante.nombre} {selectedEstudiante.apellido}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {selectedEstudiante.grado}° {selectedEstudiante.seccion} • DNI: {selectedEstudiante.dni}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEstudiante(null)
+                      setFormData(prev => ({ ...prev, estudianteId: '', idGradoSeccion: '' }))
+                      setSearchTerm('')
+                    }}
+                    className="ml-auto p-1.5 rounded-lg hover:bg-indigo-100 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sección: Detalles del retiro */}
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">2</div>
+                Detalles del Retiro
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Motivo del Retiro <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.motivo}
+                    onChange={(e) => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+                    required
+                  >
+                    <option value="">Seleccionar motivo</option>
+                    {motivosComunes.map((motivo, index) => (
+                      <option key={`motivo-${motivo}-${index}`} value={motivo}>{motivo}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Hora de Retiro <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.horaRetiro}
+                    onChange={(e) => setFormData(prev => ({ ...prev, horaRetiro: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Hora de retiro */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hora de Retiro *
-              </label>
-              <input
-                type="time"
-                value={formData.horaRetiro}
-                onChange={(e) => setFormData(prev => ({ ...prev, horaRetiro: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                required
-              />
-            </div>
-          </div>
+            {/* Sección: Persona que recoge */}
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">3</div>
+                Persona Autorizada
+              </div>
 
-          {/* Persona que recoge - Selector de apoderados */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Persona que Recoge *
-              </label>
-              {apoderados.length > 0 ? (
-                <select
-                  value={`${formData.personaRecoge}|${formData.dniPersonaRecoge}`}
-                  onChange={(e) => {
-                    const [nombre, dni] = e.target.value.split('|')
-                    setFormData(prev => ({
-                      ...prev,
-                      personaRecoge: nombre,
-                      dniPersonaRecoge: dni
-                    }))
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                  required
-                >
-                  <option value="">Seleccionar apoderado</option>
-                  {apoderados.map((apoderado) => (
-                    <option 
-                      key={apoderado.id} 
-                      value={`${apoderado.nombre} ${apoderado.apellido}|${apoderado.dni}`}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Persona que Recoge <span className="text-red-500">*</span>
+                  </label>
+                  {apoderados.length > 0 ? (
+                    <select
+                      value={`${formData.personaRecoge}|${formData.dniPersonaRecoge}`}
+                      onChange={(e) => {
+                        const [nombre, dni] = e.target.value.split('|')
+                        setFormData(prev => ({ ...prev, personaRecoge: nombre, dniPersonaRecoge: dni }))
+                      }}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+                      required
                     >
-                      {apoderado.nombre} {apoderado.apellido} ({apoderado.relacion})
-                      {apoderado.esTitular && ' - TITULAR'}
-                    </option>
-                  ))}
-                  <option value="otro|">Otra persona...</option>
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={formData.personaRecoge}
-                  onChange={(e) => setFormData(prev => ({ ...prev, personaRecoge: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-                  placeholder="Nombre completo"
-                  required
-                />
-              )}
+                      <option value="">Seleccionar apoderado</option>
+                      {apoderados.map((apoderado) => (
+                        <option key={apoderado.id} value={`${apoderado.nombre} ${apoderado.apellido}|${apoderado.dni}`}>
+                          {apoderado.nombre} {apoderado.apellido} ({apoderado.relacion})
+                          {apoderado.esTitular && ' ★'}
+                        </option>
+                      ))}
+                      <option value="otro|">Otra persona...</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.personaRecoge}
+                      onChange={(e) => setFormData(prev => ({ ...prev, personaRecoge: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+                      placeholder="Nombre completo"
+                      required
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    DNI <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dniPersonaRecoge}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dniPersonaRecoge: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+                    placeholder="12345678"
+                    maxLength={8}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* DNI de la persona */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                DNI de la Persona *
+            {/* Observaciones */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Observaciones
               </label>
-              <input
-                type="text"
-                value={formData.dniPersonaRecoge}
-                onChange={(e) => setFormData(prev => ({ ...prev, dniPersonaRecoge: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-                placeholder="12345678"
-                required
+              <textarea
+                value={formData.observaciones}
+                onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
+                rows={3}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all resize-none"
+                placeholder="Información adicional sobre el retiro..."
               />
             </div>
-          </div>
 
-          {/* Observaciones */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Observaciones
-            </label>
-            <textarea
-              value={formData.observaciones}
-              onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-              placeholder="Información adicional sobre el retiro..."
-            />
-          </div>
+            {/* Campos adicionales colapsables */}
+            <details className="group">
+              <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Campos adicionales (opcional)
+              </summary>
+              
+              <div className="mt-4 space-y-4 pl-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700">Origen del Retiro</label>
+                    <select
+                      value={formData.origen}
+                      onChange={(e) => setFormData(prev => ({ ...prev, origen: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+                    >
+                      <option value="">Seleccionar origen</option>
+                      <option value="ADMINISTRATIVO">Administrativo</option>
+                      <option value="DOCENTE">Reportado por Docente</option>
+                      <option value="APODERADO">Solicitado por Apoderado</option>
+                      <option value="EMERGENCIA">Emergencia</option>
+                    </select>
+                  </div>
 
-          {/* Campos adicionales del modelo Prisma */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Origen del retiro */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Origen del Retiro
-              </label>
-              <select
-                value={formData.origen}
-                onChange={(e) => setFormData(prev => ({ ...prev, origen: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              >
-                <option value="">Seleccionar origen</option>
-                <option value="ADMINISTRATIVO">Administrativo</option>
-                <option value="DOCENTE">Reportado por Docente</option>
-                <option value="APODERADO">Solicitado por Apoderado</option>
-                <option value="ESTUDIANTE">Solicitado por Estudiante</option>
-                <option value="EMERGENCIA">Emergencia</option>
-              </select>
-            </div>
-
-            {/* Medio de contacto */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Medio de Contacto
-              </label>
-              <select
-                value={formData.medioContacto}
-                onChange={(e) => setFormData(prev => ({ ...prev, medioContacto: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              >
-                <option value="">Seleccionar medio</option>
-                <option value="TELEFONO">Teléfono</option>
-                <option value="WHATSAPP">WhatsApp</option>
-                <option value="EMAIL">Email</option>
-                <option value="PRESENCIAL">Presencial</option>
-                <option value="MENSAJE">Mensaje de texto</option>
-                <option value="NO_CONTACTADO">No contactado</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Apoderados relacionados */}
-          {apoderados.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Apoderado contactado */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apoderado Contactado
-                </label>
-                <select
-                  value={formData.apoderadoContactado}
-                  onChange={(e) => setFormData(prev => ({ ...prev, apoderadoContactado: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                >
-                  <option value="">No contactado</option>
-                  {apoderados.map((apoderado) => (
-                    <option key={apoderado.id} value={apoderado.id}>
-                      {apoderado.nombre} {apoderado.apellido} ({apoderado.relacion})
-                    </option>
-                  ))}
-                </select>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700">Medio de Contacto</label>
+                    <select
+                      value={formData.medioContacto}
+                      onChange={(e) => setFormData(prev => ({ ...prev, medioContacto: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+                    >
+                      <option value="">Seleccionar medio</option>
+                      <option value="TELEFONO">Teléfono</option>
+                      <option value="WHATSAPP">WhatsApp</option>
+                      <option value="EMAIL">Email</option>
+                      <option value="PRESENCIAL">Presencial</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+            </details>
+          </form>
 
-              {/* Apoderado que retira (diferente al que recoge) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apoderado Autorizado
-                </label>
-                <select
-                  value={formData.apoderadoQueRetira}
-                  onChange={(e) => setFormData(prev => ({ ...prev, apoderadoQueRetira: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                >
-                  <option value="">Seleccionar apoderado</option>
-                  {apoderados.map((apoderado) => (
-                    <option key={apoderado.id} value={apoderado.id}>
-                      {apoderado.nombre} {apoderado.apellido} ({apoderado.relacion})
-                      {apoderado.esTitular && ' - TITULAR'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          {/* Footer del modal */}
+          <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-5 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-100 transition-colors"
               disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              form="retiro-form"
+              onClick={handleSubmit}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
               disabled={loading || !formData.estudianteId}
             >
-              {loading ? 'Creando...' : 'Crear Retiro'}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Creando...
+                </span>
+              ) : 'Crear Retiro'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

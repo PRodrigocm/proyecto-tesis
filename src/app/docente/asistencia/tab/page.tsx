@@ -11,7 +11,7 @@ interface Estudiante {
   apellido: string
   dni: string
   codigo: string
-  estado: 'presente' | 'tardanza' | 'pendiente'
+  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar'
   horaLlegada?: string
 }
 

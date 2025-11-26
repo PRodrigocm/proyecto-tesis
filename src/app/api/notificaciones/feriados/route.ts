@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { enviarEmail, enviarSMS } from '@/lib/notifications'
-
-const prisma = new PrismaClient()
 
 /**
  * Verificar y enviar notificaciones de feriados

@@ -340,11 +340,14 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Obtener estudiantes de la clase con sus asistencias del día
+    // Obtener estudiantes ACTIVOS de la clase con sus asistencias del día
     const fechaConsulta = new Date(fecha)
     const estudiantes = await prisma.estudiante.findMany({
       where: {
-        idGradoSeccion: docenteAula.idGradoSeccion
+        idGradoSeccion: docenteAula.idGradoSeccion,
+        usuario: {
+          estado: 'ACTIVO'
+        }
       },
       include: {
         usuario: true,
@@ -354,6 +357,14 @@ export async function GET(request: NextRequest) {
           },
           include: {
             estadoAsistencia: true
+          }
+        },
+        retiros: {
+          where: {
+            fecha: fechaConsulta
+          },
+          include: {
+            estadoRetiro: true
           }
         }
       },
@@ -366,6 +377,7 @@ export async function GET(request: NextRequest) {
     // Transformar datos
     const estudiantesTransformados = estudiantes.map(estudiante => {
       const asistenciaDelDia = estudiante.asistencias[0]
+      const retiroDelDia = estudiante.retiros?.[0]
       
       // Mapear estados de la BD al formato del frontend
       let estadoFrontend = 'sin_registrar'
@@ -403,6 +415,21 @@ export async function GET(request: NextRequest) {
         estado: estadoFrontend,
         horaLlegada: asistenciaDelDia?.horaRegistro ? 
           asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : null,
+        tieneRetiro: !!retiroDelDia,
+        retiro: retiroDelDia ? {
+          id: retiroDelDia.idRetiro,
+          motivo: retiroDelDia.observaciones || 'Sin motivo',
+          hora: retiroDelDia.hora?.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) || null,
+          estado: retiroDelDia.estadoRetiro?.codigo || 'PENDIENTE'
+        } : null,
+        horaSalida: retiroDelDia?.hora ? 
+          retiroDelDia.hora.toLocaleTimeString('es-ES', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : null

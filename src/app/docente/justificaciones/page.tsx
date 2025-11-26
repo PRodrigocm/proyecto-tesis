@@ -9,37 +9,30 @@ export default function JustificacionesPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar autenticación
     const checkAuth = () => {
       try {
         const token = localStorage.getItem('token')
         const userString = localStorage.getItem('user')
         
         if (!token) {
-          console.log('❌ No hay token, redirigiendo al login')
           router.push('/login')
           return
         }
 
         if (userString) {
           const user = JSON.parse(userString)
-          console.log('👤 Usuario:', user)
-          
           if (!['DOCENTE', 'ADMINISTRATIVO'].includes(user.rol)) {
-            console.log('❌ Usuario no tiene permisos:', user.rol)
             router.push('/login')
             return
           }
         } else {
-          console.log('❌ No hay información de usuario')
           router.push('/login')
           return
         }
         
-        console.log('✅ Autenticación verificada correctamente')
         setLoading(false)
       } catch (error) {
-        console.error('❌ Error al verificar autenticación:', error)
+        console.error('Error al verificar autenticación:', error)
         router.push('/login')
       }
     }
@@ -49,67 +42,73 @@ export default function JustificacionesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-black">Cargando justificaciones...</span>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <span className="text-gray-700 font-medium">Cargando justificaciones...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header mejorado */}
         <div className="mb-6">
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold text-black">Justificaciones de Estudiantes</h1>
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Justificaciones de Estudiantes</h1>
+              <p className="text-gray-600 text-sm">Revisa y gestiona las solicitudes de justificación</p>
+            </div>
           </div>
-          <p className="text-black">
-            Gestiona las justificaciones presentadas por los estudiantes. Puedes aprobar o rechazar cada solicitud.
-          </p>
         </div>
 
         {/* Componente principal */}
         <JustificacionesDocente />
 
-        {/* Información adicional */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-black mb-4">ℹ️ Información sobre Justificaciones</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-medium text-black mb-2">📋 Tipos de Justificación:</h4>
-              <ul className="text-sm text-black space-y-1">
-                <li>• <strong>Médica:</strong> Citas médicas, enfermedades, tratamientos</li>
-                <li>• <strong>Familiar:</strong> Emergencias familiares, viajes urgentes</li>
-                <li>• <strong>Personal:</strong> Asuntos personales importantes</li>
-                <li>• <strong>Académica:</strong> Participación en eventos académicos</li>
-                <li>• <strong>Otro:</strong> Otras situaciones justificadas</li>
-              </ul>
+        {/* Información adicional - Colapsable */}
+        <details className="mt-6 bg-white rounded-xl shadow-md overflow-hidden">
+          <summary className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-xl">ℹ️</span>
+              <span className="font-semibold text-gray-900">Información sobre Justificaciones</span>
             </div>
-            <div>
-              <h4 className="font-medium text-black mb-2">⚡ Acciones Disponibles:</h4>
-              <ul className="text-sm text-black space-y-1">
-                <li>• <strong>Aprobar:</strong> La justificación es válida y se acepta</li>
-                <li>• <strong>Rechazar:</strong> La justificación no cumple los criterios</li>
-                <li>• <strong>Observaciones:</strong> Agregar comentarios sobre la decisión</li>
-                <li>• <strong>Filtros:</strong> Buscar por estado, estudiante o motivo</li>
-              </ul>
+            <svg className="w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-100">
+                <h4 className="font-semibold text-purple-900 mb-3 flex items-center">
+                  <span className="mr-2">📋</span> Tipos de Justificación
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-2">
+                  <li className="flex items-start"><span className="text-purple-500 mr-2">•</span><span><strong>Médica:</strong> Citas médicas, enfermedades</span></li>
+                  <li className="flex items-start"><span className="text-purple-500 mr-2">•</span><span><strong>Familiar:</strong> Emergencias familiares</span></li>
+                  <li className="flex items-start"><span className="text-purple-500 mr-2">•</span><span><strong>Personal:</strong> Asuntos importantes</span></li>
+                  <li className="flex items-start"><span className="text-purple-500 mr-2">•</span><span><strong>Académica:</strong> Eventos académicos</span></li>
+                </ul>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-100">
+                <h4 className="font-semibold text-green-900 mb-3 flex items-center">
+                  <span className="mr-2">⚡</span> Acciones Disponibles
+                </h4>
+                <ul className="text-sm text-gray-700 space-y-2">
+                  <li className="flex items-start"><span className="text-green-500 mr-2">✓</span><span><strong>Aprobar:</strong> Justificación válida</span></li>
+                  <li className="flex items-start"><span className="text-red-500 mr-2">✗</span><span><strong>Rechazar:</strong> No cumple criterios</span></li>
+                  <li className="flex items-start"><span className="text-blue-500 mr-2">📝</span><span><strong>Observaciones:</strong> Comentarios</span></li>
+                </ul>
+              </div>
             </div>
           </div>
-          
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-medium text-black mb-2">🔄 Proceso de Revisión:</h4>
-            <ol className="text-sm text-black space-y-1">
-              <li><strong>1.</strong> El estudiante o apoderado presenta la justificación</li>
-              <li><strong>2.</strong> El docente revisa la documentación y motivos</li>
-              <li><strong>3.</strong> Se aprueba o rechaza con observaciones opcionales</li>
-              <li><strong>4.</strong> Si se aprueba, las asistencias se marcan como justificadas automáticamente</li>
-              <li><strong>5.</strong> El estudiante y apoderado reciben notificación del resultado</li>
-            </ol>
-          </div>
-        </div>
+        </details>
       </div>
     </div>
   )

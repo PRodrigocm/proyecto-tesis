@@ -3,13 +3,32 @@
 import { useState, useEffect } from 'react'
 import { useCreateUser, CreateUserData } from '@/hooks/useCreateUser'
 import { useRoles } from '@/hooks/useRoles'
-import { useInstitucionesEducativas } from '@/hooks/useInstitucionesEducativas'
+import { Modal, ModalHeader, ModalBody, ModalFooter, FormSection, Alert } from '@/components/ui'
 
 interface CreateUserModalProps {
   isOpen: boolean
   onClose: () => void
   onUserCreated?: () => void
 }
+
+// Iconos
+const UserPlusIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+  </svg>
+)
+
+const SearchIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+)
+
+const CheckIcon = () => (
+  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+  </svg>
+)
 
 export default function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserModalProps) {
   const { createUser, loading } = useCreateUser()
@@ -232,77 +251,46 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
 
   if (!isOpen) return null
 
-  // Debug logging
-  console.log('Modal is open, roles:', roles)
+  // Estilos de input reutilizables
+  const inputClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1.5"
+  const selectClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all appearance-none cursor-pointer"
 
   return (
-    <>
-      {/* Background overlay */}
-      <div 
-        className="fixed inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
-                  <p className="text-sm text-gray-500">Complete los datos del nuevo usuario</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all focus:outline-none"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <ModalHeader 
+        icon={<UserPlusIcon />} 
+        subtitle="Complete los datos del nuevo usuario"
+        variant="blue"
+        onClose={onClose}
+      >
+        Crear Nuevo Usuario
+      </ModalHeader>
 
-          {success && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg shadow-sm">
-              <div className="flex items-center">
-                <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <p className="font-semibold text-green-800">¡Usuario creado exitosamente!</p>
-                  <p className="text-sm text-green-600">El usuario ha sido registrado en el sistema</p>
-                </div>
-              </div>
-            </div>
-          )}
+      <ModalBody>
+        {/* Alertas */}
+        {success && (
+          <Alert type="success" className="mb-6">
+            <p className="font-semibold">¡Usuario creado exitosamente!</p>
+            <p className="text-sm opacity-90">El usuario ha sido registrado en el sistema</p>
+          </Alert>
+        )}
 
-          {error && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 rounded-lg shadow-sm">
-              <div className="flex items-start">
-                <svg className="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <p className="font-semibold text-red-800">Error al crear usuario</p>
-                  <p className="text-sm text-red-600">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
+        {error && (
+          <Alert type="error" className="mb-6">
+            <p className="font-semibold">Error al crear usuario</p>
+            <p className="text-sm opacity-90">{error}</p>
+          </Alert>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} id="create-user-form" className="space-y-6">
+          {/* Sección 1: Datos Básicos */}
+          <FormSection number={1} title="Datos Básicos">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* DNI */}
-              <div>
-                <label htmlFor="dni" className="block text-sm font-medium text-gray-700 mb-1">
-                  DNI *
+              <div className="space-y-1.5">
+                <label htmlFor="dni" className={labelClass}>
+                  DNI <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -313,15 +301,15 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   required
                   maxLength={8}
                   pattern="[0-9]{8}"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  className={inputClass}
                   placeholder="12345678"
                 />
               </div>
 
               {/* Nombres */}
-              <div>
-                <label htmlFor="nombres" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombres *
+              <div className="space-y-1.5">
+                <label htmlFor="nombres" className={labelClass}>
+                  Nombres <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -330,14 +318,15 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   value={formData.nombres}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  className={inputClass}
+                  placeholder="Ingrese nombres"
                 />
               </div>
 
               {/* Apellidos */}
-              <div>
-                <label htmlFor="apellidos" className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellidos *
+              <div className="space-y-1.5">
+                <label htmlFor="apellidos" className={labelClass}>
+                  Apellidos <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -346,15 +335,50 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   value={formData.apellidos}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  className={inputClass}
+                  placeholder="Ingrese apellidos"
                 />
               </div>
 
-              {/* Email - Solo para roles que lo requieren */}
-              {requiresEmailPhone && (
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
+              {/* Rol */}
+              <div className="space-y-1.5">
+                <label htmlFor="roleId" className={labelClass}>
+                  Rol <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="roleId"
+                    name="roleId"
+                    value={selectedRoleId}
+                    onChange={handleRoleChange}
+                    required
+                    className={selectClass}
+                    disabled={rolesLoading}
+                  >
+                    <option value="">Seleccionar rol</option>
+                    {roles?.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    )) || []}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FormSection>
+
+          {/* Sección 2: Contacto (condicional) */}
+          {requiresEmailPhone && (
+            <FormSection number={2} title="Información de Contacto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className={labelClass}>
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -363,16 +387,14 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    className={inputClass}
+                    placeholder="correo@ejemplo.com"
                   />
                 </div>
-              )}
 
-              {/* Teléfono - Solo para roles que lo requieren */}
-              {requiresEmailPhone && (
-                <div>
-                  <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono *
+                <div className="space-y-1.5">
+                  <label htmlFor="telefono" className={labelClass}>
+                    Teléfono <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -381,15 +403,20 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                     value={formData.telefono}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    className={inputClass}
+                    placeholder="999 999 999"
                   />
                 </div>
-              )}
+              </div>
+            </FormSection>
+          )}
 
-              {/* Contraseña */}
-              <div>
-                <label htmlFor="passwordHash" className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña *
+          {/* Sección 3: Seguridad */}
+          <FormSection number={requiresEmailPhone ? 3 : 2} title="Seguridad">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="passwordHash" className={labelClass}>
+                  Contraseña <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -399,14 +426,14 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   onChange={handleInputChange}
                   required
                   minLength={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  className={inputClass}
+                  placeholder="Mínimo 6 caracteres"
                 />
               </div>
 
-              {/* Confirmar Contraseña */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirmar Contraseña *
+              <div className="space-y-1.5">
+                <label htmlFor="confirmPassword" className={labelClass}>
+                  Confirmar Contraseña <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -415,60 +442,29 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  className={inputClass}
+                  placeholder="Repita la contraseña"
                 />
-              </div>
-
-              {/* Institución Educativa - Automática */}
-              <div>
-                <label htmlFor="ieId" className="block text-sm font-medium text-gray-700 mb-1">
-                  Institución Educativa
-                </label>
-                <input
-                  type="text"
-                  id="ieId"
-                  name="ieId"
-                  value="Institución actual del administrador"
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  El usuario será creado en tu misma institución educativa
-                </p>
-              </div>
-
-              {/* Rol */}
-              <div>
-                <label htmlFor="roleId" className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol *
-                </label>
-                <select
-                  id="roleId"
-                  name="roleId"
-                  value={selectedRoleId}
-                  onChange={handleRoleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                  disabled={rolesLoading}
-                >
-                  <option value="">Seleccionar rol</option>
-                  {roles?.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  )) || []}
-                </select>
               </div>
             </div>
+            
+            {/* Info de institución */}
+            <div className="mt-4 p-4 bg-slate-100 rounded-xl">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span>El usuario será creado en tu misma institución educativa</span>
+              </div>
+            </div>
+          </FormSection>
 
-            {/* Fecha de Nacimiento (solo para Estudiantes) */}
-            {requiresFechaNacimiento && (
-              <div>
-                <label htmlFor="fechaNacimiento" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                  <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                  </svg>
-                  Fecha de Nacimiento *
+          {/* Sección Estudiante */}
+          {isEstudiante && (
+            <FormSection number={requiresEmailPhone ? 4 : 3} title="Información del Estudiante">
+              <div className="space-y-1.5">
+                <label htmlFor="fechaNacimiento" className={labelClass}>
+                  Fecha de Nacimiento <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -481,285 +477,148 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
                     const age = today.getFullYear() - selectedDate.getFullYear()
                     const monthDiff = today.getMonth() - selectedDate.getMonth()
                     const dayDiff = today.getDate() - selectedDate.getDate()
-                    
-                    // Calcular edad exacta
                     let exactAge = age
-                    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-                      exactAge--
-                    }
+                    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) exactAge--
                     
-                    // Validar rango de edad
                     if (exactAge < 6 || exactAge > 12) {
-                      setError(`La edad del estudiante debe estar entre 6 y 12 años. Edad seleccionada: ${exactAge} años`)
-                      // Limpiar grado si la edad no es válida
+                      setError(`La edad debe estar entre 6 y 12 años. Edad: ${exactAge} años`)
                       setFormData(prev => ({ ...prev, grado: '' }))
                     } else {
                       setError(null)
-                      
-                      // Asignar grado automáticamente según la edad
-                      // 6 años = 1° grado, 7 años = 2° grado, etc.
                       const gradoAsignado = (exactAge - 5).toString()
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        fechaNacimiento: e.target.value,
-                        grado: gradoAsignado 
-                      }))
-                      
-                      console.log(`✅ Edad: ${exactAge} años → Grado asignado: ${gradoAsignado}°`)
+                      setFormData(prev => ({ ...prev, fechaNacimiento: e.target.value, grado: gradoAsignado }))
                       return
                     }
-                    
                     handleInputChange(e)
                   }}
                   required
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black transition-all"
+                  className={inputClass}
                 />
-                <p className="text-xs text-gray-500 mt-1 flex items-center">
-                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  Solo estudiantes entre 6 y 12 años
-                </p>
+                <p className="text-xs text-slate-500">Solo estudiantes entre 6 y 12 años</p>
               </div>
-            )}
+            </FormSection>
+          )}
 
-            {/* Aula - Grado y Sección (solo para Estudiantes) */}
-            {isEstudiante && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="grado" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
-                    </svg>
-                    Grado *
-                    {formData.grado && formData.fechaNacimiento && (
-                      <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full flex items-center">
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Auto-asignado
-                      </span>
-                    )}
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="grado"
-                      name="grado"
-                      value={formData.grado || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black transition-all"
-                    >
-                      <option value="">Seleccionar grado</option>
-                      <option value="1">1° Grado (6 años)</option>
-                      <option value="2">2° Grado (7 años)</option>
-                      <option value="3">3° Grado (8 años)</option>
-                      <option value="4">4° Grado (9 años)</option>
-                      <option value="5">5° Grado (10 años)</option>
-                      <option value="6">6° Grado (11 años)</option>
-                    </select>
-                    {formData.grado && (
-                      <div className="absolute inset-y-0 right-10 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  {formData.fechaNacimiento && formData.grado && (
-                    <p className="text-xs text-green-600 mt-1 flex items-center">
-                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      Grado asignado según fecha de nacimiento
-                    </p>
+          {/* Grado y Sección (Estudiantes) */}
+          {isEstudiante && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="grado" className={labelClass}>
+                  Grado <span className="text-red-500">*</span>
+                  {formData.grado && formData.fechaNacimiento && (
+                    <span className="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full">Auto</span>
                   )}
-                </div>
-
-                <div>
-                  <label htmlFor="seccion" className="block text-sm font-medium text-gray-700 mb-1">
-                    Sección *
-                  </label>
-                  <select
-                    id="seccion"
-                    name="seccion"
-                    value={formData.seccion || ''}
-                    onChange={handleInputChange}
-                    required
-                    disabled={!formData.grado}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Seleccionar sección</option>
-                    {availableSecciones.map(seccion => (
-                      <option key={seccion} value={seccion}>{seccion}</option>
-                    ))}
+                </label>
+                <div className="relative">
+                  <select id="grado" name="grado" value={formData.grado || ''} onChange={handleInputChange} required className={selectClass}>
+                    <option value="">Seleccionar grado</option>
+                    <option value="1">1° Grado</option>
+                    <option value="2">2° Grado</option>
+                    <option value="3">3° Grado</option>
+                    <option value="4">4° Grado</option>
+                    <option value="5">5° Grado</option>
+                    <option value="6">6° Grado</option>
                   </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Apoderado (solo para Estudiantes) */}
-            {isEstudiante && (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="searchApoderado" className="block text-sm font-medium text-gray-700 mb-1">
-                    Buscar Apoderado
-                  </label>
-                  <input
-                    type="text"
-                    id="searchApoderado"
-                    value={searchApoderado}
-                    onChange={handleApoderadoSearch}
-                    placeholder="Buscar por nombre, apellido o DNI..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                  />
-                </div>
-
-                {filteredApoderados.length > 0 && (
-                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md">
-                    <div className="space-y-1 p-2">
-                      {filteredApoderados.map((apoderado) => (
-                        <div 
-                          key={apoderado.id} 
-                          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                            formData.apoderadoId === apoderado.id ? 'bg-blue-50 border-blue-300' : ''
-                          }`}
-                          onClick={() => setFormData(prev => ({ ...prev, apoderadoId: apoderado.id }))}
-                        >
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {apoderado.nombre} {apoderado.apellido}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              DNI: {apoderado.dni}
-                            </div>
-                          </div>
-                          {formData.apoderadoId === apoderado.id && (
-                            <div className="text-blue-600">
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              <div className="space-y-1.5">
+                <label htmlFor="seccion" className={labelClass}>Sección <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select id="seccion" name="seccion" value={formData.seccion || ''} onChange={handleInputChange} required disabled={!formData.grado} className={`${selectClass} disabled:bg-slate-100`}>
+                    <option value="">Seleccionar</option>
+                    {availableSecciones.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
-                )}
+                </div>
+              </div>
+            </div>
+          )}
 
-                {formData.apoderadoId && (
-                  <div>
-                    <label htmlFor="relacionApoderado" className="block text-sm font-medium text-gray-700 mb-1">
-                      Relación con el Apoderado *
-                    </label>
-                    <select
-                      id="relacionApoderado"
-                      name="relacionApoderado"
-                      value={formData.relacionApoderado || ''}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                    >
-                      <option value="">Seleccionar relación</option>
-                      <option value="Padre/Madre">Padre/Madre</option>
+          {/* Buscar Apoderado (Estudiantes) */}
+          {isEstudiante && (
+            <div className="space-y-3">
+              <label className={labelClass}>Asignar Apoderado</label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><SearchIcon /></div>
+                <input type="text" value={searchApoderado} onChange={handleApoderadoSearch} placeholder="Buscar por nombre o DNI..." className={`${inputClass} pl-10`} />
+              </div>
+              {filteredApoderados.length > 0 && (
+                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50">
+                  {filteredApoderados.map((a) => (
+                    <button key={a.id} type="button" onClick={() => setFormData(prev => ({ ...prev, apoderadoId: a.id }))}
+                      className={`w-full flex items-center justify-between p-3 text-left hover:bg-indigo-50 border-b border-slate-200 last:border-b-0 ${formData.apoderadoId === a.id ? 'bg-indigo-50' : ''}`}>
+                      <div><p className="font-medium text-slate-900">{a.nombre} {a.apellido}</p><p className="text-sm text-slate-500">DNI: {a.dni}</p></div>
+                      {formData.apoderadoId === a.id && <CheckIcon />}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {formData.apoderadoId && (
+                <div className="space-y-1.5">
+                  <label htmlFor="relacionApoderado" className={labelClass}>Relación <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select id="relacionApoderado" name="relacionApoderado" value={formData.relacionApoderado || ''} onChange={handleInputChange} required className={selectClass}>
+                      <option value="">Seleccionar</option>
                       <option value="Padre">Padre</option>
                       <option value="Madre">Madre</option>
-                      <option value="Apoderado">Apoderado</option>
                       <option value="Tutor">Tutor</option>
                       <option value="Familiar">Familiar</option>
                     </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Especialidad (solo para Docentes) */}
-            {requiresEspecialidad && (
-              <div>
-                <label htmlFor="especialidad" className="block text-sm font-medium text-gray-700 mb-1">
-                  Especialidad *
-                </label>
-                <input
-                  type="text"
-                  id="especialidad"
-                  name="especialidad"
-                  value={formData.especialidad || ''}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                  placeholder="Ej: Matemáticas, Comunicación, etc."
-                />
-              </div>
-            )}
-
-            {/* Ocupación (solo para Apoderados) */}
-            {requiresOcupacion && (
-              <div>
-                <label htmlFor="ocupacion" className="block text-sm font-medium text-gray-700 mb-1">
-                  Ocupación *
-                </label>
-                <input
-                  type="text"
-                  id="ocupacion"
-                  name="ocupacion"
-                  value={formData.ocupacion || ''}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
-              </div>
-            )}
-
-
-            {/* Información sobre campos requeridos */}
-            {selectedRoleId && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Campos requeridos para el rol seleccionado:</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  {selectedRoleName === 'ESTUDIANTE' && (
-                    <li>• <strong>Estudiante:</strong> DNI, nombres, apellidos, contraseña y fecha de nacimiento. Email y teléfono son opcionales.</li>
-                  )}
-                  {selectedRoleName === 'APODERADO' && (
-                    <li>• <strong>Apoderado:</strong> DNI, nombres, apellidos, email, teléfono, contraseña y ocupación son obligatorios.</li>
-                  )}
-                  {selectedRoleName === 'DOCENTE' && (
-                    <li>• <strong>Docente:</strong> DNI, nombres, apellidos, email, teléfono, contraseña y especialidad son obligatorios.</li>
-                  )}
-                  {selectedRoleName === 'ADMINISTRATIVO' && (
-                    <li>• <strong>Administrativo:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>
-                  )}
-                  {selectedRoleName === 'AUXILIAR' && (
-                    <li>• <strong>Auxiliar:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>
-                  )}
-                  {selectedRoleName === 'ADMIN' && (
-                    <li>• <strong>Admin:</strong> DNI, nombres, apellidos, email, teléfono y contraseña son obligatorios.</li>
-                  )}
-                </ul>
-              </div>
-            )}
-
-            {/* Botones */}
-            <div className="flex justify-end space-x-4 pt-6 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Creando...' : 'Crear Usuario'}
-              </button>
+                </div>
+              )}
             </div>
-          </form>
-          </div>
-        </div>
-      </div>
-    </>
+          )}
+
+          {/* Especialidad (Docentes) */}
+          {requiresEspecialidad && (
+            <FormSection number={4} title="Información Profesional">
+              <div className="space-y-1.5">
+                <label htmlFor="especialidad" className={labelClass}>Especialidad <span className="text-red-500">*</span></label>
+                <input type="text" id="especialidad" name="especialidad" value={formData.especialidad || ''} onChange={handleInputChange} required className={inputClass} placeholder="Ej: Matemáticas, Comunicación" />
+              </div>
+            </FormSection>
+          )}
+
+          {/* Ocupación (Apoderados) */}
+          {requiresOcupacion && (
+            <FormSection number={4} title="Información Adicional">
+              <div className="space-y-1.5">
+                <label htmlFor="ocupacion" className={labelClass}>Ocupación <span className="text-red-500">*</span></label>
+                <input type="text" id="ocupacion" name="ocupacion" value={formData.ocupacion || ''} onChange={handleInputChange} required className={inputClass} placeholder="Ej: Ingeniero, Médico" />
+              </div>
+            </FormSection>
+          )}
+
+        </form>
+      </ModalBody>
+
+      <ModalFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-100 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          form="create-user-form"
+          disabled={loading}
+          className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
+        >
+          {loading ? 'Creando...' : 'Crear Usuario'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

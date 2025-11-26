@@ -65,28 +65,60 @@ export async function GET(
       const { gradoSeccion, tipoAsignacion } = docenteAula
       const aulaName = `Aula ${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre}`
       
-      // Contar estudiantes reales del grado-sección
+      // Contar estudiantes activos del grado-sección
       const cantidadEstudiantes = await prisma.estudiante.count({
         where: {
-          idGradoSeccion: docenteAula.idGradoSeccion
+          idGradoSeccion: docenteAula.idGradoSeccion,
+          usuario: {
+            estado: 'ACTIVO'
+          }
         }
       })
+
+      // Obtener horarios reales del grado-sección
+      const horarios = await prisma.horarioClase.findMany({
+        where: {
+          idGradoSeccion: docenteAula.idGradoSeccion,
+          activo: true
+        },
+        orderBy: {
+          diaSemana: 'asc'
+        }
+      })
+
+      // Formatear horarios
+      let horarioTexto = 'Horario por definir'
+      if (horarios.length > 0) {
+        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+        const horariosFormateados = horarios.slice(0, 3).map(h => {
+          const dia = diasNombres[h.diaSemana]
+          const inicio = h.horaInicio.toTimeString().slice(0, 5)
+          const fin = h.horaFin.toTimeString().slice(0, 5)
+          return `${dia} ${inicio}-${fin}`
+        })
+        horarioTexto = horariosFormateados.join(' | ')
+        if (horarios.length > 3) {
+          horarioTexto += ` (+${horarios.length - 3} más)`
+        }
+      }
       
       console.log(`🏫 Procesando aula ${index + 1}:`, {
         docenteAulaId: docenteAula.idDocenteAula,
         grado: gradoSeccion.grado.nombre,
         seccion: gradoSeccion.seccion.nombre,
         tipoAsignacion: tipoAsignacion.nombre,
-        estudiantesReales: cantidadEstudiantes
+        estudiantesActivos: cantidadEstudiantes,
+        horariosEncontrados: horarios.length
       })
       
       return {
         id: docenteAula.idDocenteAula,
+        idGradoSeccion: docenteAula.idGradoSeccion,
         materia: tipoAsignacion.nombre, // Tutor, Profesor de materia, etc.
-        grado: `${gradoSeccion.grado.nombre}°`,
+        grado: `${gradoSeccion.grado.nombre}`,
         seccion: gradoSeccion.seccion.nombre,
-        estudiantes: cantidadEstudiantes, // Número real de estudiantes
-        horario: getHorarioSimulado(index),
+        estudiantes: cantidadEstudiantes, // Número real de estudiantes activos
+        horario: horarioTexto,
         aula: aulaName,
         estado: 'activa'
       }
@@ -121,17 +153,4 @@ export async function GET(
       { status: 500 }
     )
   }
-}
-
-// Función auxiliar para generar horarios simulados
-function getHorarioSimulado(index: number): string {
-  const horarios = [
-    'Lunes, Miércoles, Viernes 08:00-09:30',
-    'Martes, Jueves 10:00-11:30',
-    'Lunes, Miércoles 14:00-15:30',
-    'Martes, Viernes 09:00-10:30',
-    'Miércoles, Jueves 15:00-16:30'
-  ]
-  
-  return horarios[index % horarios.length]
 }

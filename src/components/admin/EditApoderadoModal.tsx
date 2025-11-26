@@ -2,6 +2,26 @@
 
 import { useState, useEffect } from 'react'
 import { Apoderado } from '@/hooks/useApoderados'
+import { Modal, ModalHeader, ModalBody, ModalFooter, FormSection } from '@/components/ui'
+
+// Iconos
+const EditIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+)
+
+const SearchIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+)
+
+const CheckIcon = () => (
+  <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+  </svg>
+)
 
 interface Estudiante {
   id: string
@@ -234,257 +254,163 @@ export default function EditApoderadoModal({
     }
   }
 
+  // Estilos reutilizables
+  const inputClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1.5"
+
   if (!isOpen || !apoderado) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Editar Apoderado
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <ModalHeader 
+        icon={<EditIcon />} 
+        subtitle={`${apoderado.nombre} ${apoderado.apellido}`}
+        variant="purple"
+        onClose={onClose}
+      >
+        Editar Apoderado
+      </ModalHeader>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Información Personal */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={formData.nombre}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+      <ModalBody>
+        <form onSubmit={handleSubmit} id="edit-apoderado-form" className="space-y-6">
+          {/* Información Personal */}
+          <FormSection number={1} title="Información Personal">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelClass}>Nombre <span className="text-red-500">*</span></label>
+                <input type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellido *
-                </label>
-                <input
-                  type="text"
-                  name="apellido"
-                  value={formData.apellido}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Apellido <span className="text-red-500">*</span></label>
+                <input type="text" name="apellido" value={formData.apellido} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  DNI *
-                </label>
-                <input
-                  type="text"
-                  name="dni"
-                  value={formData.dni}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>DNI <span className="text-red-500">*</span></label>
+                <input type="text" name="dni" value={formData.dni} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono *
-                </label>
-                <input
-                  type="tel"
-                  name="telefono"
-                  value={formData.telefono}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Teléfono <span className="text-red-500">*</span></label>
+                <input type="tel" name="telefono" value={formData.telefono} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  name="direccion"
-                  value={formData.direccion}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Dirección</label>
+                <input type="text" name="direccion" value={formData.direccion} onChange={handleInputChange} className={inputClass} />
               </div>
-
             </div>
+          </FormSection>
 
-            {/* Asignación de Estudiantes */}
+          {/* Asignación de Estudiantes */}
+          <FormSection number={2} title="Estudiantes Asignados">
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Estudiantes Asignados</h3>
-              
               {/* Campo de búsqueda */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Buscar Estudiantes
-                  </label>
-                  <div className="flex space-x-2">
-                  </div>
-                </div>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><SearchIcon /></div>
                 <input
                   type="text"
                   value={searchEstudiantes}
                   onChange={handleSearchChange}
-                  placeholder="Buscar por nombre, apellido, DNI o grado..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  placeholder="Buscar por nombre, DNI o grado..."
+                  className={`${inputClass} pl-10`}
                 />
               </div>
               
               {loadingEstudiantes ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 </div>
               ) : (
-                <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-md">
+                <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50">
                   {filteredEstudiantes.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">
-                      <div>
-                        {searchEstudiantes ? 'No se encontraron estudiantes con ese criterio' : 'No hay estudiantes disponibles'}
-                      </div>
-                      <div className="text-xs mt-2 text-gray-400">
-                        Total disponibles: {availableEstudiantes.length} | 
-                        Filtrados: {filteredEstudiantes.length} |
-                        Cargando: {loadingEstudiantes ? 'Sí' : 'No'}
-                      </div>
+                    <div className="p-6 text-center text-slate-500">
+                      {searchEstudiantes ? 'No se encontraron estudiantes' : 'No hay estudiantes disponibles'}
                     </div>
                   ) : (
-                    <div className="space-y-1 p-2">
-                      {filteredEstudiantes.map((estudiante) => {
-                        const isSelected = selectedEstudiantes.includes(estudiante.id)
-                        console.log(`Estudiante ${estudiante.id} (${estudiante.nombre}): selected=${isSelected}, selectedArray=${JSON.stringify(selectedEstudiantes)}`)
-                        
-                        return (
-                        <div key={estudiante.id} className={`flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 ${
-                          estudiante.estado !== 'ACTIVO' ? 'opacity-60 bg-gray-50' : ''
-                        }`}>
+                    filteredEstudiantes.map((estudiante) => {
+                      const isSelected = selectedEstudiantes.includes(estudiante.id)
+                      return (
+                        <div key={estudiante.id} className={`flex items-center gap-3 p-3 border-b border-slate-200 last:border-b-0 hover:bg-indigo-50 transition-colors ${
+                          estudiante.estado !== 'ACTIVO' ? 'opacity-60' : ''
+                        } ${isSelected ? 'bg-indigo-50' : ''}`}>
                           <input
                             type="checkbox"
-                            id={`estudiante-${estudiante.id}`}
                             checked={isSelected}
                             onChange={() => handleEstudianteToggle(estudiante.id)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
                             disabled={estudiante.estado !== 'ACTIVO' && !isSelected}
                           />
-                          <label htmlFor={`estudiante-${estudiante.id}`} className="flex-1 cursor-pointer">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900">
-                                {estudiante.nombre} {estudiante.apellido}
-                              </span>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                estudiante.estado === 'ACTIVO' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : estudiante.estado === 'INACTIVO'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {estudiante.estado}
-                              </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-900 truncate">{estudiante.nombre} {estudiante.apellido}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                estudiante.estado === 'ACTIVO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>{estudiante.estado}</span>
                             </div>
-                            <div className="text-sm text-gray-500">
-                              DNI: {estudiante.dni} | {estudiante.grado}° {estudiante.seccion}
-                            </div>
-                          </label>
-                          {selectedEstudiantes.includes(estudiante.id) && (
-                            <div className="flex items-center space-x-2">
+                            <p className="text-sm text-slate-500">DNI: {estudiante.dni} | {estudiante.grado}° {estudiante.seccion}</p>
+                          </div>
+                          {isSelected && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
                               <select
                                 value={estudiantesRelaciones[estudiante.id] || 'Padre/Madre'}
                                 onChange={(e) => handleRelacionChange(estudiante.id, e.target.value)}
-                                className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                                className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500 text-slate-900"
                               >
-                                <option value="Padre/Madre">Padre/Madre</option>
                                 <option value="Padre">Padre</option>
                                 <option value="Madre">Madre</option>
-                                <option value="Apoderado">Apoderado</option>
                                 <option value="Tutor">Tutor</option>
                                 <option value="Familiar">Familiar</option>
                               </select>
-                              <label className="flex items-center space-x-1 text-sm">
+                              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={estudiantesTitulares[estudiante.id] || false}
                                   onChange={(e) => handleTitularChange(estudiante.id, e.target.checked)}
-                                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
                                 />
-                                <span className="text-gray-700">Titular</span>
+                                <span className="text-slate-600">Titular</span>
                               </label>
                             </div>
                           )}
                         </div>
-                        )
-                      })}
-                    </div>
+                      )
+                    })
                   )}
                 </div>
               )}
               
-              <div className="text-sm text-gray-600">
-                {selectedEstudiantes.length} estudiante(s) seleccionado(s)
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">
+                  <span className="font-medium text-indigo-600">{selectedEstudiantes.length}</span> estudiante(s) seleccionado(s)
+                </span>
                 {searchEstudiantes && (
-                  <span className="ml-2 text-blue-600">
-                    ({filteredEstudiantes.length} mostrados)
-                  </span>
+                  <span className="text-slate-500">{filteredEstudiantes.length} mostrados</span>
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Botones de acción */}
-          <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Guardando...' : 'Guardar Cambios'}
-            </button>
-          </div>
+          </FormSection>
         </form>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-100 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          form="edit-apoderado-form"
+          disabled={loading}
+          className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
+        >
+          {loading ? 'Guardando...' : 'Guardar Cambios'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

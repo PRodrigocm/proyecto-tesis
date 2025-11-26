@@ -14,7 +14,7 @@ interface Estudiante {
   apellido: string
   dni: string
   codigo: string
-  estado: 'presente' | 'tardanza' | 'pendiente'
+  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar'
   horaLlegada?: string
 }
 
@@ -204,24 +204,11 @@ export default function TomarAsistenciaPopup({
         codigosProcesadosRef.current.add(codigoLimpio)
         setContadorProcesados(codigosProcesadosRef.current.size)
         
-        // Actualizar estudiantes
-        const estudiantesActualizados = estudiantes.map(est => 
-          est.id === data.estudiante.id 
-            ? { 
-                ...est, 
-                estado: data.asistencia.estado.toLowerCase() as 'presente' | 'tardanza', 
-                horaLlegada: new Date(data.asistencia.horaRegistro).toLocaleTimeString('es-ES', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })
-              }
-            : est
-        )
-        setEstudiantes(estudiantesActualizados)
+        // Recargar lista de estudiantes desde la API
+        await cargarEstudiantes()
         
-        console.log('🔔 Llamando a onSave con estudiantes actualizados:', estudiantesActualizados.length)
-        console.log('📋 Estudiantes para enviar:', estudiantesActualizados.map(e => ({ nombre: e.nombre, estado: e.estado })))
-        onSave(estudiantesActualizados)
+        console.log('🔔 Llamando a onSave')
+        onSave(estudiantes)
         console.log('✅ onSave ejecutado')
         
         // Mostrar confirmación
@@ -279,10 +266,19 @@ export default function TomarAsistenciaPopup({
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
       
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+      const config: any = {
+        fps: 30, // Mayor FPS para mejor detección
+        qrbox: undefined, // Sin qrbox = escanea toda el área de la cámara
+        aspectRatio: 1.0,
+        disableFlip: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Usar detector nativo del navegador si está disponible
+        },
+        videoConstraints: {
+          facingMode: 'environment', // Cámara trasera preferida
+          width: { ideal: 1920, min: 1280 }, // Alta resolución para detectar QR pequeños/lejanos
+          height: { ideal: 1080, min: 720 }
+        }
       }
       
       await scanner.start(
@@ -313,14 +309,19 @@ export default function TomarAsistenciaPopup({
   const detenerEscaner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop()
+        // Solo intentar detener si está activo
+        if (scannerActive) {
+          await scannerRef.current.stop()
+        }
         await scannerRef.current.clear()
-        scannerRef.current = null
-        setScannerActive(false)
         console.log('✅ Escáner detenido correctamente')
       } catch (error) {
-        console.error('Error deteniendo escáner:', error)
-        // Forzar limpieza aunque haya error
+        // Ignorar error si el escáner ya estaba detenido
+        if (!String(error).includes('not running')) {
+          console.error('Error deteniendo escáner:', error)
+        }
+      } finally {
+        // Siempre limpiar referencias
         scannerRef.current = null
         setScannerActive(false)
       }
@@ -413,9 +414,9 @@ export default function TomarAsistenciaPopup({
 
       <div className="min-h-screen md:h-screen flex flex-col">
         {/* Layout responsivo */}
-        <div className="flex-1 flex flex-col md:flex-row md:gap-6 pt-2 px-2 pb-2 md:p-4 md:px-6 overflow-y-auto md:overflow-hidden">
-          {/* Panel de Escaneo */}
-          <div className="w-full md:w-1/2 bg-white rounded-lg shadow-lg p-3 md:p-6 mb-4 md:mb-0 flex flex-col">
+        <div className="flex-1 flex flex-col md:flex-row md:gap-4 pt-2 px-2 pb-2 md:p-4 md:px-6 overflow-y-auto md:overflow-hidden">
+          {/* Panel de Escaneo - Más grande */}
+          <div className="w-full md:w-3/5 bg-white rounded-lg shadow-lg p-3 md:p-4 mb-4 md:mb-0 flex flex-col">
             {/* Controles móvil - Visibles arriba */}
             <div className="md:hidden mb-2 sticky top-0 bg-white z-20 pb-2 -mx-3 px-3 pt-2 border-b border-gray-200">
               <div className="flex gap-2">
@@ -478,7 +479,7 @@ export default function TomarAsistenciaPopup({
                         // El useEffect se encargará de reiniciar el escáner
                         setTimeout(() => setCambiandoCamara(false), 1000)
                       }}
-                      className="w-full p-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                      className="w-full p-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-black font-medium shadow-sm"
                       disabled={procesandoEscaneo}
                     >
                       {camaras.map((camara, index) => (
@@ -490,13 +491,13 @@ export default function TomarAsistenciaPopup({
                   </div>
                 )}
                 
-                {/* Área del escáner */}
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="relative w-full max-w-md">
+                {/* Área del escáner - Expandida */}
+                <div className="flex-1 flex items-center justify-center p-2">
+                  <div className="relative w-full h-full max-w-lg">
                     <div 
                       id="qr-reader" 
-                      className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-black"
-                      style={{ minHeight: '300px', aspectRatio: '1' }}
+                      className="w-full h-full border-2 border-blue-400 rounded-xl overflow-hidden bg-black shadow-lg"
+                      style={{ minHeight: '350px', maxHeight: '500px' }}
                     />
                     
                     {!scannerActive && permisosCamara === 'pending' && (
@@ -529,37 +530,87 @@ export default function TomarAsistenciaPopup({
                 </div>
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  if (codigoManual.trim()) {
-                    procesarCodigoQR(codigoManual.trim())
-                    setCodigoManual('')
-                  }
-                }}
-                className="flex-1 flex flex-col space-y-4"
-              >
-                <div className="flex-1 flex flex-col">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código del Estudiante:
-                  </label>
+              <div className="flex-1 flex flex-col space-y-2">
+                {/* Búsqueda rápida con Enter */}
+                <div>
                   <input
                     type="text"
                     value={codigoManual}
                     onChange={(e) => setCodigoManual(e.target.value)}
-                    placeholder="Ingresa el código o DNI"
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg"
+                    onKeyDown={(e) => {
+                      const pendientes = estudiantes
+                        .filter(est => est.estado === 'pendiente' || est.estado === 'sin_registrar')
+                        .filter(est => {
+                          if (!codigoManual.trim()) return true
+                          const busqueda = codigoManual.toLowerCase()
+                          const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase()
+                          const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase()
+                          return nombreCompleto.includes(busqueda) || apellidoNombre.includes(busqueda) ||
+                                 est.codigo?.toLowerCase().includes(busqueda) || est.dni?.toLowerCase().includes(busqueda)
+                        })
+                      
+                      // Enter = registrar el primero de la lista
+                      if (e.key === 'Enter' && pendientes.length > 0 && !procesandoEscaneo) {
+                        e.preventDefault()
+                        procesarCodigoQR(pendientes[0].codigo)
+                        setCodigoManual('')
+                      }
+                    }}
+                    placeholder="🔍 Escribe y presiona ENTER..."
+                    className="w-full p-4 border-2 border-blue-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-600 text-xl text-black font-medium shadow-sm"
                     autoFocus
                   />
+                  <p className="text-xs text-gray-500 mt-1 text-center">Escribe apellido/nombre y presiona <kbd className="bg-gray-200 px-1 rounded">Enter</kbd> para marcar</p>
                 </div>
-                <button
-                  type="submit"
-                  disabled={!codigoManual.trim() || procesandoEscaneo}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {procesandoEscaneo ? 'Procesando...' : 'Registrar Asistencia'}
-                </button>
-              </form>
+                
+                {/* Lista filtrada - más compacta */}
+                <div className="flex-1 overflow-y-auto rounded-lg bg-gray-50 border">
+                  {(() => {
+                    const pendientes = estudiantes
+                      .filter(est => est.estado === 'pendiente' || est.estado === 'sin_registrar')
+                      .filter(est => {
+                        if (!codigoManual.trim()) return true
+                        const busqueda = codigoManual.toLowerCase()
+                        const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase()
+                        const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase()
+                        return nombreCompleto.includes(busqueda) || apellidoNombre.includes(busqueda) ||
+                               est.codigo?.toLowerCase().includes(busqueda) || est.dni?.toLowerCase().includes(busqueda)
+                      })
+                    
+                    if (pendientes.length === 0 && estudiantes.filter(e => e.estado === 'pendiente' || e.estado === 'sin_registrar').length === 0) {
+                      return <div className="p-4 text-center text-green-600 font-medium">✅ Todos tienen asistencia</div>
+                    }
+                    
+                    if (pendientes.length === 0) {
+                      return <div className="p-4 text-center text-gray-500">No encontrado</div>
+                    }
+                    
+                    return pendientes.map((estudiante, index) => (
+                      <button
+                        key={estudiante.id}
+                        onClick={() => {
+                          procesarCodigoQR(estudiante.codigo)
+                          setCodigoManual('')
+                        }}
+                        disabled={procesandoEscaneo}
+                        className={`w-full p-2 text-left border-b hover:bg-blue-100 transition-colors disabled:opacity-50 flex justify-between items-center ${
+                          index === 0 && codigoManual.trim() ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                        }`}
+                      >
+                        <div className="font-medium text-gray-900 text-sm">
+                          {estudiante.apellido}, {estudiante.nombre}
+                        </div>
+                        <span className="text-green-600 text-lg">✓</span>
+                      </button>
+                    ))
+                  })()}
+                </div>
+
+                {/* Contador compacto */}
+                <div className="text-center text-xs text-gray-500">
+                  {estudiantes.filter(est => est.estado === 'pendiente' || est.estado === 'sin_registrar').length}/{estudiantes.length} pendientes
+                </div>
+              </div>
             )}
             
             {/* Estado del último escaneo */}
@@ -603,8 +654,8 @@ export default function TomarAsistenciaPopup({
             )}
           </div>
 
-          {/* Lista de Estudiantes */}
-          <div className="w-full md:w-1/2 bg-white rounded-lg shadow-lg p-3 md:p-6 flex flex-col">
+          {/* Lista de Estudiantes - Más compacta */}
+          <div className="w-full md:w-2/5 bg-white rounded-lg shadow-lg p-3 md:p-4 flex flex-col">
             <div className="mb-3 md:mb-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg md:text-xl font-bold text-gray-900">

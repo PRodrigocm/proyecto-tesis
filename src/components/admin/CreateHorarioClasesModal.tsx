@@ -1,6 +1,20 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui'
+
+// Iconos
+const ClockIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+)
+
+const BookIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
+)
 
 interface CreateHorarioClasesModalProps {
   isOpen: boolean
@@ -227,133 +241,141 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            📚 Crear Horario de Clases Anual
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <span className="sr-only">Cerrar</span>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+  const inputClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 transition-all"
+  const selectClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 transition-all appearance-none cursor-pointer"
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">📚 Horario Base Simple</h4>
-            <p className="text-sm text-blue-700">
-              Crea un horario fijo de <strong>Lunes a Viernes</strong> con el mismo horario todos los días.
-              Perfecto para tu concepto de horario base que solo cambia por resolución o decisión del director.
-            </p>
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalHeader 
+        icon={<ClockIcon />} 
+        subtitle="Configura el horario base para las clases"
+        variant="blue"
+        onClose={onClose}
+      >
+        Crear Horario de Clases
+      </ModalHeader>
+
+      <ModalBody>
+        <form id="create-horario-form" onSubmit={handleSubmit} className="space-y-6">
+          {/* Info Card */}
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <BookIcon />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900">Horario Base Simple</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Crea un horario fijo de <strong>Lunes a Viernes</strong> con el mismo horario todos los días.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Grado y Sección *
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Grado y Sección */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Grado y Sección <span className="text-red-500">*</span>
               </label>
-              <select
-                name="idGradoSeccion"
-                value={formData.idGradoSeccion}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                required
-                disabled={loadingGrados}
-              >
-                {loadingGrados ? (
-                  <option value="">🔄 Cargando grados y secciones...</option>
-                ) : gradosSecciones.length === 0 ? (
-                  <option value="">❌ No hay grados disponibles</option>
-                ) : (
-                  <>
-                    <option value="">📚 Seleccionar grado y sección...</option>
-                    <option value="TODOS" className="font-bold text-blue-600">
-                      🏫 Todos los grados y secciones
-                    </option>
-                    <option disabled>──────────────────────</option>
-                    {gradosSecciones.map((gs) => (
-                      <option key={`grado-seccion-${gs.idGradoSeccion}`} value={gs.idGradoSeccion}>
-                        {gs.grado.nivel.nombre} - {gs.grado.nombre}° {gs.seccion.nombre}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
+              <div className="relative">
+                <select
+                  name="idGradoSeccion"
+                  value={formData.idGradoSeccion}
+                  onChange={handleInputChange}
+                  className={selectClass}
+                  required
+                  disabled={loadingGrados}
+                >
+                  {loadingGrados ? (
+                    <option value="">Cargando grados y secciones...</option>
+                  ) : gradosSecciones.length === 0 ? (
+                    <option value="">No hay grados disponibles</option>
+                  ) : (
+                    <>
+                      <option value="">Seleccionar grado y sección...</option>
+                      <option value="TODOS">Todos los grados y secciones</option>
+                      {gradosSecciones.map((gs) => (
+                        <option key={`grado-seccion-${gs.idGradoSeccion}`} value={gs.idGradoSeccion}>
+                          {gs.grado.nivel.nombre} - {gs.grado.nombre}° {gs.seccion.nombre}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
               {loadingGrados && (
-                <p className="text-sm text-blue-500 mt-1">🔄 Cargando grados y secciones...</p>
-              )}
-              {!loadingGrados && gradosSecciones.length === 0 && (
-                <p className="text-sm text-red-500 mt-1">❌ No se encontraron grados y secciones. Verifica la configuración.</p>
+                <p className="text-sm text-blue-500 mt-1.5 flex items-center gap-1">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Cargando...
+                </p>
               )}
               {!loadingGrados && gradosSecciones.length > 0 && (
-                <p className="text-sm text-green-600 mt-1">✅ {gradosSecciones.length} grados disponibles</p>
+                <p className="text-sm text-emerald-600 mt-1.5">{gradosSecciones.length} grados disponibles</p>
               )}
               {formData.idGradoSeccion === 'TODOS' && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-700">
-                    🏫 <strong>Modo masivo:</strong> Se creará el mismo horario base para todos los {gradosSecciones.length} grados y secciones disponibles.
+                    <strong>Modo masivo:</strong> Se creará el mismo horario para todos los {gradosSecciones.length} grados.
                   </p>
                 </div>
               )}
             </div>
 
+            {/* Aula */}
             {formData.idGradoSeccion !== 'TODOS' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Aula
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Aula</label>
                 <input
                   type="text"
                   name="aula"
                   value={formData.aula}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                  placeholder="Ej: Aula 3A, Laboratorio, etc."
+                  className={inputClass}
+                  placeholder="Ej: Aula 3A, Laboratorio"
                 />
               </div>
             )}
 
+            {/* Hora Inicio */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hora de Inicio
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Hora de Inicio</label>
               <input
                 type="time"
                 name="horaInicio"
                 value={formData.horaInicio}
                 onChange={handleInputChange}
                 step="900"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                className={inputClass}
               />
-              <p className="text-xs text-gray-500 mt-1">Formato 24 horas (ej: 08:00)</p>
+              <p className="text-xs text-slate-500 mt-1">Formato 24 horas</p>
             </div>
 
+            {/* Hora Fin */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hora de Fin
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Hora de Fin</label>
               <input
                 type="time"
                 name="horaFin"
                 value={formData.horaFin}
                 onChange={handleInputChange}
                 step="900"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                className={inputClass}
               />
-              <p className="text-xs text-gray-500 mt-1">Formato 24 horas (ej: 13:30)</p>
+              <p className="text-xs text-slate-500 mt-1">Formato 24 horas</p>
             </div>
 
+            {/* Tolerancia */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tolerancia (minutos)
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Tolerancia (minutos)</label>
               <input
                 type="number"
                 name="toleranciaMin"
@@ -361,57 +383,66 @@ export default function CreateHorarioClasesModal({ isOpen, onClose, onSave }: Cr
                 onChange={handleInputChange}
                 min="0"
                 max="30"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                className={inputClass}
               />
             </div>
           </div>
 
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h4 className="text-sm font-medium text-green-800 mb-2">✅ Lo que se creará:</h4>
-            <ul className="text-sm text-green-700 space-y-1">
-              <li>• <strong>Lunes a Viernes:</strong> {formatearHora(formData.horaInicio)} - {formatearHora(formData.horaFin)}</li>
-              <li>• <strong>Aplicar a:</strong> {
-                formData.idGradoSeccion === 'TODOS' 
-                  ? `🏫 Todos los grados y secciones (${gradosSecciones.length} grados)`
-                  : formData.idGradoSeccion 
-                    ? (() => {
-                        const selected = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === formData.idGradoSeccion)
-                        return selected ? `${selected.grado.nivel} - ${selected.grado.nombre}° ${selected.seccion.nombre}` : 'Grado seleccionado'
-                      })()
-                    : 'Ningún grado seleccionado'
-              }</li>
-              <li>• <strong>Aula:</strong> {
-                formData.idGradoSeccion === 'TODOS'
-                  ? '🏫 Se generará automáticamente: "Aula [Grado y Sección]"'
-                  : formData.aula || 'Sin especificar'
-              }</li>
-              <li>• <strong>Tolerancia:</strong> {formData.toleranciaMin} minutos</li>
-              <li>• <strong>Tipo:</strong> Clase Regular (horario base)</li>
-            </ul>
-          </div>
-
-          {/* Botones */}
-          <div className="flex justify-end items-center pt-4 border-t">
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? 'Creando...' : formData.idGradoSeccion === 'TODOS' ? 'Crear Horarios Masivos' : 'Crear Horario Base'}
-              </button>
+          {/* Resumen */}
+          <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
+            <h4 className="text-sm font-semibold text-emerald-900 mb-3">Resumen del horario</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span className="text-slate-600">Días:</span>
+                <span className="font-medium text-slate-900">Lunes a Viernes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span className="text-slate-600">Horario:</span>
+                <span className="font-medium text-slate-900">{formatearHora(formData.horaInicio)} - {formatearHora(formData.horaFin)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span className="text-slate-600">Tolerancia:</span>
+                <span className="font-medium text-slate-900">{formData.toleranciaMin} min</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span className="text-slate-600">Tipo:</span>
+                <span className="font-medium text-slate-900">Clase Regular</span>
+              </div>
             </div>
           </div>
         </form>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          className="px-5 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          form="create-horario-form"
+          disabled={loading}
+          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 flex items-center gap-2"
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Creando...
+            </>
+          ) : formData.idGradoSeccion === 'TODOS' ? 'Crear Horarios Masivos' : 'Crear Horario'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

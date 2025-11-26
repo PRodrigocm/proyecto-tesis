@@ -1,8 +1,57 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui'
 import SearchableSelect from '@/components/ui/SearchableSelect'
-// import { XMarkIcon } from '@heroicons/react/24/outline'
+
+// Iconos
+const ParentIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+)
+
+const UserIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+)
+
+const MailIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+)
+
+const PhoneIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+)
+
+const IdCardIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+  </svg>
+)
+
+const LockIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+  </svg>
+)
+
+const HomeIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+  </svg>
+)
+
+const BriefcaseIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+)
 
 interface Estudiante {
   id: string
@@ -275,165 +324,191 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
 
   if (!isOpen) return null
 
+  const inputClass = "w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+  const inputErrorClass = "w-full pl-12 pr-4 py-3 bg-red-50 border border-red-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+  const selectClass = "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-slate-900 transition-all appearance-none cursor-pointer"
+
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center pb-3">
-          <h3 className="text-lg font-bold text-gray-900">Crear Nuevo Apoderado</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            ×
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalHeader 
+        icon={<ParentIcon />} 
+        subtitle="Complete los datos del nuevo apoderado"
+        variant="rose"
+        onClose={onClose}
+      >
+        Crear Nuevo Apoderado
+      </ModalHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">DNI *</label>
-              <input
-                type="text"
-                name="dni"
-                value={formData.dni}
-                onChange={handleChange}
-                required
-                maxLength={8}
-                pattern="[0-9]{8}"
-                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.dni ? 'border-red-400' : 'border-gray-300'}`}
-                placeholder="Numero de DNI"
-                autoComplete="off"
-              />
-              <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 8 dígitos</p>
-              {fieldErrors.dni && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.dni}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Email *</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                autoComplete="off"
-                placeholder="Correo Electronico"
-                className={`mt-1 block w-full px-4 py-3 text-black bg-white border-2 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
-              />
-              {fieldErrors.email && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Nombre *</label>
-              <input
-                type="text"
-                name="nombre"
-                value={formData.nombre}
-                onChange={handleChange}
-                required
-                autoComplete="off"
-                placeholder="Nombres"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Apellido *</label>
-              <input
-                type="text"
-                name="apellido"
-                value={formData.apellido}
-                onChange={handleChange}
-                required
-                autoComplete="off"
-                placeholder="Apellidos"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Teléfono *</label>
-              <input
-                type="tel"
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleChange}
-                required
-                maxLength={9}
-                pattern="[0-9]{9}"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Numero de telefono"
-              />
-              <p className="mt-1 text-sm text-gray-500">Debe contener exactamente 9 dígitos</p>
-            </div>
-
-
-            <div>
-              <label className="block text-base font-semibold text-gray-800 mb-2">Ocupación</label>
-              <input
-                type="text"
-                name="ocupacion"
-                value={formData.ocupacion}
-                onChange={handleChange}
-                autoComplete="off"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Profesión u ocupación"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-base font-semibold text-gray-800 mb-2">Dirección *</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-                required
-                autoComplete="off"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Dirección completa del domicilio"
-              />
-            </div>
-
-
-            {/* Sección de hijos múltiples */}
-            <div className="md:col-span-2">
-              <div className="flex items-center justify-between mb-3 border-t pt-4">
-                <h4 className="text-md font-medium text-gray-900">
-                  Hijos
-                </h4>
-                <button
-                  type="button"
-                  onClick={agregarHijo}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Agregar Hijo</span>
-                </button>
+      <ModalBody className="max-h-[65vh] overflow-y-auto">
+        <form id="create-apoderado-form" onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+          {/* Sección: Información Personal */}
+          <div className="p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+            <h4 className="text-sm font-semibold text-rose-900 mb-4 flex items-center gap-2">
+              <UserIcon />
+              Información Personal
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* DNI */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">DNI <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><IdCardIcon /></div>
+                  <input
+                    type="text"
+                    name="dni"
+                    value={formData.dni}
+                    onChange={handleChange}
+                    required
+                    maxLength={8}
+                    pattern="[0-9]{8}"
+                    className={fieldErrors.dni ? inputErrorClass : inputClass}
+                    placeholder="12345678"
+                    autoComplete="off"
+                  />
+                </div>
+                {fieldErrors.dni && <p className="mt-1.5 text-sm text-red-500">{fieldErrors.dni}</p>}
               </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Puedes asignar múltiples hijos al apoderado. Solo uno puede ser titular (autorizar retiros).
-              </p>
-            </div>
 
-            <div className="md:col-span-2 space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><MailIcon /></div>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className={fieldErrors.email ? inputErrorClass : inputClass}
+                    placeholder="apoderado@email.com"
+                    autoComplete="off"
+                  />
+                </div>
+                {fieldErrors.email && <p className="mt-1.5 text-sm text-red-500">{fieldErrors.email}</p>}
+              </div>
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Nombre <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><UserIcon /></div>
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                    placeholder="Nombres"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* Apellido */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Apellido <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><UserIcon /></div>
+                  <input
+                    type="text"
+                    name="apellido"
+                    value={formData.apellido}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                    placeholder="Apellidos"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* Teléfono */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Teléfono <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><PhoneIcon /></div>
+                  <input
+                    type="tel"
+                    name="telefono"
+                    value={formData.telefono}
+                    onChange={handleChange}
+                    required
+                    maxLength={9}
+                    pattern="[0-9]{9}"
+                    className={inputClass}
+                    placeholder="999999999"
+                  />
+                </div>
+              </div>
+
+              {/* Ocupación */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Ocupación</label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><BriefcaseIcon /></div>
+                  <input
+                    type="text"
+                    name="ocupacion"
+                    value={formData.ocupacion}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="Profesión u ocupación"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* Dirección */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Dirección <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2"><HomeIcon /></div>
+                  <input
+                    type="text"
+                    name="direccion"
+                    value={formData.direccion}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                    placeholder="Dirección completa del domicilio"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sección: Hijos */}
+          <div className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-sm font-semibold text-violet-900">Hijos Asignados</h4>
+                <p className="text-xs text-violet-600 mt-1">Asigna estudiantes como hijos del apoderado</p>
+              </div>
+              <button
+                type="button"
+                onClick={agregarHijo}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-violet-600 hover:text-violet-800 hover:bg-violet-100 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Agregar
+              </button>
+            </div>
+            
+            <div className="space-y-3">
               {hijosRelaciones.map((hijo, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div key={index} className="bg-white rounded-xl p-4 border border-violet-200">
                   <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-sm font-medium text-gray-800">
-                      Hijo {index + 1}
-                    </h5>
+                    <span className="text-sm font-medium text-slate-700">Hijo {index + 1}</span>
                     {hijosRelaciones.length > 1 && (
                       <button
                         type="button"
                         onClick={() => eliminarHijo(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-500 hover:text-red-700 p-1"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -442,8 +517,7 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Selector de Estudiante con búsqueda */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <SearchableSelect
                       label="Seleccionar Estudiante"
                       options={estudiantes.map(est => ({
@@ -453,19 +527,16 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                       }))}
                       value={hijo.estudianteId}
                       onChange={(value) => handleHijoChange(index, 'estudianteId', value)}
-                      placeholder="Buscar estudiante por nombre o DNI..."
+                      placeholder="Buscar estudiante..."
                       disabled={loadingEstudiantes}
                     />
 
-                    {/* Selector de Parentesco */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Parentesco
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Parentesco</label>
                       <select
                         value={hijo.parentesco}
                         onChange={(e) => handleHijoChange(index, 'parentesco', e.target.value)}
-                        className="w-full px-3 py-2 text-black bg-white border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                        className={`${selectClass} disabled:bg-slate-100`}
                         disabled={!hijo.estudianteId}
                       >
                         <option value="PADRE">Padre</option>
@@ -480,67 +551,78 @@ export default function CreateApoderadoModal({ isOpen, onClose, onSuccess }: Cre
                     </div>
                   </div>
 
-                  {/* Checkbox Es Titular */}
                   {hijo.estudianteId && (
-                    <div className="mt-3">
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={hijo.esTitular}
-                          onChange={(e) => handleHijoChange(index, 'esTitular', e.target.checked)}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Es titular (puede autorizar retiros)
-                        </span>
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Solo un apoderado puede ser titular por estudiante
-                      </p>
-                    </div>
+                    <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hijo.esTitular}
+                        onChange={(e) => handleHijoChange(index, 'esTitular', e.target.checked)}
+                        className="w-4 h-4 text-violet-600 border-slate-300 rounded focus:ring-violet-500"
+                      />
+                      <span className="text-sm text-slate-700">Es titular (puede autorizar retiros)</span>
+                    </label>
                   )}
                 </div>
               ))}
               
               {loadingEstudiantes && (
-                <p className="text-sm text-gray-500 text-center">Cargando estudiantes...</p>
+                <div className="flex items-center justify-center py-4">
+                  <svg className="animate-spin h-5 w-5 text-violet-500" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span className="ml-2 text-sm text-slate-500">Cargando estudiantes...</span>
+                </div>
               )}
             </div>
+          </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-base font-semibold text-gray-800 mb-2">Contraseña *</label>
+          {/* Contraseña */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Contraseña <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2"><LockIcon /></div>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                autoComplete="new-password"
-                className="mt-1 block w-full px-4 py-3 text-black bg-white border-2 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-                placeholder="Mínimo 6 caracteres"
                 minLength={6}
+                className={inputClass}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
               />
             </div>
           </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? 'Creando...' : 'Crear Apoderado'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          form="create-apoderado-form"
+          disabled={loading}
+          className="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium rounded-xl hover:from-rose-600 hover:to-pink-600 transition-all shadow-lg shadow-rose-500/30 disabled:opacity-50 flex items-center gap-2"
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Creando...
+            </>
+          ) : 'Crear Apoderado'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

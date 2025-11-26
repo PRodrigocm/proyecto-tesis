@@ -242,7 +242,7 @@ export default function DocenteDashboard() {
                         </p>
                       )}
                       <p className="text-sm text-gray-500">
-                        {aulaInfo.clases.reduce((total: number, clase: any) => total + clase.estudiantes, 0)} estudiantes
+                        {aulaInfo.estudiantes || aulaInfo.clases[0]?.estudiantes || 0} estudiantes
                       </p>
                     </div>
                   </div>

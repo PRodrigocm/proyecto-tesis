@@ -260,53 +260,95 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
       }
     })
     
-    // Detalle por cada aula
+    // Detalle por cada aula con formato de tabla de asistencia (fechas como columnas)
     let currentY = (doc as any).lastAutoTable.finalY + 20
     
+    // Obtener fechas del período
+    const fechasPeriodo: Date[] = []
+    const fechaInicio = new Date(metadatos.fechaInicio)
+    const fechaFin = new Date(metadatos.fechaFin)
+    for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+      fechasPeriodo.push(new Date(d))
+    }
+    
+    // Limitar a máximo 15 fechas por tabla para que quepa en la página
+    const fechasPorPagina = 15
+    
     Object.entries(aulaGroups).forEach(([aulaKey, aula]: [string, any]) => {
-      // Verificar si necesitamos nueva página
-      if (currentY > 250) {
-        doc.addPage()
-        currentY = 20
+      // Dividir fechas en grupos si hay muchas
+      for (let i = 0; i < fechasPeriodo.length; i += fechasPorPagina) {
+        const fechasGrupo = fechasPeriodo.slice(i, i + fechasPorPagina)
+        
+        // Verificar si necesitamos nueva página
+        if (currentY > 200) {
+          doc.addPage()
+          currentY = 20
+        }
+        
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Grado y sección: ${aulaKey}`, 20, currentY)
+        currentY += 10
+        
+        // Headers: Apellidos y nombre + fechas
+        const headers = ['Apellidos y nombre']
+        fechasGrupo.forEach(fecha => {
+          const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+          const dia = dias[fecha.getDay()]
+          const numero = fecha.getDate().toString().padStart(2, '0')
+          headers.push(`${dia}${numero}`)
+        })
+        
+        // Datos de estudiantes
+        const estudiantesAulaData = aula.estudiantes.map((estudiante: any) => {
+          const fila = [`${estudiante.apellido}, ${estudiante.nombre}`]
+          
+          fechasGrupo.forEach(fecha => {
+            const fechaStr = fecha.toISOString().split('T')[0]
+            const asistencia = estudiante.asistencias?.find(
+              (a: any) => a.fecha?.split('T')[0] === fechaStr
+            )
+            
+            if (asistencia) {
+              switch (asistencia.estado?.toLowerCase()) {
+                case 'presente': fila.push('X'); break
+                case 'tardanza': fila.push('T'); break
+                case 'inasistencia': fila.push('F'); break
+                case 'justificada': fila.push('J'); break
+                default: fila.push('-')
+              }
+            } else {
+              fila.push('-')
+            }
+          })
+          
+          return fila
+        })
+        
+        // Configurar anchos de columna
+        const columnStyles: any = { 0: { cellWidth: 45 } }
+        fechasGrupo.forEach((_, idx) => {
+          columnStyles[idx + 1] = { cellWidth: 10 }
+        })
+        
+        autoTable(doc, {
+          startY: currentY,
+          head: [headers],
+          body: estudiantesAulaData,
+          theme: 'grid',
+          styles: { fontSize: 7, cellPadding: 1 },
+          headStyles: { fillColor: [46, 204, 113], fontSize: 6 },
+          columnStyles
+        })
+        
+        currentY = (doc as any).lastAutoTable.finalY + 5
       }
       
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`DETALLE DEL AULA: ${aulaKey} - ${aula.nivel}`, 20, currentY)
-      currentY += 10
-      
-      // Tabla de estudiantes del aula
-      const estudiantesAulaData = aula.estudiantes.map((estudiante: any) => [
-        `${estudiante.apellido}, ${estudiante.nombre}`,
-        estudiante.dni,
-        estudiante.estadisticas.totalAsistencias.toString(),
-        estudiante.estadisticas.presente.toString(),
-        estudiante.estadisticas.tardanza.toString(),
-        estudiante.estadisticas.inasistencia.toString(),
-        estudiante.estadisticas.justificada.toString(),
-        estudiante.estadisticas.totalRetiros.toString()
-      ])
-      
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Estudiante', 'DNI', 'Total', 'Presente', 'Tardanzas', 'Faltas', 'Justif.', 'Retiros']],
-        body: estudiantesAulaData,
-        theme: 'grid',
-        styles: { fontSize: 7 },
-        headStyles: { fillColor: [46, 204, 113] },
-        columnStyles: {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 15 },
-          3: { cellWidth: 15 },
-          4: { cellWidth: 15 },
-          5: { cellWidth: 15 },
-          6: { cellWidth: 15 },
-          7: { cellWidth: 15 }
-        }
-      })
-      
-      currentY = (doc as any).lastAutoTable.finalY + 15
+      // Agregar leyenda después de cada aula
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Leyenda: X=Presente, T=Tardanza, F=Falta, J=Justificada', 20, currentY)
+      currentY += 15
     })
   }
   
@@ -526,105 +568,134 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
   return Buffer.from(pdfOutput)
 }
 
-// Función para generar Excel con normas APA
+// Función auxiliar para obtener fechas del rango
+function obtenerFechasDelRango(fechaInicio: string, fechaFin: string): Date[] {
+  const fechas: Date[] = []
+  const inicio = new Date(fechaInicio)
+  const fin = new Date(fechaFin)
+  
+  for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    fechas.push(new Date(d))
+  }
+  return fechas
+}
+
+// Función para formatear fecha corta (LUN01, MAR02, etc.)
+function formatearFechaCorta(fecha: Date): string {
+  const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+  const dia = dias[fecha.getDay()]
+  const numero = fecha.getDate().toString().padStart(2, '0')
+  return `${dia}${numero}`
+}
+
+// Función para generar Excel con formato de tabla de asistencia
 async function generarExcel(datos: any, configuracion: any): Promise<Buffer> {
   const { metadatos, resumenEjecutivo, estudiantes } = datos
   
   // Crear nuevo workbook
   const wb = XLSX.utils.book_new()
   
-  // Hoja 1: Información del reporte
-  const infoData = [
-    ['REPORTE DE ASISTENCIAS Y RETIROS'],
+  // Obtener fechas del período
+  const fechas = obtenerFechasDelRango(metadatos.fechaInicio, metadatos.fechaFin)
+  
+  // Agrupar estudiantes por grado y sección
+  const grupos = estudiantes.reduce((acc: any, est: any) => {
+    const key = `${est.grado} ${est.seccion}`
+    if (!acc[key]) acc[key] = []
+    acc[key].push(est)
+    return acc
+  }, {})
+  
+  // Crear una hoja por cada grado/sección
+  Object.entries(grupos).forEach(([gradoSeccion, estudiantesGrupo]: [string, any]) => {
+    const sheetData: any[][] = []
+    
+    // Fila 1: Título
+    sheetData.push([`Grado y sección`, gradoSeccion])
+    sheetData.push([]) // Fila vacía
+    
+    // Fila 3: Headers - Apellidos y nombre + fechas
+    const headers = ['Apellidos y nombre']
+    fechas.forEach(fecha => {
+      headers.push(formatearFechaCorta(fecha))
+    })
+    sheetData.push(headers)
+    
+    // Filas de estudiantes
+    estudiantesGrupo.forEach((estudiante: any) => {
+      const fila = [`${estudiante.apellido}, ${estudiante.nombre}`]
+      
+      fechas.forEach(fecha => {
+        const fechaStr = fecha.toISOString().split('T')[0]
+        const asistencia = estudiante.asistencias?.find(
+          (a: any) => a.fecha?.split('T')[0] === fechaStr
+        )
+        
+        if (asistencia) {
+          switch (asistencia.estado?.toLowerCase()) {
+            case 'presente':
+              fila.push('X')
+              break
+            case 'tardanza':
+              fila.push('T')
+              break
+            case 'inasistencia':
+              fila.push('F')
+              break
+            case 'justificada':
+              fila.push('J')
+              break
+            default:
+              fila.push('-')
+          }
+        } else {
+          fila.push('-')
+        }
+      })
+      
+      sheetData.push(fila)
+    })
+    
+    // Agregar leyenda
+    sheetData.push([])
+    sheetData.push(['Leyenda:'])
+    sheetData.push(['X = Presente', 'T = Tardanza', 'F = Falta', 'J = Justificada'])
+    
+    // Crear hoja
+    const ws = XLSX.utils.aoa_to_sheet(sheetData)
+    
+    // Ajustar ancho de columnas
+    ws['!cols'] = [{ wch: 35 }] // Primera columna más ancha
+    fechas.forEach(() => {
+      ws['!cols']?.push({ wch: 8 })
+    })
+    
+    // Nombre de la hoja (máximo 31 caracteres)
+    const sheetName = gradoSeccion.substring(0, 31)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  })
+  
+  // Hoja de Resumen
+  const resumenData = [
+    ['REPORTE DE ASISTENCIAS'],
     [''],
     ['Información del Reporte'],
     ['Tipo:', metadatos.tipoReporte.toUpperCase()],
     ['Institución:', metadatos.institucion.nombre],
     ['Generado por:', metadatos.generadoPor.nombre],
-    ['Especialidad:', metadatos.generadoPor.especialidad || 'N/A'],
     ['Fecha de generación:', new Date(metadatos.fechaGeneracion).toLocaleDateString('es-ES')],
     ['Período:', `${new Date(metadatos.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(metadatos.fechaFin).toLocaleDateString('es-ES')}`],
     [''],
     ['Resumen Ejecutivo'],
     ['Total estudiantes:', resumenEjecutivo.totalEstudiantes],
     ['Total asistencias:', resumenEjecutivo.totalAsistencias],
-    ['Total retiros:', resumenEjecutivo.totalRetiros],
     ['Porcentaje asistencia:', `${resumenEjecutivo.porcentajes.asistencia}%`],
     ['Porcentaje tardanzas:', `${resumenEjecutivo.porcentajes.tardanzas}%`],
     ['Porcentaje inasistencias:', `${resumenEjecutivo.porcentajes.inasistencias}%`]
   ]
   
-  const wsInfo = XLSX.utils.aoa_to_sheet(infoData)
-  XLSX.utils.book_append_sheet(wb, wsInfo, 'Información')
-  
-  // Hoja 2: Detalle de estudiantes
-  const estudiantesHeaders = [
-    'DNI', 'Apellidos', 'Nombres', 'Grado', 'Sección', 
-    'Total Asistencias', 'Presente', 'Tardanzas', 'Inasistencias', 'Justificadas', 'Retiros'
-  ]
-  
-  const estudiantesData = estudiantes.map((estudiante: any) => [
-    estudiante.dni,
-    estudiante.apellido,
-    estudiante.nombre,
-    estudiante.grado,
-    estudiante.seccion,
-    estudiante.estadisticas.totalAsistencias,
-    estudiante.estadisticas.presente,
-    estudiante.estadisticas.tardanza,
-    estudiante.estadisticas.inasistencia,
-    estudiante.estadisticas.justificada,
-    estudiante.estadisticas.totalRetiros
-  ])
-  
-  const wsEstudiantes = XLSX.utils.aoa_to_sheet([estudiantesHeaders, ...estudiantesData])
-  XLSX.utils.book_append_sheet(wb, wsEstudiantes, 'Estudiantes')
-  
-  // Hoja 3: Asistencias detalladas
-  if (estudiantes.length > 0 && estudiantes[0].asistencias?.length > 0) {
-    const asistenciasHeaders = ['Estudiante', 'DNI', 'Fecha', 'Sesión', 'Estado', 'Hora Entrada', 'Observaciones']
-    const asistenciasData: any[] = []
-    
-    estudiantes.forEach((estudiante: any) => {
-      estudiante.asistencias.forEach((asistencia: any) => {
-        asistenciasData.push([
-          `${estudiante.nombre} ${estudiante.apellido}`,
-          estudiante.dni,
-          asistencia.fecha,
-          asistencia.sesion,
-          asistencia.estado,
-          asistencia.horaEntrada || 'N/A',
-          asistencia.observaciones || ''
-        ])
-      })
-    })
-    
-    const wsAsistencias = XLSX.utils.aoa_to_sheet([asistenciasHeaders, ...asistenciasData])
-    XLSX.utils.book_append_sheet(wb, wsAsistencias, 'Asistencias')
-  }
-  
-  // Hoja 4: Retiros detallados
-  if (estudiantes.some((e: any) => e.retiros?.length > 0)) {
-    const retirosHeaders = ['Estudiante', 'DNI', 'Fecha', 'Hora', 'Tipo', 'Estado', 'Apoderado que retira']
-    const retirosData: any[] = []
-    
-    estudiantes.forEach((estudiante: any) => {
-      estudiante.retiros?.forEach((retiro: any) => {
-        retirosData.push([
-          `${estudiante.nombre} ${estudiante.apellido}`,
-          estudiante.dni,
-          retiro.fecha,
-          retiro.hora,
-          retiro.tipoRetiro,
-          retiro.estado,
-          retiro.apoderadoQueRetira || 'N/A'
-        ])
-      })
-    })
-    
-    const wsRetiros = XLSX.utils.aoa_to_sheet([retirosHeaders, ...retirosData])
-    XLSX.utils.book_append_sheet(wb, wsRetiros, 'Retiros')
-  }
+  const wsResumen = XLSX.utils.aoa_to_sheet(resumenData)
+  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
   
   // Convertir a buffer
   const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })

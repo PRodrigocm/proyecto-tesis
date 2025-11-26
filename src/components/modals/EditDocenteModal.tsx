@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { Docente } from '@/hooks/useDocentes'
+import { Modal, ModalHeader, ModalBody, ModalFooter, FormSection } from '@/components/ui'
+
+// Iconos
+const EditIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+)
 
 interface Grado {
   idGrado: number
@@ -230,254 +238,154 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
     }
   }
 
+  // Estilos reutilizables
+  const inputClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 placeholder-slate-400 transition-all"
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1.5"
+  const selectClass = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all appearance-none cursor-pointer"
+
   if (!isOpen || !docente) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Editar Docente
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <ModalHeader 
+        icon={<EditIcon />} 
+        subtitle={`${docente.nombre} ${docente.apellido}`}
+        variant="emerald"
+        onClose={onClose}
+      >
+        Editar Docente
+      </ModalHeader>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Información Personal */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={formData.nombre}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+      <ModalBody>
+        <form onSubmit={handleSubmit} id="edit-docente-form" className="space-y-6">
+          {/* Información Personal */}
+          <FormSection number={1} title="Información Personal">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelClass}>Nombre <span className="text-red-500">*</span></label>
+                <input type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellido *
-                </label>
-                <input
-                  type="text"
-                  name="apellido"
-                  value={formData.apellido}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Apellido <span className="text-red-500">*</span></label>
+                <input type="text" name="apellido" value={formData.apellido} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  DNI *
-                </label>
-                <input
-                  type="text"
-                  name="dni"
-                  value={formData.dni}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>DNI <span className="text-red-500">*</span></label>
+                <input type="text" name="dni" value={formData.dni} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} required className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="tel"
-                  name="telefono"
-                  value={formData.telefono}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+              <div className="space-y-1.5">
+                <label className={labelClass}>Teléfono</label>
+                <input type="tel" name="telefono" value={formData.telefono} onChange={handleInputChange} className={inputClass} />
               </div>
             </div>
+          </FormSection>
 
-            {/* Información Académica */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Información Académica</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Especialidad *
-                </label>
-                <input
-                  type="text"
-                  name="especialidad"
-                  value={formData.especialidad}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                />
+          {/* Información Académica */}
+          <FormSection number={2} title="Información Académica">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelClass}>Especialidad <span className="text-red-500">*</span></label>
+                <input type="text" name="especialidad" value={formData.especialidad} onChange={handleInputChange} required className={inputClass} placeholder="Ej: Matemáticas" />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Grado
-                </label>
-                <select
-                  name="gradoId"
-                  value={formData.gradoId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                >
-                  <option value="">Seleccionar grado...</option>
-                  {grados.map((grado) => (
-                    <option key={grado.idGrado} value={grado.idGrado}>
-                      {grado.nombre}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Tipo de Asignación</label>
+                <div className="relative">
+                  <select name="tipoAsignacionId" value={formData.tipoAsignacionId} onChange={handleInputChange} className={selectClass}>
+                    <option value="">Seleccionar tipo...</option>
+                    {tiposAsignacion.map((tipo) => (
+                      <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>{tipo.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sección
-                </label>
-                <select
-                  name="seccionId"
-                  value={formData.seccionId}
-                  onChange={handleInputChange}
-                  disabled={!formData.gradoId}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black disabled:bg-gray-100"
-                >
-                  <option value="">Seleccionar sección...</option>
-                  {secciones.map((seccion) => (
-                    <option key={seccion.idSeccion} value={seccion.idSeccion}>
-                      {seccion.nombre}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Grado</label>
+                <div className="relative">
+                  <select name="gradoId" value={formData.gradoId} onChange={handleInputChange} className={selectClass}>
+                    <option value="">Seleccionar grado...</option>
+                    {grados.map((grado) => (
+                      <option key={grado.idGrado} value={grado.idGrado}>{grado.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Asignación
-                </label>
-                <select
-                  name="tipoAsignacionId"
-                  value={formData.tipoAsignacionId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                >
-                  <option value="">Seleccionar tipo...</option>
-                  {tiposAsignacion.map((tipo) => (
-                    <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>
-                      {tipo.nombre}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Define el rol del docente (Tutor, Profesor de materia, etc.)
-                </p>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Sección</label>
+                <div className="relative">
+                  <select name="seccionId" value={formData.seccionId} onChange={handleInputChange} disabled={!formData.gradoId} className={`${selectClass} disabled:bg-slate-100`}>
+                    <option value="">Seleccionar sección...</option>
+                    {secciones.map((seccion) => (
+                      <option key={seccion.idSeccion} value={seccion.idSeccion}>{seccion.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </FormSection>
 
           {/* Asignaciones Actuales */}
           {docente.materias && docente.materias.length > 0 && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="text-base font-semibold text-gray-800 mb-3">Asignaciones Actuales</h4>
+            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+              <h4 className="text-sm font-semibold text-indigo-900 mb-3">Asignaciones Actuales</h4>
               <div className="flex flex-wrap gap-2">
                 {docente.materias.map((materia, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                  >
+                  <span key={index} className="px-3 py-1.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-700">
                     {materia.nombre}
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-gray-600 mt-2">
-                Al asignar un nuevo grado y sección, se reemplazarán las asignaciones actuales.
-              </p>
+              <p className="text-xs text-indigo-600 mt-3">Al asignar un nuevo grado y sección, se reemplazarán las asignaciones actuales.</p>
             </div>
           )}
 
-          {/* Información del Sistema (Solo lectura) */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-base font-semibold text-gray-800 mb-3">Información del Sistema</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-600">Institución:</span>
-                <span className="ml-2 text-gray-900">{docente.institucionEducativa}</span>
+          {/* Información del Sistema */}
+          <div className="p-4 bg-slate-100 rounded-xl">
+            <h4 className="text-sm font-semibold text-slate-800 mb-3">Información del Sistema</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Institución:</span>
+                <span className="text-slate-900 font-medium">{docente.institucionEducativa}</span>
               </div>
-              <div>
-                <span className="font-medium text-gray-600">Estado:</span>
-                <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  docente.estado === 'ACTIVO' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {docente.estado}
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Estado:</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  docente.estado === 'ACTIVO' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                }`}>{docente.estado}</span>
               </div>
-              <div>
-                <span className="font-medium text-gray-600">ID Usuario:</span>
-                <span className="ml-2 text-gray-900 font-mono">{docente.id}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">ID:</span>
+                <span className="text-slate-900 font-mono text-xs">{docente.id}</span>
               </div>
-              <div>
-                <span className="font-medium text-gray-600">Fecha Registro:</span>
-                <span className="ml-2 text-gray-900">
-                  {new Date(docente.fechaRegistro).toLocaleDateString('es-ES')}
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Registro:</span>
+                <span className="text-slate-900">{new Date(docente.fechaRegistro).toLocaleDateString('es-ES')}</span>
               </div>
             </div>
           </div>
-
-          {/* Botones de acción */}
-          <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Guardando...' : 'Guardar Cambios'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter>
+        <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-100 transition-colors">
+          Cancelar
+        </button>
+        <button type="submit" form="edit-docente-form" disabled={loading} className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/30">
+          {loading ? 'Guardando...' : 'Guardar Cambios'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

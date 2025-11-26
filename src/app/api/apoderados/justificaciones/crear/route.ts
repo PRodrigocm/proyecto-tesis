@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,42 +33,126 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Implementar tabla de justificaciones en el esquema de Prisma
-    // Por ahora simulamos la creación exitosa
-    
-    // Si hay documento, procesarlo (simulado)
-    let documentoPath = null
-    if (documento && documento.size > 0) {
-      // TODO: Implementar guardado de archivos
-      documentoPath = `/uploads/justificaciones/${Date.now()}_${documento.name}`
+    // Obtener la asistencia (inasistencia) para extraer datos necesarios
+    const asistencia = await prisma.asistencia.findUnique({
+      where: { idAsistencia: parseInt(inasistenciaId) },
+      include: {
+        estudiante: {
+          include: {
+            ie: true
+          }
+        }
+      }
+    })
+
+    if (!asistencia) {
+      return NextResponse.json(
+        { error: 'Asistencia no encontrada' },
+        { status: 404 }
+      )
     }
 
-    // Simular creación de justificación
-    const nuevaJustificacion = {
-      id: Date.now().toString(),
-      inasistenciaId,
-      motivo,
-      descripcion,
-      tipoJustificacion,
-      documentoPath,
-      estado: 'EN_REVISION',
-      fechaCreacion: new Date().toISOString(),
-      creadoPor: decoded.userId
+    // Buscar o crear tipo de justificación
+    let tipoJust = await prisma.tipoJustificacion.findFirst({
+      where: { codigo: tipoJustificacion }
+    })
+
+    if (!tipoJust) {
+      // Crear tipo si no existe
+      tipoJust = await prisma.tipoJustificacion.create({
+        data: {
+          nombre: tipoJustificacion,
+          codigo: tipoJustificacion,
+          requiereDocumento: tipoJustificacion === 'MEDICA',
+          activo: true
+        }
+      })
+    }
+
+    // Buscar estado "EN_REVISION" o "PENDIENTE"
+    let estadoJust = await prisma.estadoJustificacion.findFirst({
+      where: {
+        OR: [
+          { codigo: 'EN_REVISION' },
+          { codigo: 'PENDIENTE' }
+        ]
+      }
+    })
+
+    if (!estadoJust) {
+      // Crear estado si no existe
+      estadoJust = await prisma.estadoJustificacion.create({
+        data: {
+          nombre: 'En Revisión',
+          codigo: 'EN_REVISION',
+          esFinal: false,
+          activo: true
+        }
+      })
+    }
+
+    // Obtener usuario del apoderado
+    const apoderado = await prisma.apoderado.findFirst({
+      where: { idUsuario: decoded.userId || decoded.idUsuario || decoded.id }
+    })
+
+    // Crear la justificación en la BD
+    const nuevaJustificacion = await prisma.justificacion.create({
+      data: {
+        idEstudiante: asistencia.idEstudiante,
+        idIe: asistencia.estudiante.ie?.idIe || asistencia.estudiante.idIe || 1,
+        idTipoJustificacion: tipoJust.idTipoJustificacion,
+        idEstadoJustificacion: estadoJust.idEstadoJustificacion,
+        fechaInicio: asistencia.fecha,
+        fechaFin: asistencia.fecha,
+        motivo: motivo,
+        observaciones: descripcion,
+        presentadoPor: decoded.userId || decoded.idUsuario || decoded.id
+      }
+    })
+
+    // Vincular la justificación con la asistencia
+    await prisma.asistenciaJustificacion.create({
+      data: {
+        idAsistencia: asistencia.idAsistencia,
+        idJustificacion: nuevaJustificacion.idJustificacion,
+        aplicadoPor: decoded.userId || decoded.idUsuario || decoded.id
+      }
+    })
+
+    // Si hay documento, guardarlo
+    if (documento && documento.size > 0) {
+      // TODO: Implementar guardado físico de archivos
+      const documentoPath = `/uploads/justificaciones/${Date.now()}_${documento.name}`
+      
+      await prisma.documentoJustificacion.create({
+        data: {
+          idJustificacion: nuevaJustificacion.idJustificacion,
+          nombreArchivo: documento.name,
+          rutaArchivo: documentoPath,
+          tipoArchivo: documento.type,
+          tamanioBytes: documento.size,
+          subidoPor: decoded.userId || decoded.idUsuario || decoded.id
+        }
+      })
     }
 
     return NextResponse.json({
       success: true,
       message: 'Justificación enviada exitosamente',
-      justificacion: nuevaJustificacion
+      justificacion: {
+        id: nuevaJustificacion.idJustificacion,
+        motivo: nuevaJustificacion.motivo,
+        estado: estadoJust.nombre,
+        fechaCreacion: nuevaJustificacion.createdAt
+      }
     })
 
   } catch (error) {
-    console.error('Error creating justificación:', error)
+    console.error('❌ Error creating justificación:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

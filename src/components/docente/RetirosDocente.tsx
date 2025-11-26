@@ -112,194 +112,187 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
   ]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-black mb-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+        {/* Header del modal */}
+        <div className="bg-gradient-to-r from-orange-500 to-red-600 p-4">
+          <h3 className="text-xl font-bold text-white flex items-center">
+            <span className="mr-2">{retiro ? '✏️' : '🚪'}</span>
             {retiro ? 'Editar Retiro' : 'Solicitar Retiro'}
           </h3>
-          
+        </div>
+        
+        <div className="p-5 overflow-y-auto max-h-[calc(90vh-80px)]">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Fecha */}
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Fecha del retiro *
-              </label>
-              <input
-                type="date"
-                value={formData.fecha}
-                onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
-                required
-                min={new Date().toISOString().split('T')[0]} // No permitir fechas pasadas
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
-              />
+            {/* Fecha y Hora en grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  📅 Fecha *
+                </label>
+                <input
+                  type="date"
+                  value={formData.fecha}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  🕐 Hora *
+                </label>
+                <input
+                  type="time"
+                  value={formData.horaRetiro}
+                  onChange={(e) => setFormData(prev => ({ ...prev, horaRetiro: e.target.value }))}
+                  required
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
+                />
+              </div>
             </div>
 
             {/* Estudiante */}
             <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Estudiante *
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                👤 Estudiante *
               </label>
               <select
                 value={formData.estudianteId}
                 onChange={(e) => handleEstudianteChange(e.target.value)}
                 required
-                disabled={!!retiro} // No se puede cambiar en edición
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400 disabled:bg-gray-100"
+                disabled={!!retiro}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all disabled:bg-gray-100"
               >
                 <option value="">Seleccionar estudiante</option>
                 {estudiantes.map(estudiante => (
                   <option key={estudiante.id} value={estudiante.id}>
-                    {estudiante.nombre} {estudiante.apellido} - {estudiante.grado}° {estudiante.seccion} (DNI: {estudiante.dni})
-                    {estudiante.apoderadoTitular && ` - Apoderado: ${estudiante.apoderadoTitular.nombre} ${estudiante.apoderadoTitular.apellido}`}
+                    {estudiante.nombre} {estudiante.apellido} - {estudiante.grado}° {estudiante.seccion}
                   </option>
                 ))}
               </select>
               {formData.estudianteId && (
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-gray-600">
-                    💡 Los datos del apoderado titular se completarán automáticamente
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowApoderadoInfo(!showApoderadoInfo)}
-                    className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                  >
-                    {showApoderadoInfo ? '🔼 Ocultar info' : '🔽 Ver info del apoderado'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowApoderadoInfo(!showApoderadoInfo)}
+                  className="mt-2 text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors w-full"
+                >
+                  {showApoderadoInfo ? '🔼 Ocultar info del apoderado' : '🔽 Ver info del apoderado'}
+                </button>
               )}
             </div>
 
-            {/* Información del apoderado titular (colapsable) */}
+            {/* Info apoderado colapsable */}
             {formData.estudianteId && showApoderadoInfo && (() => {
               const estudiante = estudiantes.find(e => e.id === formData.estudianteId)
               return estudiante?.apoderadoTitular ? (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg animate-fadeIn">
-                  <h4 className="font-medium text-blue-800 mb-2">👤 Apoderado Titular:</h4>
-                  <div className="text-sm text-blue-700 space-y-1">
-                    <p><strong>Nombre:</strong> {estudiante.apoderadoTitular.nombre} {estudiante.apoderadoTitular.apellido}</p>
+                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+                  <h4 className="font-semibold text-blue-800 mb-2 text-sm">👤 Apoderado Titular</h4>
+                  <div className="text-xs text-blue-700 grid grid-cols-2 gap-2">
+                    <p><strong>Nombre:</strong> {estudiante.apoderadoTitular.nombre}</p>
                     <p><strong>DNI:</strong> {estudiante.apoderadoTitular.dni}</p>
-                    <p><strong>Teléfono:</strong> {estudiante.apoderadoTitular.telefono}</p>
+                    <p><strong>Tel:</strong> {estudiante.apoderadoTitular.telefono}</p>
                     <p><strong>Email:</strong> {estudiante.apoderadoTitular.email}</p>
                   </div>
-                  <p className="text-xs text-blue-600 mt-2">
-                    ℹ️ Esta persona debe autorizar el retiro y puede recoger al estudiante
-                  </p>
                 </div>
               ) : (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg animate-fadeIn">
-                  <p className="text-sm text-yellow-700">
-                    ⚠️ No se encontró información del apoderado titular para este estudiante
-                  </p>
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <p className="text-sm text-yellow-700">⚠️ Sin información del apoderado</p>
                 </div>
               )
             })()}
 
             {/* Motivo */}
             <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Motivo del retiro *
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                📋 Motivo *
               </label>
               <select
                 value={formData.motivo}
                 onChange={(e) => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
                 required
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
               >
                 <option value="">Seleccionar motivo</option>
                 {motivosComunes.map(motivo => (
-                  <option key={motivo} value={motivo}>
-                    {motivo}
-                  </option>
+                  <option key={motivo} value={motivo}>{motivo}</option>
                 ))}
               </select>
             </div>
 
-            {/* Hora de retiro */}
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Hora de retiro *
-              </label>
-              <input
-                type="time"
-                value={formData.horaRetiro}
-                onChange={(e) => setFormData(prev => ({ ...prev, horaRetiro: e.target.value }))}
-                required
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
-              />
+            {/* Persona que recoge y DNI */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  🧑 Quien recoge *
+                </label>
+                <input
+                  type="text"
+                  value={formData.personaRecoge}
+                  onChange={(e) => setFormData(prev => ({ ...prev, personaRecoge: e.target.value }))}
+                  placeholder="Nombre completo"
+                  required
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  🪪 DNI *
+                </label>
+                <input
+                  type="text"
+                  value={formData.dniPersonaRecoge}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dniPersonaRecoge: e.target.value }))}
+                  placeholder="12345678"
+                  maxLength={8}
+                  required
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
+                />
+              </div>
             </div>
-
-            {/* Persona que recoge */}
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Persona que recoge *
-              </label>
-              <input
-                type="text"
-                value={formData.personaRecoge}
-                onChange={(e) => setFormData(prev => ({ ...prev, personaRecoge: e.target.value }))}
-                placeholder="Nombre completo de quien recoge al estudiante"
-                required
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
-              />
-              {formData.estudianteId && (
-                <p className="text-xs text-green-600 mt-1">
-                  ✅ Autocompletado con datos del apoderado titular
-                </p>
-              )}
-            </div>
-
-            {/* DNI de persona que recoge */}
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                DNI de quien recoge *
-              </label>
-              <input
-                type="text"
-                value={formData.dniPersonaRecoge}
-                onChange={(e) => setFormData(prev => ({ ...prev, dniPersonaRecoge: e.target.value }))}
-                placeholder="DNI de la persona autorizada"
-                maxLength={8}
-                required
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
-              />
-              {formData.estudianteId && (
-                <p className="text-xs text-green-600 mt-1">
-                  ✅ DNI del apoderado titular autocompletado
-                </p>
-              )}
-            </div>
+            {formData.estudianteId && (
+              <p className="text-xs text-green-600 -mt-2">✅ Datos autocompletados del apoderado</p>
+            )}
 
             {/* Observaciones */}
             <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Observaciones
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                📝 Observaciones
               </label>
               <textarea
                 value={formData.observaciones}
                 onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-                placeholder="Información adicional sobre el retiro..."
-                rows={3}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+                placeholder="Información adicional..."
+                rows={2}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all resize-none"
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Botones */}
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 font-medium transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 disabled:opacity-50 font-medium transition-all shadow-md"
               >
-                {loading ? 'Guardando...' : (retiro ? 'Actualizar' : 'Solicitar')}
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Guardando...
+                  </span>
+                ) : (retiro ? 'Actualizar' : 'Solicitar Retiro')}
               </button>
             </div>
           </form>

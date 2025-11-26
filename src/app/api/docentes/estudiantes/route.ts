@@ -93,10 +93,19 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Para docentes, buscar los salones donde enseña
+    // Para docentes, primero obtener el ID del docente
+    const docente = await prisma.docente.findFirst({
+      where: { idUsuario: decoded.userId || decoded.idUsuario }
+    })
+
+    if (!docente) {
+      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 })
+    }
+
+    // Buscar los salones donde enseña el docente
     const docenteAulas = await prisma.docenteAula.findMany({
       where: {
-        idDocente: decoded.idUsuario
+        idDocente: docente.idDocente
       },
       include: {
         gradoSeccion: {

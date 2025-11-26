@@ -41,7 +41,11 @@ export async function GET(request: NextRequest) {
               include: {
                 grado: true,
                 seccion: true,
-                estudiantes: true
+                estudiantes: {
+                  include: {
+                    usuario: true
+                  }
+                }
               }
             }
           }
@@ -67,10 +71,16 @@ export async function GET(request: NextRequest) {
     const inicioDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
     const finDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59)
 
-    // 1. Obtener clases de hoy (basado en horarios de clase)
+    // 1. Obtener clases de hoy (basado en horarios de clase de las aulas asignadas)
+    const diaHoy = hoy.getDay() // 0 = Domingo, 1 = Lunes, etc.
+    const gradosSeccionesDelDocente = docente.docenteAulas.map(da => da.idGradoSeccion)
+    
     const clasesHoy = await prisma.horarioClase.findMany({
       where: {
-        idDocente: docente.idDocente,
+        idGradoSeccion: {
+          in: gradosSeccionesDelDocente
+        },
+        diaSemana: diaHoy,
         activo: true
       },
       include: {
@@ -84,14 +94,17 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('⏰ Horarios encontrados en HorarioClase:', clasesHoy.length)
+    console.log('⏰ Clases de hoy (día', diaHoy, '):', clasesHoy.length)
     clasesHoy.forEach(clase => {
       console.log(`  - ${clase.gradoSeccion.grado.nombre}° ${clase.gradoSeccion.seccion.nombre}: ${clase.horaInicio} - ${clase.horaFin}`)
     })
 
-    // 2. Calcular total de estudiantes del docente
+    // 2. Calcular total de estudiantes del docente (solo activos)
     const estudiantesTotal = docente.docenteAulas.reduce((total, docenteAula) => {
-      return total + (docenteAula.gradoSeccion.estudiantes?.length || 0)
+      const activos = docenteAula.gradoSeccion.estudiantes?.filter(
+        (e: any) => e.usuario?.estado === 'ACTIVO'
+      ).length || 0
+      return total + activos
     }, 0)
 
     // 3. Calcular asistencia promedio del docente (últimos 7 días)
@@ -152,128 +165,139 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // 6. Clases del docente (aulas donde enseña) y recuperaciones
+    // 6. Clases del docente (aulas donde enseña) - SOLO las asignadas en DocenteAula
     let aulasDocente: any[] = []
 
-    // Obtener todos los horarios del docente (incluyendo recuperaciones)
-    const todosLosHorarios = await prisma.horarioClase.findMany({
-      where: {
-        idDocente: docente.idDocente,
-        activo: true
-      },
-      include: {
-        gradoSeccion: {
-          include: {
-            grado: true,
-            seccion: true,
-            estudiantes: true
+    // Obtener los IDs de grado-sección asignados al docente
+    const gradosSeccionesAsignados = docente.docenteAulas.map(da => da.idGradoSeccion)
+    
+    console.log('📚 Grados-Secciones asignados al docente:', gradosSeccionesAsignados)
+
+    if (gradosSeccionesAsignados.length > 0) {
+      // Obtener horarios SOLO de las aulas asignadas al docente
+      const horariosDeAulasAsignadas = await prisma.horarioClase.findMany({
+        where: {
+          idGradoSeccion: {
+            in: gradosSeccionesAsignados
+          },
+          activo: true
+        },
+        include: {
+          gradoSeccion: {
+            include: {
+              grado: true,
+              seccion: true,
+              estudiantes: {
+                include: {
+                  usuario: true
+                }
+              }
+            }
           }
         }
-      }
-    })
+      })
 
-    console.log('⏰ Todos los horarios del docente:', todosLosHorarios.length)
+      console.log('⏰ Horarios de aulas asignadas:', horariosDeAulasAsignadas.length)
 
-    if (todosLosHorarios.length > 0) {
-      // Si hay horarios específicos en HorarioClase, usarlos
-      console.log('📋 Usando horarios de HorarioClase')
-      const clasesDocente = todosLosHorarios.map(horario => ({
-        id: horario.idHorarioClase,
-        materia: horario.materia || 'Clase Regular',
-        grado: `${horario.gradoSeccion.grado.nombre}° ${horario.gradoSeccion.seccion.nombre}`,
-        hora: `${horario.horaInicio.toTimeString().slice(0, 5)} - ${horario.horaFin.toTimeString().slice(0, 5)}`,
-        aula: horario.aula || `Aula ${horario.gradoSeccion.grado.nombre}° ${horario.gradoSeccion.seccion.nombre}`,
-        estudiantes: horario.gradoSeccion.estudiantes?.length || 0,
-        diaSemana: horario.diaSemana,
-        diaNombre: getDiaNombre(horario.diaSemana),
-        tipoActividad: horario.tipoActividad,
-        esRecuperacion: horario.tipoActividad === 'RECUPERACION'
-      }))
+      if (horariosDeAulasAsignadas.length > 0) {
+        // Usar los horarios encontrados
+        const clasesDocente = horariosDeAulasAsignadas.map(horario => {
+          // Contar solo estudiantes activos
+          const estudiantesActivos = horario.gradoSeccion.estudiantes?.filter(
+            (e: any) => e.usuario?.estado === 'ACTIVO'
+          ).length || 0
+          
+          return {
+            id: horario.idHorarioClase,
+            materia: horario.materia || 'Clase Regular',
+            grado: `${horario.gradoSeccion.grado.nombre}° ${horario.gradoSeccion.seccion.nombre}`,
+            hora: `${horario.horaInicio.toTimeString().slice(0, 5)} - ${horario.horaFin.toTimeString().slice(0, 5)}`,
+            aula: horario.aula || `Aula ${horario.gradoSeccion.grado.nombre}° ${horario.gradoSeccion.seccion.nombre}`,
+            estudiantes: estudiantesActivos,
+            diaSemana: horario.diaSemana,
+            diaNombre: getDiaNombre(horario.diaSemana),
+            tipoActividad: horario.tipoActividad,
+            esRecuperacion: horario.tipoActividad === 'RECUPERACION',
+            idGradoSeccion: horario.idGradoSeccion
+          }
+        })
 
-      // Separar clases regulares y recuperaciones
-      const clasesRegulares = clasesDocente.filter(c => !c.esRecuperacion)
-      const recuperaciones = clasesDocente.filter(c => c.esRecuperacion)
+        // Separar clases regulares y recuperaciones
+        const clasesRegulares = clasesDocente.filter(c => !c.esRecuperacion)
+        const recuperaciones = clasesDocente.filter(c => c.esRecuperacion)
 
-      console.log('📚 Clases regulares:', clasesRegulares.length)
-      console.log('🔄 Recuperaciones:', recuperaciones.length)
+        console.log('📚 Clases regulares:', clasesRegulares.length)
+        console.log('🔄 Recuperaciones:', recuperaciones.length)
 
-      // Agrupar por aula para mostrar las aulas donde enseña
-      aulasDocente = clasesRegulares.reduce((aulas: any[], clase) => {
-        const aulaExistente = aulas.find(a => a.aula === clase.aula)
-        if (aulaExistente) {
-          aulaExistente.clases.push({
-            grado: clase.grado,
-            hora: clase.hora,
-            diaNombre: clase.diaNombre,
-            estudiantes: clase.estudiantes,
-            tipoActividad: clase.tipoActividad
-          })
-        } else {
-          aulas.push({
-            id: clase.id,
-            aula: clase.aula,
-            clases: [{
+        // Agrupar por grado-sección (aula) para mostrar las aulas donde enseña
+        aulasDocente = clasesRegulares.reduce((aulas: any[], clase) => {
+          const aulaExistente = aulas.find(a => a.idGradoSeccion === clase.idGradoSeccion)
+          if (aulaExistente) {
+            aulaExistente.clases.push({
               grado: clase.grado,
               hora: clase.hora,
               diaNombre: clase.diaNombre,
               estudiantes: clase.estudiantes,
               tipoActividad: clase.tipoActividad
+            })
+          } else {
+            aulas.push({
+              id: clase.id,
+              idGradoSeccion: clase.idGradoSeccion,
+              aula: clase.aula,
+              estudiantes: clase.estudiantes, // Total de estudiantes del aula
+              clases: [{
+                grado: clase.grado,
+                hora: clase.hora,
+                diaNombre: clase.diaNombre,
+                estudiantes: clase.estudiantes,
+                tipoActividad: clase.tipoActividad
+              }],
+              recuperaciones: []
+            })
+          }
+          return aulas
+        }, [])
+
+        // Agregar recuperaciones a las aulas correspondientes
+        recuperaciones.forEach(recuperacion => {
+          let aulaRecuperacion = aulasDocente.find(a => a.idGradoSeccion === recuperacion.idGradoSeccion)
+          if (aulaRecuperacion) {
+            aulaRecuperacion.recuperaciones.push({
+              grado: recuperacion.grado,
+              hora: recuperacion.hora,
+              diaNombre: recuperacion.diaNombre,
+              estudiantes: recuperacion.estudiantes
+            })
+          }
+        })
+
+      } else {
+        // Si no hay horarios, usar DocenteAulas directamente
+        console.log('📋 No hay horarios específicos, usando DocenteAulas')
+        aulasDocente = docente.docenteAulas.map(docenteAula => {
+          const grado = `${docenteAula.gradoSeccion.grado.nombre}° ${docenteAula.gradoSeccion.seccion.nombre}`
+          const aula = `Aula ${grado}`
+          const estudiantesActivos = docenteAula.gradoSeccion.estudiantes?.filter((e: any) => e.usuario?.estado === 'ACTIVO').length || 0
+          
+          return {
+            id: `aula-${docenteAula.idDocenteAula}`,
+            idGradoSeccion: docenteAula.idGradoSeccion,
+            aula: aula,
+            estudiantes: estudiantesActivos, // Total de estudiantes del aula
+            clases: [{
+              grado: grado,
+              hora: 'Horario por definir',
+              diaNombre: 'Lunes a Viernes',
+              estudiantes: estudiantesActivos,
+              tipoActividad: 'CLASE_REGULAR'
             }],
             recuperaciones: []
-          })
-        }
-        return aulas
-      }, [])
-
-      // Agregar recuperaciones a las aulas correspondientes
-      recuperaciones.forEach(recuperacion => {
-        let aulaRecuperacion = aulasDocente.find(a => a.aula === recuperacion.aula)
-        if (!aulaRecuperacion) {
-          // Si no existe el aula, crearla solo para recuperaciones
-          aulaRecuperacion = {
-            id: `recuperacion-${recuperacion.id}`,
-            aula: recuperacion.aula,
-            clases: [],
-            recuperaciones: []
           }
-          aulasDocente.push(aulaRecuperacion)
-        }
-        
-        aulaRecuperacion.recuperaciones.push({
-          grado: recuperacion.grado,
-          hora: recuperacion.hora,
-          diaNombre: recuperacion.diaNombre,
-          estudiantes: recuperacion.estudiantes
         })
-      })
-
-      // Asegurar que todas las aulas tengan el array de recuperaciones
-      aulasDocente.forEach(aula => {
-        if (!aula.recuperaciones) {
-          aula.recuperaciones = []
-        }
-      })
-
+      }
     } else {
-      // Si no hay horarios específicos, usar DocenteAulas
-      console.log('📋 No hay horarios específicos, usando DocenteAulas')
-      aulasDocente = docente.docenteAulas.map(docenteAula => {
-        const grado = `${docenteAula.gradoSeccion.grado.nombre}° ${docenteAula.gradoSeccion.seccion.nombre}`
-        const aula = `Aula ${grado}`
-        
-        return {
-          id: `aula-${docenteAula.idDocenteAula}`,
-          aula: aula,
-          clases: [{
-            grado: grado,
-            hora: 'Horario por definir',
-            diaNombre: 'Lunes a Viernes',
-            estudiantes: docenteAula.gradoSeccion.estudiantes?.length || 0,
-            tipoActividad: 'CLASE_REGULAR'
-          }],
-          recuperaciones: []
-        }
-      })
+      console.log('⚠️ El docente no tiene aulas asignadas en DocenteAula')
     }
 
     console.log('🏫 Aulas del docente generadas:', aulasDocente.length)

@@ -49,32 +49,37 @@ function ToleranciaModal({ isOpen, onClose, horario, onSave }: ToleranciaModalPr
   if (!isOpen || !horario) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-black mb-4">
-            ⏰ Ajustar Tolerancia
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-4">
+          <h3 className="text-xl font-bold text-white flex items-center">
+            <span className="mr-2">⏰</span> Ajustar Tolerancia
           </h3>
-          
-          <div className="mb-4">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-              <h4 className="font-medium text-blue-800 mb-2">📚 Información del Horario:</h4>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p><strong>Materia:</strong> {horario.materia}</p>
-                <p><strong>Grado:</strong> {horario.grado}° {horario.seccion}</p>
-                <p><strong>Día:</strong> {horario.diaSemana}</p>
-                <p><strong>Horario:</strong> {horario.horaInicio} - {horario.horaFin}</p>
-                <p><strong>Aula:</strong> {horario.aula}</p>
+        </div>
+        
+        <div className="p-5">
+          {/* Info del horario */}
+          <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-purple-900">{horario.materia}</h4>
+                <p className="text-sm text-purple-700">{horario.grado}° {horario.seccion} • {horario.diaSemana}</p>
+              </div>
+              <div className="text-right text-sm text-purple-600">
+                <p>{horario.horaInicio} - {horario.horaFin}</p>
+                <p>Aula: {horario.aula}</p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Slider de tolerancia */}
             <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Tolerancia en minutos *
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Tolerancia en minutos
               </label>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-4">
                 <input
                   type="range"
                   min="0"
@@ -82,46 +87,58 @@ function ToleranciaModal({ isOpen, onClose, horario, onSave }: ToleranciaModalPr
                   step="1"
                   value={toleranciaMin}
                   onChange={(e) => setToleranciaMin(parseInt(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  className="flex-1 h-3 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-600"
                 />
-                <div className="min-w-[60px] px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-center font-bold">
+                <div className={`min-w-[70px] px-4 py-2 rounded-xl text-center font-bold text-lg ${
+                  toleranciaMin <= 5 ? 'bg-red-100 text-red-700' :
+                  toleranciaMin <= 15 ? 'bg-green-100 text-green-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
                   {toleranciaMin} min
                 </div>
               </div>
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0 min</span>
-                <span>15 min</span>
-                <span>30 min</span>
+              <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
+                <span>Estricto</span>
+                <span>Estándar</span>
+                <span>Flexible</span>
               </div>
-              <p className="text-xs text-gray-600 mt-2">
-                💡 La tolerancia permite que los estudiantes lleguen hasta {toleranciaMin} minutos tarde sin ser marcados como tardanza.
-              </p>
             </div>
 
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h4 className="font-medium text-yellow-800 mb-1">⚠️ Recomendaciones:</h4>
-              <ul className="text-xs text-yellow-700 space-y-1">
-                <li>• <strong>0-5 min:</strong> Muy estricto, ideal para evaluaciones</li>
-                <li>• <strong>10-15 min:</strong> Estándar recomendado para clases regulares</li>
-                <li>• <strong>20-30 min:</strong> Flexible, para actividades especiales</li>
-              </ul>
+            {/* Indicador visual */}
+            <div className={`p-3 rounded-xl text-sm ${
+              toleranciaMin <= 5 ? 'bg-red-50 border border-red-200 text-red-700' :
+              toleranciaMin <= 15 ? 'bg-green-50 border border-green-200 text-green-700' :
+              'bg-yellow-50 border border-yellow-200 text-yellow-700'
+            }`}>
+              {toleranciaMin <= 5 && '🔴 Muy estricto - Ideal para evaluaciones'}
+              {toleranciaMin > 5 && toleranciaMin <= 15 && '🟢 Estándar - Recomendado para clases regulares'}
+              {toleranciaMin > 15 && '🟡 Flexible - Para actividades especiales'}
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Botones */}
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 font-medium transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 font-medium transition-all shadow-md"
               >
-                {loading ? 'Guardando...' : 'Guardar Tolerancia'}
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Guardando...
+                  </span>
+                ) : 'Guardar Tolerancia'}
               </button>
             </div>
           </form>
@@ -175,77 +192,88 @@ function HorarioModal({ isOpen, onClose, horario, onSave }: HorarioModalProps) {
   if (!isOpen || !horario) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-black mb-4">
-            🕐 Editar Horarios
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4">
+          <h3 className="text-xl font-bold text-white flex items-center">
+            <span className="mr-2">🕐</span> Editar Horarios
           </h3>
-          
-          <div className="mb-4">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-              <h4 className="font-medium text-blue-800 mb-2">📚 Información del Horario:</h4>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p><strong>Materia:</strong> {horario.materia}</p>
-                <p><strong>Grado:</strong> {horario.grado}° {horario.seccion}</p>
-                <p><strong>Día:</strong> {horario.diaSemana}</p>
-                <p><strong>Aula:</strong> {horario.aula}</p>
+        </div>
+        
+        <div className="p-5">
+          {/* Info del horario */}
+          <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-green-900">{horario.materia}</h4>
+                <p className="text-sm text-green-700">{horario.grado}° {horario.seccion} • {horario.diaSemana}</p>
+              </div>
+              <div className="text-right text-sm text-green-600">
+                <p>Aula: {horario.aula}</p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Hora de Inicio *
-              </label>
-              <input
-                type="time"
-                value={horaInicio}
-                onChange={(e) => setHoraInicio(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                required
-              />
+            {/* Horarios en grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  🕐 Hora Inicio *
+                </label>
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(e.target.value)}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  🕐 Hora Fin *
+                </label>
+                <input
+                  type="time"
+                  value={horaFin}
+                  onChange={(e) => setHoraFin(e.target.value)}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white transition-all"
+                  required
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Hora de Fin *
-              </label>
-              <input
-                type="time"
-                value={horaFin}
-                onChange={(e) => setHoraFin(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                required
-              />
+            {/* Aviso */}
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-700">
+              <p className="font-medium mb-1">⚠️ Importante:</p>
+              <p>Se verificarán conflictos con otros horarios antes de guardar.</p>
             </div>
 
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h4 className="font-medium text-yellow-800 mb-1">⚠️ Importante:</h4>
-              <ul className="text-xs text-yellow-700 space-y-1">
-                <li>• La hora de inicio debe ser menor que la hora de fin</li>
-                <li>• Se verificarán conflictos con otros horarios</li>
-                <li>• Los cambios se reflejarán inmediatamente</li>
-                <li>• Asegúrate de coordinar con otros docentes</li>
-              </ul>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Botones */}
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 font-medium transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 font-medium transition-all shadow-md"
               >
-                {loading ? 'Guardando...' : 'Guardar Horarios'}
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Guardando...
+                  </span>
+                ) : 'Guardar Horarios'}
               </button>
             </div>
           </form>
