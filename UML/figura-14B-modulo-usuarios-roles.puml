@@ -20,7 +20,7 @@ class Usuario {
   +dni: string
   +email: string
   +telefono: string
-  +passwordHash: string
+  -passwordHash: string
   +estado: string
   +idIe: int
   +createdAt: DateTime

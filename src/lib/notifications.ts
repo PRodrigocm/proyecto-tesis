@@ -524,3 +524,209 @@ Grado: ${grado}° ${seccion}
 
   return { emailEnviado, smsEnviado }
 }
+
+/**
+ * Notificar cambio/edición de asistencia al apoderado
+ * Envía email, SMS y crea notificación interna en el sistema
+ */
+export async function notificarCambioAsistencia(data: {
+  estudianteId: number
+  estudianteNombre: string
+  estudianteApellido: string
+  estudianteDNI: string
+  grado: string
+  seccion: string
+  estadoAnterior: string
+  estadoNuevo: string
+  fecha: string
+  observaciones?: string
+  modificadoPor: string
+  emailApoderado: string
+  telefonoApoderado: string
+  apoderadoUsuarioId?: number
+}): Promise<{ emailEnviado: boolean; smsEnviado: boolean; notificacionCreada: boolean }> {
+  
+  const {
+    estudianteNombre,
+    estudianteApellido,
+    estudianteDNI,
+    grado,
+    seccion,
+    estadoAnterior,
+    estadoNuevo,
+    fecha,
+    observaciones,
+    modificadoPor,
+    emailApoderado,
+    telefonoApoderado,
+    apoderadoUsuarioId
+  } = data
+
+  // Formatear fecha
+  const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+
+  // Determinar emoji y colores según el nuevo estado
+  let estadoEmoji = '📝'
+  let estadoColor = '#6366f1'
+  let estadoBg = '#e0e7ff'
+  
+  const estadoUpper = estadoNuevo.toUpperCase()
+  if (estadoUpper === 'PRESENTE') {
+    estadoEmoji = '✅'
+    estadoColor = '#10b981'
+    estadoBg = '#d1fae5'
+  } else if (estadoUpper === 'TARDANZA') {
+    estadoEmoji = '⏰'
+    estadoColor = '#f59e0b'
+    estadoBg = '#fef3c7'
+  } else if (estadoUpper === 'AUSENTE' || estadoUpper === 'INASISTENCIA') {
+    estadoEmoji = '❌'
+    estadoColor = '#ef4444'
+    estadoBg = '#fee2e2'
+  } else if (estadoUpper === 'JUSTIFICADA' || estadoUpper === 'JUSTIFICADO') {
+    estadoEmoji = '📋'
+    estadoColor = '#3b82f6'
+    estadoBg = '#dbeafe'
+  }
+
+  // CONTENIDO DEL EMAIL
+  const asuntoEmail = `📝 Modificación de Asistencia - ${estudianteNombre} ${estudianteApellido}`
+  
+  const contenidoEmail = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #6366f1; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #6366f1; }
+        .value { color: #333; }
+        .cambio-box { background: #fef3c7; padding: 20px; margin: 15px 0; border-radius: 8px; border: 2px solid #f59e0b; }
+        .estado-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 5px; }
+        .estado-anterior { background: #fee2e2; color: #dc2626; text-decoration: line-through; }
+        .estado-nuevo { background: ${estadoBg}; color: ${estadoColor}; }
+        .flecha { font-size: 24px; margin: 0 10px; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+        .icon { font-size: 48px; margin-bottom: 10px; }
+        .alerta { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="icon">📝</div>
+          <h1>Modificación de Asistencia</h1>
+          <p>Sistema de Control Escolar</p>
+        </div>
+        
+        <div class="content">
+          <h2>Estimado Apoderado,</h2>
+          <p>Le informamos que se ha <strong>modificado</strong> el registro de asistencia de su hijo/a:</p>
+          
+          <div class="info-box">
+            <h3>👤 Información del Estudiante</h3>
+            <div class="info-row">
+              <span class="label">Nombre:</span>
+              <span class="value">${estudianteNombre} ${estudianteApellido}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">DNI:</span>
+              <span class="value">${estudianteDNI}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Grado y Sección:</span>
+              <span class="value">${grado}° ${seccion}</span>
+            </div>
+          </div>
+
+          <div class="cambio-box">
+            <h3 style="margin-top: 0; color: #92400e;">⚠️ Cambio Realizado</h3>
+            <div style="text-align: center; padding: 15px 0;">
+              <span class="estado-badge estado-anterior">${estadoAnterior}</span>
+              <span class="flecha">➡️</span>
+              <span class="estado-badge estado-nuevo">${estadoEmoji} ${estadoNuevo}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Fecha de Asistencia:</span>
+              <span class="value">${fechaFormateada}</span>
+            </div>
+            ${observaciones ? `
+            <div class="info-row">
+              <span class="label">Observaciones:</span>
+              <span class="value">${observaciones}</span>
+            </div>
+            ` : ''}
+            <div class="info-row">
+              <span class="label">Modificado por:</span>
+              <span class="value">${modificadoPor}</span>
+            </div>
+          </div>
+
+          <div class="alerta">
+            <strong>📌 Nota:</strong> Si tiene alguna consulta sobre esta modificación, 
+            por favor comuníquese con la institución educativa.
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Este es un mensaje automático del Sistema de Control Escolar.</p>
+          <p>Por favor, no responda a este correo.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  // CONTENIDO DEL SMS
+  const mensajeSMS = `📝 CAMBIO DE ASISTENCIA
+${estudianteNombre} ${estudianteApellido}
+${estadoAnterior} → ${estadoEmoji} ${estadoNuevo}
+Fecha: ${fechaFormateada}
+${observaciones ? `Obs: ${observaciones}` : ''}
+- Sistema Escolar`
+
+  // ENVIAR NOTIFICACIONES EXTERNAS
+  console.log('📧 Enviando notificaciones de cambio de asistencia...')
+  
+  const emailEnviado = await enviarEmail(emailApoderado, asuntoEmail, contenidoEmail)
+  const smsEnviado = await enviarSMS(telefonoApoderado, mensajeSMS)
+
+  console.log(`📧 Email: ${emailEnviado ? '✅ Enviado' : '❌ Falló'}`)
+  console.log(`📱 SMS: ${smsEnviado ? '✅ Enviado' : '❌ Falló'}`)
+
+  // CREAR NOTIFICACIÓN INTERNA EN EL SISTEMA
+  let notificacionCreada = false
+  if (apoderadoUsuarioId) {
+    try {
+      const { prisma } = await import('@/lib/prisma')
+      
+      await prisma.notificacion.create({
+        data: {
+          idUsuario: apoderadoUsuarioId,
+          titulo: `📝 Modificación de Asistencia - ${estudianteNombre}`,
+          mensaje: `Se ha modificado la asistencia de ${estudianteNombre} ${estudianteApellido} del ${fechaFormateada}. Estado anterior: ${estadoAnterior} → Nuevo estado: ${estadoNuevo}.${observaciones ? ` Observaciones: ${observaciones}` : ''}`,
+          tipo: 'ASISTENCIA_MODIFICADA',
+          leida: false,
+          origen: 'SISTEMA'
+        }
+      })
+      
+      notificacionCreada = true
+      console.log('🔔 Notificación interna creada')
+    } catch (error) {
+      console.error('❌ Error creando notificación interna:', error)
+    }
+  }
+
+  return { emailEnviado, smsEnviado, notificacionCreada }
+}

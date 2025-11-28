@@ -43,13 +43,7 @@ export default function CalendarioAnual({ year, calendarioEscolar, reuniones = [
     const reunion = reuniones.find(r => {
       const reunionFecha = new Date(r.fecha)
       const reunionDateStr = reunionFecha.toISOString().split('T')[0]
-      const match = reunionDateStr === dateStr
-      
-      if (match) {
-        console.log('🎯 Reunión encontrada para', dateStr, ':', r)
-      }
-      
-      return match
+      return reunionDateStr === dateStr
     })
     
     if (reunion) {
@@ -57,16 +51,34 @@ export default function CalendarioAnual({ year, calendarioEscolar, reuniones = [
     }
     
     // Verificar en calendario escolar
-    const diaCalendario = calendarioEscolar.find(item => item.fecha === dateStr)
+    const diaCalendario = calendarioEscolar.find(item => {
+      // Comparar solo la parte de fecha (sin hora)
+      const itemFecha = item.fecha.split('T')[0]
+      return itemFecha === dateStr
+    })
     
     if (diaCalendario) {
       // Si está en el calendario y NO es lectivo, determinar el tipo
       if (!diaCalendario.esLectivo) {
-        const motivo = diaCalendario.motivo?.toLowerCase() || ''
-        if (motivo.includes('feriado')) return 'feriado'
-        if (motivo.includes('vacacion')) return 'vacaciones'
-        if (motivo.includes('suspension')) return 'suspension'
-        return 'normal'
+        const motivo = (diaCalendario.motivo || '').toLowerCase()
+        
+        // Verificar diferentes palabras clave para feriados
+        if (motivo.includes('feriado') || 
+            motivo.includes('festivo') || 
+            motivo.includes('feria') ||
+            motivo.includes('inmaculada') ||
+            motivo.includes('navidad') ||
+            motivo.includes('año nuevo')) {
+          return 'feriado'
+        }
+        if (motivo.includes('vacacion') || motivo.includes('receso')) {
+          return 'vacaciones'
+        }
+        if (motivo.includes('suspension') || motivo.includes('suspendido')) {
+          return 'suspension'
+        }
+        // Si no es lectivo pero no tiene motivo específico, es feriado por defecto
+        return 'feriado'
       }
     }
     

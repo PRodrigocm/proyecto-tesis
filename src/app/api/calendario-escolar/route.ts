@@ -59,7 +59,21 @@ export async function GET(request: NextRequest) {
       const fin = new Date(item.fechaFin)
       
       // Determinar si es lectivo basado en tipoDia
+      // FERIADO, VACACIONES, SUSPENSION = NO lectivo
       const esLectivo = item.tipoDia === 'CLASES' || item.tipoDia === 'EVENTO'
+      
+      // Mapear tipoDia a tipoEvento para el frontend
+      let tipoEvento = item.tipoDia
+      if (item.tipoDia === 'FERIADO') tipoEvento = 'FERIADO'
+      else if (item.tipoDia === 'VACACIONES') tipoEvento = 'VACACIONES'
+      else if (item.tipoDia === 'SUSPENSION') tipoEvento = 'SUSPENSION'
+      
+      // Generar motivo descriptivo que incluya el tipo
+      let motivo = item.descripcion || ''
+      if (!motivo && item.tipoDia === 'FERIADO') motivo = 'Feriado'
+      if (!motivo && item.tipoDia === 'VACACIONES') motivo = 'Vacaciones'
+      if (!motivo && item.tipoDia === 'SUSPENSION') motivo = 'Suspensión de clases'
+      if (!motivo) motivo = item.tipoDia
       
       // Iterar por cada día en el rango
       const currentDate = new Date(inicio)
@@ -68,8 +82,9 @@ export async function GET(request: NextRequest) {
           idCalendario: item.idCalendario,
           fecha: currentDate.toISOString().split('T')[0],
           esLectivo,
-          motivo: item.descripcion || item.tipoDia,
-          tipoDia: item.tipoDia
+          motivo,
+          tipoDia: item.tipoDia,
+          tipoEvento
         })
         currentDate.setDate(currentDate.getDate() + 1)
       }

@@ -36,7 +36,7 @@ interface ReportData {
   }
   asistencias: {
     fecha: string
-    estado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO'
+    estado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO' | 'JUSTIFICADA'
     horaEntrada?: string
     horaSalida?: string
   }[]
@@ -50,12 +50,57 @@ interface ReportData {
   }
 }
 
+// Función para obtener las fechas del rango (filtrando fines de semana según días laborables)
+const obtenerFechasDelRango = (fechaInicio: string, fechaFin: string, diasLaborables?: string[]): Date[] => {
+  const fechas: Date[] = []
+  const inicio = new Date(fechaInicio)
+  const fin = new Date(fechaFin)
+  
+  // Mapeo de día de semana (0=DOM, 1=LUN, etc.) a nombre
+  const diasSemanaMap: Record<number, string> = {
+    0: 'DOMINGO',
+    1: 'LUNES',
+    2: 'MARTES',
+    3: 'MIERCOLES',
+    4: 'JUEVES',
+    5: 'VIERNES',
+    6: 'SABADO'
+  }
+  
+  for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    const diaSemana = d.getDay()
+    const nombreDia = diasSemanaMap[diaSemana]
+    
+    // Si hay días laborables configurados, solo incluir esos días
+    if (diasLaborables && diasLaborables.length > 0) {
+      if (diasLaborables.includes(nombreDia)) {
+        fechas.push(new Date(d))
+      }
+    } else {
+      // Por defecto, excluir sábados y domingos
+      if (diaSemana !== 0 && diaSemana !== 6) {
+        fechas.push(new Date(d))
+      }
+    }
+  }
+  return fechas
+}
+
+// Función para formatear fecha corta (LUN01, MAR02, etc.)
+const formatearFechaCorta = (fecha: Date): string => {
+  const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+  const dia = dias[fecha.getDay()]
+  const numero = fecha.getDate().toString().padStart(2, '0')
+  return `${dia}${numero}`
+}
+
 export default function ReportesAuxiliar() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [grados, setGrados] = useState<Grado[]>([])
   const [secciones, setSecciones] = useState<Seccion[]>([])
+  const [vistaActual, setVistaActual] = useState<'resumen' | 'detalle'>('resumen')
   
   // Filtros
   const [tipoReporte, setTipoReporte] = useState<'semanal' | 'mensual' | 'anual'>('mensual')
@@ -76,6 +121,9 @@ export default function ReportesAuxiliar() {
   // Estados para opciones de filtros
   const [loadingGrados, setLoadingGrados] = useState(false)
   const [loadingSecciones, setLoadingSecciones] = useState(false)
+  
+  // Días laborables configurados
+  const [diasLaborables, setDiasLaborables] = useState<string[]>(['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'])
 
   useEffect(() => {
     const checkAuth = () => {
@@ -104,7 +152,27 @@ export default function ReportesAuxiliar() {
     setDefaultDates()
     loadGrados()
     loadSecciones()
+    loadDiasLaborables()
   }, [router])
+
+  // Cargar días laborables desde la configuración
+  const loadDiasLaborables = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/configuracion/horarios', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.diasLaborables && data.diasLaborables.length > 0) {
+          setDiasLaborables(data.diasLaborables)
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando días laborables:', error)
+    }
+  }
 
   const setDefaultDates = () => {
     const today = new Date()
@@ -321,6 +389,34 @@ export default function ReportesAuxiliar() {
     }
   }
 
+  // Exportar en todos los formatos
+  const handleExportarTodos = async () => {
+    if (reportData.length === 0) {
+      alert('Primero debe generar un reporte')
+      return
+    }
+    await Promise.all([
+      downloadReport('pdf'),
+      downloadReport('excel'),
+      downloadReport('word')
+    ])
+  }
+
+  // Generar fechas para la tabla de detalle (solo días laborables)
+  const generarFechasTabla = () => {
+    if (!fechaInicio || !fechaFin) {
+      const hoy = new Date()
+      const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+      const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)
+      return obtenerFechasDelRango(
+        primerDia.toISOString().split('T')[0],
+        ultimoDia.toISOString().split('T')[0],
+        diasLaborables
+      )
+    }
+    return obtenerFechasDelRango(fechaInicio, fechaFin, diasLaborables)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -333,10 +429,19 @@ export default function ReportesAuxiliar() {
     <div className="px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Reportes de Asistencia</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Genere reportes detallados de asistencia con diferentes filtros y formatos
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Reportes de Asistencia</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Genere reportes detallados de asistencia con diferentes filtros y formatos
+            </p>
+          </div>
+          {/* Info de envío automático */}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2">
+            <p className="text-xs text-orange-700 font-medium">📧 Envío automático mensual</p>
+            <p className="text-xs text-orange-600">PDF, Excel y Word</p>
+          </div>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -544,98 +649,272 @@ export default function ReportesAuxiliar() {
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 <DocumentTextIcon className="h-4 w-4 mr-2" />
-                Reporte PDF
+                📕 PDF
               </button>
               <button
                 onClick={() => downloadReport('excel')}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 <DocumentTextIcon className="h-4 w-4 mr-2" />
-                Descargar Excel
+                📊 Excel
               </button>
               <button
                 onClick={() => downloadReport('word')}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <DocumentTextIcon className="h-4 w-4 mr-2" />
-                Descargar Word
+                📝 Word
+              </button>
+              <button
+                onClick={handleExportarTodos}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              >
+                📦 Exportar Todos
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Tabla de Resultados */}
+      {/* Resultados del Reporte */}
       {reportData.length > 0 && (
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Resultados del Reporte ({reportData.length} estudiantes)
-            </h3>
-            <div className="overflow-hidden shadow-sm border border-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estudiante
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Grado/Sección
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Días Presente
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Días Ausente
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tardanzas
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      % Asistencia
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {reportData.map((item) => (
-                    <tr key={item.estudiante.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.estudiante.apellido}, {item.estudiante.nombre}
-                          </div>
-                          <div className="text-sm text-gray-500">DNI: {item.estudiante.dni}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div>{item.estudiante.grado}</div>
-                        <div>{item.estudiante.seccion}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.resumen.diasPresente}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.resumen.diasAusente}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.resumen.diasTardanza}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.resumen.porcentajeAsistencia >= 85 
-                            ? 'bg-green-100 text-green-800'
-                            : item.resumen.porcentajeAsistencia >= 70
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {item.resumen.porcentajeAsistencia.toFixed(1)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Toggle de vista */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">
+                Resultados del Reporte ({reportData.length} estudiantes)
+              </h3>
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => setVistaActual('resumen')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    vistaActual === 'resumen' 
+                      ? 'bg-white text-orange-600 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📊 Resumen
+                </button>
+                <button
+                  onClick={() => setVistaActual('detalle')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    vistaActual === 'detalle' 
+                      ? 'bg-white text-orange-600 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📋 Tabla de Asistencia
+                </button>
+              </div>
             </div>
+
+            {/* Vista Resumen */}
+            {vistaActual === 'resumen' && (
+              <div className="overflow-hidden shadow-sm border border-gray-200 rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estudiante
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Grado/Sección
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Días Presente
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Días Ausente
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tardanzas
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        % Asistencia
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData.map((item) => (
+                      <tr key={item.estudiante.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {item.estudiante.apellido}, {item.estudiante.nombre}
+                            </div>
+                            <div className="text-sm text-gray-500">DNI: {item.estudiante.dni}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>{item.estudiante.grado}</div>
+                          <div>{item.estudiante.seccion}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.resumen.diasPresente}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.resumen.diasAusente}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.resumen.diasTardanza}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            item.resumen.porcentajeAsistencia >= 85 
+                              ? 'bg-green-100 text-green-800'
+                              : item.resumen.porcentajeAsistencia >= 70
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {item.resumen.porcentajeAsistencia.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Vista Detalle - Tabla única del mes con todos los días laborables */}
+            {vistaActual === 'detalle' && (
+              <div className="space-y-6">
+                {(() => {
+                  // Agrupar estudiantes por grado y sección
+                  const grupos = reportData.reduce((acc, item) => {
+                    const key = `${item.estudiante.grado}° ${item.estudiante.seccion}`
+                    if (!acc[key]) acc[key] = []
+                    acc[key].push(item)
+                    return acc
+                  }, {} as Record<string, typeof reportData>)
+
+                  const fechas = generarFechasTabla()
+                  
+                  // Obtener nombre del mes
+                  const getMesNombre = () => {
+                    if (fechas.length > 0) {
+                      return fechas[0].toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase()
+                    }
+                    return ''
+                  }
+
+                  return Object.entries(grupos).map(([gradoSeccion, estudiantes]) => (
+                    <div key={gradoSeccion} className="border border-gray-200 rounded-xl overflow-hidden">
+                      {/* Header del grupo */}
+                      <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-4 py-3">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-white font-bold">
+                            Grado y sección: <span className="text-orange-100">{gradoSeccion}</span>
+                          </h3>
+                          <span className="text-orange-100 text-sm">
+                            {getMesNombre()} • {fechas.length} días laborables
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Tabla de asistencia - Una sola tabla con todo el mes */}
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full border-collapse">
+                          <thead>
+                            <tr className="bg-green-600">
+                              <th className="sticky left-0 z-10 bg-green-600 px-3 py-2 text-left text-xs font-semibold text-white border-b border-r border-green-700 min-w-[180px]">
+                                Apellidos y nombre
+                              </th>
+                              {fechas.map((fecha, idx) => (
+                                <th 
+                                  key={idx} 
+                                  className="px-1 py-2 text-center text-xs font-semibold text-white border-b border-green-700 min-w-[45px]"
+                                >
+                                  {formatearFechaCorta(fecha)}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {estudiantes.map((item, estIdx) => (
+                              <tr 
+                                key={item.estudiante.id} 
+                                className={`${estIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-orange-50 transition-colors`}
+                              >
+                                <td className="sticky left-0 z-10 bg-inherit px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap">
+                                  {item.estudiante.apellido}, {item.estudiante.nombre}
+                                </td>
+                                {fechas.map((fecha, fechaIdx) => {
+                                  // Buscar si hay asistencia para esta fecha
+                                  const fechaStr = fecha.toISOString().split('T')[0]
+                                  const asistencia = item.asistencias?.find(
+                                    (a) => a.fecha?.split('T')[0] === fechaStr
+                                  )
+                                  
+                                  let contenido = '-'
+                                  let colorClass = 'text-gray-300'
+                                  let bgClass = ''
+                                  
+                                  if (asistencia) {
+                                    switch (asistencia.estado?.toUpperCase()) {
+                                      case 'PRESENTE':
+                                        contenido = 'X'
+                                        colorClass = 'text-green-600 font-bold'
+                                        break
+                                      case 'TARDANZA':
+                                        contenido = 'T'
+                                        colorClass = 'text-orange-500 font-bold'
+                                        break
+                                      case 'AUSENTE':
+                                      case 'INASISTENCIA':
+                                        contenido = 'F'
+                                        colorClass = 'text-red-600 font-bold'
+                                        break
+                                      case 'JUSTIFICADA':
+                                      case 'JUSTIFICADO':
+                                        contenido = 'J'
+                                        colorClass = 'text-blue-600 font-bold'
+                                        break
+                                      default:
+                                        contenido = '-'
+                                        colorClass = 'text-gray-300'
+                                    }
+                                  }
+                                  
+                                  return (
+                                    <td 
+                                      key={fechaIdx} 
+                                      className={`px-1 py-2 text-center text-sm ${colorClass} ${bgClass} border-l border-gray-100`}
+                                    >
+                                      {contenido}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Leyenda */}
+                      <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                        <div className="flex flex-wrap items-center gap-6 text-xs">
+                          <span className="text-gray-500 font-medium">Leyenda:</span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-green-600 font-bold">X</span>=Presente
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-orange-500 font-bold">T</span>=Tardanza
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-red-600 font-bold">F</span>=Falta
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-blue-600 font-bold">J</span>=Justificada
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            )}
           </div>
         </div>
       )}

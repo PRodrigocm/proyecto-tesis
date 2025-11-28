@@ -1,11 +1,23 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useHorariosSemanales } from '@/hooks/useHorariosSemanales'
 import { useExcepcionesHorario } from '@/hooks/useExcepcionesHorario'
 import { useExcepciones } from '@/hooks/useExcepciones'
 import CreateHorarioClasesModal from '@/components/admin/CreateHorarioClasesModal'
 import EditHorarioClasesModal from '@/components/admin/EditHorarioClasesModal'
+import {
+  ClockIcon,
+  CalendarDaysIcon,
+  AcademicCapIcon,
+  ExclamationTriangleIcon,
+  PlusIcon,
+  PencilSquareIcon,
+  ArrowPathIcon,
+  ChartBarIcon,
+  UserGroupIcon
+} from '@heroicons/react/24/outline'
 
 export default function HorarioClasesPage() {
   const [activeTab, setActiveTab] = useState<'horarios' | 'excepciones'>('horarios')
@@ -15,6 +27,7 @@ export default function HorarioClasesPage() {
   const [loadingGradosSecciones, setLoadingGradosSecciones] = useState(false)
   const [filtroGrado, setFiltroGrado] = useState('')
   const [filtroSeccion, setFiltroSeccion] = useState('')
+  const [vistaCompacta, setVistaCompacta] = useState(false)
   const { 
     horarios, 
     loading: loadingHorarios, 
@@ -164,101 +177,117 @@ export default function HorarioClasesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              📚 Horario de Clases
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Administra horarios de clases regulares, excepciones y suspensiones
-            </p>
+      {/* Header Mejorado */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="text-white">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <CalendarDaysIcon className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Horarios de Clases</h1>
+                <p className="text-indigo-100 mt-1">
+                  Gestiona horarios, excepciones y suspensiones académicas
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-wrap gap-3">
+            <button 
+              onClick={() => loadHorarios()}
+              className="inline-flex items-center px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            >
+              <ArrowPathIcon className="h-4 w-4 mr-2" />
+              Actualizar
+            </button>
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
             >
-              + Nuevo Horario
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Nuevo Horario
             </button>
             <button 
               onClick={() => setShowEditModal(true)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
             >
-              ✏️ Editar Horarios
+              <PencilSquareIcon className="h-4 w-4 mr-2" />
+              Editar Horarios
             </button>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <span className="text-2xl">📅</span>
+      {/* Stats Cards Mejoradas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+              <ClockIcon className="h-6 w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Horarios Activos</p>
-              <p className="text-2xl font-semibold text-gray-900">{statsHorarios.activos}</p>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Horarios Activos</p>
+              <p className="text-2xl font-bold text-gray-900">{statsHorarios.activos}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <span className="text-2xl">📚</span>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
+              <AcademicCapIcon className="h-6 w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Clases Regulares</p>
-              <p className="text-2xl font-semibold text-gray-900">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Clases Regulares</p>
+              <p className="text-2xl font-bold text-gray-900">
                 {horarios.reduce((acc, h) => acc + h.detalles.filter(d => d.tipoActividad === 'CLASE_REGULAR').length, 0)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <span className="text-2xl">⚠️</span>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl">
+              <ExclamationTriangleIcon className="h-6 w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Excepciones Activas</p>
-              <p className="text-2xl font-semibold text-gray-900">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Excepciones</p>
+              <p className="text-2xl font-bold text-gray-900">
                 {excepciones.filter(e => e.tipoHorario === 'CLASE' || e.tipoHorario === 'AMBOS').length}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <span className="text-2xl">🚫</span>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl">
+              <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Suspensiones</p>
-              <p className="text-2xl font-semibold text-gray-900">{statsExcepciones.suspensiones}</p>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Suspensiones</p>
+              <p className="text-2xl font-bold text-gray-900">{statsExcepciones.suspensiones}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white shadow rounded-lg">
+      {/* Tabs Mejorados */}
+      <div className="bg-white shadow-sm rounded-xl border border-gray-100">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
+          <nav className="flex space-x-1 px-4 pt-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-3 px-4 font-medium text-sm rounded-t-lg transition-all ${
                   activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <span className="mr-2">{tab.icon}</span>
@@ -271,15 +300,19 @@ export default function HorarioClasesPage() {
         <div className="p-6">
           {activeTab === 'horarios' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Horarios de Clases por Día
-                </h3>
-                <div className="flex space-x-2">
+              {/* Filtros mejorados */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Horarios de Clases por Día
+                  </h3>
+                  <p className="text-sm text-gray-500">Vista semanal de todas las clases programadas</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
                   <select 
                     value={filtroGrado}
                     onChange={(e) => setFiltroGrado(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
+                    className="border-2 border-gray-200 rounded-lg px-4 py-2 text-sm text-black focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                     disabled={loadingGradosSecciones}
                   >
                     <option value="">Todos los grados</option>
@@ -292,7 +325,7 @@ export default function HorarioClasesPage() {
                   <select 
                     value={filtroSeccion}
                     onChange={(e) => setFiltroSeccion(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
+                    className="border-2 border-gray-200 rounded-lg px-4 py-2 text-sm text-black focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                     disabled={loadingGradosSecciones}
                   >
                     <option value="">Todas las secciones</option>
@@ -302,57 +335,94 @@ export default function HorarioClasesPage() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    onClick={() => setVistaCompacta(!vistaCompacta)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      vistaCompacta 
+                        ? 'bg-indigo-100 text-indigo-700' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {vistaCompacta ? '📋 Compacta' : '📊 Expandida'}
+                  </button>
                 </div>
               </div>
 
               {loadingHorarios ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="flex justify-center py-12">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                    <span className="text-sm text-gray-500">Cargando horarios...</span>
+                  </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-                  {diasSemana.map((dia) => (
-                    <div key={dia.value} className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-3 text-center">
-                        {dia.label}
-                      </h4>
-                      <div className="space-y-2">
-                        {getHorariosPorDia(dia.value)
-                          .filter(detalle => {
-                            if (detalle.tipoActividad !== 'CLASE_REGULAR') return false
-                            if (filtroGrado && detalle.grado !== filtroGrado) return false
-                            if (filtroSeccion && detalle.seccion !== filtroSeccion) return false
-                            return true
-                          })
-                          .map((detalle, index) => (
-                          <div key={index} className="bg-white p-3 rounded border-l-4 border-blue-500">
-                            <div className="text-sm font-medium text-gray-900">
-                              {detalle.horaInicio} - {detalle.horaFin}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {detalle.grado}° {detalle.seccion}
-                            </div>
-                            {detalle.materia && (
-                              <div className="text-xs text-gray-500">
-                                {detalle.materia}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+                  {diasSemana.map((dia, diaIndex) => {
+                    const clasesDelDia = getHorariosPorDia(dia.value)
+                      .filter(detalle => {
+                        if (detalle.tipoActividad !== 'CLASE_REGULAR') return false
+                        if (filtroGrado && detalle.grado !== filtroGrado) return false
+                        if (filtroSeccion && detalle.seccion !== filtroSeccion) return false
+                        return true
+                      })
+                    
+                    const colores = [
+                      'border-blue-500 bg-blue-50',
+                      'border-green-500 bg-green-50',
+                      'border-purple-500 bg-purple-50',
+                      'border-orange-500 bg-orange-50',
+                      'border-pink-500 bg-pink-50',
+                      'border-cyan-500 bg-cyan-50',
+                      'border-indigo-500 bg-indigo-50'
+                    ]
+                    
+                    return (
+                      <div key={dia.value} className="bg-gradient-to-b from-gray-50 to-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className={`py-3 px-4 text-center font-semibold text-white ${
+                          diaIndex === 0 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                          diaIndex === 1 ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                          diaIndex === 2 ? 'bg-gradient-to-r from-purple-500 to-purple-600' :
+                          diaIndex === 3 ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+                          diaIndex === 4 ? 'bg-gradient-to-r from-pink-500 to-pink-600' :
+                          diaIndex === 5 ? 'bg-gradient-to-r from-cyan-500 to-cyan-600' :
+                          'bg-gradient-to-r from-indigo-500 to-indigo-600'
+                        }`}>
+                          {dia.label}
+                          <span className="ml-2 text-xs opacity-80">({clasesDelDia.length})</span>
+                        </div>
+                        <div className={`p-3 space-y-2 ${vistaCompacta ? 'max-h-48' : 'max-h-96'} overflow-y-auto`}>
+                          {clasesDelDia.map((detalle, index) => (
+                            <div 
+                              key={index} 
+                              className={`p-3 rounded-lg border-l-4 ${colores[diaIndex]} hover:shadow-md transition-shadow cursor-pointer`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-gray-700 bg-white px-2 py-0.5 rounded">
+                                  {detalle.horaInicio} - {detalle.horaFin}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                        ))}
-                        {getHorariosPorDia(dia.value)
-                          .filter(detalle => {
-                            if (detalle.tipoActividad !== 'CLASE_REGULAR') return false
-                            if (filtroGrado && detalle.grado !== filtroGrado) return false
-                            if (filtroSeccion && detalle.seccion !== filtroSeccion) return false
-                            return true
-                          }).length === 0 && (
-                          <div className="text-center text-gray-500 text-sm py-4">
-                            Sin clases
-                          </div>
-                        )}
+                              <div className="mt-2">
+                                <div className="text-sm font-semibold text-gray-800">
+                                  {detalle.grado}° "{detalle.seccion}"
+                                </div>
+                                {detalle.materia && !vistaCompacta && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    📚 {detalle.materia}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {clasesDelDia.length === 0 && (
+                            <div className="text-center py-8">
+                              <div className="text-3xl mb-2">📅</div>
+                              <p className="text-gray-400 text-sm">Sin clases</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -99,41 +99,4 @@ UC_JustificarInasistencia ..> UC_SubirDocumentos : <<include>>
 
 UC_RegistrarAsistenciaIE ..> UC_EjecutarRetiro : <<extend>>
 UC_SolicitarRetiro ..> UC_AprobarRetiro : <<extend>>
-
-note right of UC_EncolarNotificaciones
-  Políticas de notificación:
-  - Anti-spam (ventana 2 min)
-  - Reintentos automáticos
-  - Fallback email/SMS
-  - Configuración por apoderado
-  - Auditoría de envíos
-end note
-
-note bottom of UC_ValidarQR
-  Validación QR:
-  - Verificación formato
-  - Idempotencia (evita duplicados)
-  - Validación temporal
-  - Seguridad anti-falsificación
-  - Log de intentos
-end note
-
-note left of UC_AuditoriaSeguridad
-  Auditoría completa:
-  - Todos los cambios registrados
-  - Trazabilidad por usuario
-  - Logs de acceso y operaciones
-  - Cumplimiento normativo
-  - Backup automático
-end note
-
-note top of UC_ConfigurarNotificaciones
-  Configuración granular:
-  - Por tipo de evento
-  - Por estudiante
-  - Canal preferido (email/SMS)
-  - Horarios de envío
-  - Políticas personalizadas
-end note
-
 @enduml

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,271 +77,366 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePDF(datos: any): Promise<Buffer> {
-  const doc = new jsPDF()
   const { reportes, estadisticas, filtros } = datos
   
-  // Configuración APA 7
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 25.4 // 1 pulgada en mm (APA 7)
+  // Crear documento PDF en orientación vertical para la portada
+  const doc = new jsPDF('portrait', 'mm', 'a4')
   
-  // Portada estilo APA 7
-  doc.setFont('Times', 'normal')
+  // ===== PÁGINA 1: PORTADA Y RESUMEN =====
+  doc.setFont('helvetica')
   
-  // Título centrado
+  // Título principal
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('REPORTE DE ASISTENCIAS', 105, 30, { align: 'center' })
   doc.setFontSize(14)
-  const titulo = 'Reporte de Asistencia Escolar'
-  const subtitulo = `Análisis ${filtros.tipoReporte.charAt(0).toUpperCase() + filtros.tipoReporte.slice(1)} de Asistencia Estudiantil`
+  doc.text(filtros.tipoReporte.toUpperCase(), 105, 40, { align: 'center' })
   
-  doc.text(titulo, pageWidth / 2, 60, { align: 'center' })
-  doc.text(subtitulo, pageWidth / 2, 75, { align: 'center' })
+  // Línea decorativa
+  doc.setDrawColor(46, 125, 50)
+  doc.setLineWidth(1)
+  doc.line(20, 45, 190, 45)
   
-  // Información institucional centrada
+  // Información institucional
   doc.setFontSize(12)
-  doc.text('Sistema de Gestión Escolar', pageWidth / 2, 100, { align: 'center' })
-  doc.text('Departamento de Control Académico', pageWidth / 2, 115, { align: 'center' })
+  doc.setFont('helvetica', 'normal')
+  let yPos = 55
+  doc.text('Sistema de Gestión Escolar', 105, yPos, { align: 'center' })
+  yPos += 7
+  doc.text('Departamento de Control Académico', 105, yPos, { align: 'center' })
   
+  // Información del reporte
+  yPos += 15
+  doc.setFontSize(10)
   if (filtros.grado !== 'Todos') {
-    doc.text(`Grado: ${filtros.grado}`, pageWidth / 2, 130, { align: 'center' })
+    doc.text(`Grado: ${filtros.grado}`, 20, yPos)
+    yPos += 6
   }
   if (filtros.seccion !== 'Todas') {
-    doc.text(`Sección: ${filtros.seccion}`, pageWidth / 2, 145, { align: 'center' })
+    doc.text(`Sección: ${filtros.seccion}`, 20, yPos)
+    yPos += 6
   }
+  doc.text(`Período: ${filtros.fechaInicio} - ${filtros.fechaFin}`, 20, yPos)
+  yPos += 6
+  doc.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, 20, yPos)
   
-  // Fecha centrada
-  doc.text(new Date().toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long', 
-    day: 'numeric'
-  }), pageWidth / 2, pageHeight - 50, { align: 'center' })
-
-  // Nueva página para contenido
-  doc.addPage()
-  
-  // Resumen Ejecutivo
-  let yPos = margin
-  doc.setFontSize(14)
-  doc.setFont('Times', 'bold')
-  doc.text('Resumen Ejecutivo', margin, yPos)
-  
+  // Resumen ejecutivo
   yPos += 15
   doc.setFontSize(12)
-  doc.setFont('Times', 'normal')
-  const resumenTexto = `El presente reporte analiza los patrones de asistencia estudiantil durante el período comprendido entre ${filtros.fechaInicio} y ${filtros.fechaFin}. Este análisis forma parte del sistema de monitoreo académico institucional y tiene como objetivo proporcionar información estadística relevante para la toma de decisiones educativas.`
+  doc.setFont('helvetica', 'bold')
+  doc.text('RESUMEN EJECUTIVO', 20, yPos)
   
-  const resumenLines = doc.splitTextToSize(resumenTexto, pageWidth - (margin * 2))
-  doc.text(resumenLines, margin, yPos)
-  yPos += resumenLines.length * 6 + 10
-
-  // Metodología
-  doc.setFontSize(12)
-  doc.setFont('Times', 'bold')
-  doc.text('Metodología', margin, yPos)
-  yPos += 10
+  yPos += 8
   
-  doc.setFont('Times', 'normal')
-  const metodologiaTexto = `Los datos fueron recopilados a través del sistema de registro de asistencia digital, considerando únicamente los días hábiles del período académico. Se analizaron ${estadisticas.diasAnalizados} días lectivos, evaluando el comportamiento de asistencia de ${estadisticas.totalEstudiantes} estudiantes.`
-  
-  const metodologiaLines = doc.splitTextToSize(metodologiaTexto, pageWidth - (margin * 2))
-  doc.text(metodologiaLines, margin, yPos)
-  yPos += metodologiaLines.length * 6 + 15
-
-  // Tabla de estadísticas estilo APA 7
-  doc.setFont('Times', 'bold')
-  doc.text('Tabla 1', margin, yPos)
-  yPos += 6
-  doc.setFont('Times', 'italic')
-  doc.text('Indicadores Principales de Asistencia', margin, yPos)
-  yPos += 10
-
-  // Configuración de tabla
-  const tableStartY = yPos
-  const colWidths = [80, 40]
-  const rowHeight = 8
-  
-  // Encabezados de tabla (estilo APA 7)
-  doc.setFont('Times', 'bold')
-  doc.setFontSize(10)
-  
-  // Línea superior
-  doc.line(margin, tableStartY, margin + colWidths[0] + colWidths[1], tableStartY)
-  
-  // Encabezados
-  doc.text('Indicador', margin + 2, tableStartY + 6)
-  doc.text('Valor', margin + colWidths[0] + 2, tableStartY + 6)
-  
-  // Línea después de encabezados
-  doc.line(margin, tableStartY + rowHeight, margin + colWidths[0] + colWidths[1], tableStartY + rowHeight)
-  
-  // Datos de la tabla
-  doc.setFont('Times', 'normal')
+  // Tabla de estadísticas
   const estadisticasData = [
-    ['Total de estudiantes analizados', estadisticas.totalEstudiantes.toString()],
+    ['Total de estudiantes evaluados', estadisticas.totalEstudiantes.toString()],
     ['Promedio general de asistencia', `${estadisticas.promedioAsistencia.toFixed(1)}%`],
-    ['Estudiantes con asistencia inferior al 70%', estadisticas.estudiantesConBajaAsistencia.toString()],
+    ['Estudiantes con baja asistencia (<70%)', estadisticas.estudiantesConBajaAsistencia.toString()],
     ['Días lectivos analizados', estadisticas.diasAnalizados.toString()]
   ]
   
-  estadisticasData.forEach((row, index) => {
-    const currentY = tableStartY + rowHeight + (index + 1) * rowHeight
-    doc.text(row[0], margin + 2, currentY + 6)
-    doc.text(row[1], margin + colWidths[0] + 2, currentY + 6)
-  })
-  
-  // Línea inferior de tabla
-  const tableEndY = tableStartY + rowHeight + (estadisticasData.length + 1) * rowHeight
-  doc.line(margin, tableEndY, margin + colWidths[0] + colWidths[1], tableEndY)
-  
-  yPos = tableEndY + 20
-
-  // Nueva página para tabla de estudiantes
-  doc.addPage()
-  yPos = margin
-
-  // Tabla de estudiantes estilo APA 7
-  doc.setFont('Times', 'bold')
-  doc.text('Tabla 2', margin, yPos)
-  yPos += 6
-  doc.setFont('Times', 'italic')
-  doc.text('Análisis Individual de Asistencia por Estudiante', margin, yPos)
-  yPos += 15
-
-  // Configuración de tabla de estudiantes
-  const estudiantesTableY = yPos
-  const estudiantesColWidths = [45, 20, 25, 15, 15, 15, 20]
-  const estudiantesRowHeight = 12
-  
-  // Encabezados
-  doc.setFont('Times', 'bold')
-  doc.setFontSize(9)
-  
-  // Línea superior
-  const totalWidth = estudiantesColWidths.reduce((sum, width) => sum + width, 0)
-  doc.line(margin, estudiantesTableY, margin + totalWidth, estudiantesTableY)
-  
-  // Encabezados de columnas
-  let xPos = margin
-  const headers = ['Apellidos y Nombres', 'DNI', 'Grado/Sección', 'Presente', 'Ausente', 'Tardanza', '% Asistencia']
-  
-  headers.forEach((header, index) => {
-    doc.text(header, xPos + 1, estudiantesTableY + 8)
-    xPos += estudiantesColWidths[index]
-  })
-  
-  // Línea después de encabezados
-  doc.line(margin, estudiantesTableY + estudiantesRowHeight, margin + totalWidth, estudiantesTableY + estudiantesRowHeight)
-  
-  // Datos de estudiantes
-  doc.setFont('Times', 'normal')
-  doc.setFontSize(8)
-  
-  let currentRowY = estudiantesTableY + estudiantesRowHeight
-  
-  reportes.forEach((item: any, index: number) => {
-    if (currentRowY > pageHeight - 40) {
-      doc.addPage()
-      currentRowY = margin
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Métrica', 'Valor']],
+    body: estadisticasData,
+    theme: 'striped',
+    styles: { fontSize: 9, font: 'helvetica' },
+    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 100 },
+      1: { cellWidth: 50, halign: 'center' }
     }
+  })
+  
+  // ===== PÁGINAS DE DETALLE: TABLAS EN LANDSCAPE =====
+  // Obtener fechas del período (solo días laborables: lunes a viernes)
+  const fechasPeriodo: Date[] = []
+  const fechaInicio = new Date(filtros.fechaInicio)
+  const fechaFin = new Date(filtros.fechaFin)
+  for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+    const diaSemana = d.getDay()
+    // Solo incluir días laborables (lunes=1 a viernes=5)
+    if (diaSemana >= 1 && diaSemana <= 5) {
+      fechasPeriodo.push(new Date(d))
+    }
+  }
+  
+  // Agrupar estudiantes por grado y sección
+  const grupos = reportes.reduce((acc: any, item: any) => {
+    const key = `${item.estudiante.grado}° ${item.estudiante.seccion}`
+    if (!acc[key]) acc[key] = []
+    acc[key].push(item)
+    return acc
+  }, {})
+  
+  // Para cada grupo, crear una nueva página en landscape
+  Object.entries(grupos).forEach(([gradoSeccion, estudiantesGrupo]: [string, any]) => {
+    // Nueva página en LANDSCAPE para la tabla de asistencia
+    doc.addPage('a4', 'landscape')
     
-    xPos = margin
-    const rowData = [
-      `${item.estudiante.apellido}, ${item.estudiante.nombre}`,
-      item.estudiante.dni,
-      `${item.estudiante.grado}-${item.estudiante.seccion}`,
-      item.resumen.diasPresente.toString(),
-      item.resumen.diasAusente.toString(),
-      item.resumen.diasTardanza.toString(),
-      `${item.resumen.porcentajeAsistencia.toFixed(1)}%`
-    ]
+    // Título del aula
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Grado y sección: ${gradoSeccion}`, 15, 15)
     
-    rowData.forEach((data, colIndex) => {
-      // Truncar texto si es muy largo
-      const maxWidth = estudiantesColWidths[colIndex] - 2
-      const truncatedText = doc.getTextWidth(data) > maxWidth ? 
-        data.substring(0, Math.floor(data.length * maxWidth / doc.getTextWidth(data))) + '...' : 
-        data
-      
-      doc.text(truncatedText, xPos + 1, currentRowY + 8)
-      xPos += estudiantesColWidths[colIndex]
+    // Información del período
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    const mesNombre = fechasPeriodo.length > 0 
+      ? fechasPeriodo[0].toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase()
+      : ''
+    doc.text(`${mesNombre} • ${fechasPeriodo.length} días laborables`, 15, 22)
+    
+    // Headers: Apellidos y nombre + todas las fechas del mes
+    const headers = ['Apellidos y nombre']
+    fechasPeriodo.forEach(fecha => {
+      const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+      const dia = dias[fecha.getDay()]
+      const numero = fecha.getDate().toString().padStart(2, '0')
+      headers.push(`${dia}${numero}`)
     })
     
-    currentRowY += estudiantesRowHeight
+    // Datos de estudiantes
+    const estudiantesData = estudiantesGrupo.map((item: any) => {
+      const fila = [`${item.estudiante.apellido}, ${item.estudiante.nombre}`]
+      
+      fechasPeriodo.forEach(fecha => {
+        const fechaStr = fecha.toISOString().split('T')[0]
+        const asistencia = item.asistencias?.find(
+          (a: any) => a.fecha?.split('T')[0] === fechaStr
+        )
+        
+        if (asistencia) {
+          switch (asistencia.estado?.toUpperCase()) {
+            case 'PRESENTE': fila.push('X'); break
+            case 'TARDANZA': fila.push('T'); break
+            case 'AUSENTE':
+            case 'INASISTENCIA': fila.push('F'); break
+            case 'JUSTIFICADA':
+            case 'JUSTIFICADO': fila.push('J'); break
+            default: fila.push('-')
+          }
+        } else {
+          fila.push('-')
+        }
+      })
+      
+      return fila
+    })
+    
+    // Calcular ancho de columnas dinámicamente
+    const pageWidth = 277 // A4 landscape width in mm minus margins
+    const nombreColWidth = 50
+    const fechaColWidth = Math.min(8, (pageWidth - nombreColWidth) / fechasPeriodo.length)
+    
+    const columnStyles: any = { 0: { cellWidth: nombreColWidth, fontStyle: 'bold' } }
+    fechasPeriodo.forEach((_, idx) => {
+      columnStyles[idx + 1] = { cellWidth: fechaColWidth, halign: 'center' }
+    })
+    
+    // Tabla de asistencia
+    autoTable(doc, {
+      startY: 28,
+      head: [headers],
+      body: estudiantesData,
+      theme: 'grid',
+      styles: { 
+        fontSize: 7, 
+        cellPadding: 1,
+        font: 'helvetica',
+        overflow: 'hidden'
+      },
+      headStyles: { 
+        fillColor: [46, 125, 50], 
+        textColor: 255, 
+        fontSize: 6,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles,
+      didParseCell: function(data) {
+        // Colorear celdas según el estado
+        if (data.section === 'body' && data.column.index > 0) {
+          const value = data.cell.text[0]
+          if (value === 'X') {
+            data.cell.styles.textColor = [46, 125, 50] // Verde
+            data.cell.styles.fontStyle = 'bold'
+          } else if (value === 'T') {
+            data.cell.styles.textColor = [255, 152, 0] // Naranja
+            data.cell.styles.fontStyle = 'bold'
+          } else if (value === 'F') {
+            data.cell.styles.textColor = [244, 67, 54] // Rojo
+            data.cell.styles.fontStyle = 'bold'
+          } else if (value === 'J') {
+            data.cell.styles.textColor = [33, 150, 243] // Azul
+            data.cell.styles.fontStyle = 'bold'
+          } else {
+            data.cell.styles.textColor = [200, 200, 200] // Gris claro
+          }
+        }
+      }
+    })
+    
+    // Leyenda al final de la tabla
+    const finalY = (doc as any).lastAutoTable.finalY + 5
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    doc.text('Leyenda: X=Presente, T=Tardanza, F=Falta, J=Justificada', 15, finalY)
+    doc.setTextColor(0, 0, 0)
   })
   
-  // Línea inferior de tabla
-  doc.line(margin, currentRowY, margin + totalWidth, currentRowY)
-
-  // Nueva página para conclusiones
-  doc.addPage()
-  yPos = margin
-
-  // Conclusiones estilo APA 7
-  doc.setFontSize(12)
-  doc.setFont('Times', 'bold')
-  doc.text('Conclusiones', margin, yPos)
-  yPos += 15
-  
-  doc.setFont('Times', 'normal')
-  const conclusionesTexto = `Basándose en el análisis de los datos recopilados durante el período de estudio, se pueden establecer las siguientes conclusiones:
-
-1. El promedio general de asistencia alcanzó el ${estadisticas.promedioAsistencia.toFixed(1)}%, lo cual ${estadisticas.promedioAsistencia >= 85 ? 'indica un nivel satisfactorio de asistencia estudiantil' : estadisticas.promedioAsistencia >= 70 ? 'muestra un nivel regular que requiere monitoreo continuo' : 'evidencia la necesidad de implementar estrategias de mejora en la asistencia'}.
-
-2. Se identificaron ${estadisticas.estudiantesConBajaAsistencia} estudiantes con porcentajes de asistencia inferiores al 70%, quienes requieren seguimiento individualizado y posibles intervenciones pedagógicas.
-
-3. El análisis abarcó ${estadisticas.diasAnalizados} días lectivos, proporcionando una muestra representativa del comportamiento de asistencia durante el período evaluado.`
-  
-  const conclusionesLines = doc.splitTextToSize(conclusionesTexto, pageWidth - (margin * 2))
-  doc.text(conclusionesLines, margin, yPos)
+  // Pie de página con número de página
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    
+    // Detectar orientación de la página actual
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const isLandscape = pageWidth > pageHeight
+    
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    
+    // Posición del pie según orientación
+    const footerY = isLandscape ? 200 : 285
+    
+    doc.text(`Página ${i} de ${pageCount}`, 15, footerY)
+    doc.text('Sistema de Gestión Escolar', pageWidth - 15, footerY, { align: 'right' })
+    
+    doc.setTextColor(0, 0, 0)
+  }
 
   return Buffer.from(doc.output('arraybuffer'))
+}
+
+// Función auxiliar para obtener fechas del rango
+function obtenerFechasDelRango(fechaInicio: string, fechaFin: string): Date[] {
+  const fechas: Date[] = []
+  const inicio = new Date(fechaInicio)
+  const fin = new Date(fechaFin)
+  
+  for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    fechas.push(new Date(d))
+  }
+  return fechas
+}
+
+// Función para formatear fecha corta (LUN01, MAR02, etc.)
+function formatearFechaCorta(fecha: Date): string {
+  const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+  const dia = dias[fecha.getDay()]
+  const numero = fecha.getDate().toString().padStart(2, '0')
+  return `${dia}${numero}`
 }
 
 function generateExcel(datos: any): Buffer {
   const { reportes, estadisticas, filtros } = datos
   const workbook = XLSX.utils.book_new()
 
-  // Hoja de resumen
+  // Obtener fechas del período
+  const fechas = obtenerFechasDelRango(filtros.fechaInicio, filtros.fechaFin)
+
+  // Agrupar estudiantes por grado y sección
+  const grupos = reportes.reduce((acc: any, item: any) => {
+    const key = `${item.estudiante.grado} ${item.estudiante.seccion}`
+    if (!acc[key]) acc[key] = []
+    acc[key].push(item)
+    return acc
+  }, {})
+
+  // Crear una hoja por cada grado/sección con formato de tabla de asistencia
+  Object.entries(grupos).forEach(([gradoSeccion, estudiantesGrupo]: [string, any]) => {
+    const sheetData: any[][] = []
+    
+    // Fila 1: Título
+    sheetData.push([`Grado y sección`, gradoSeccion])
+    sheetData.push([]) // Fila vacía
+    
+    // Fila 3: Headers - Apellidos y nombre + fechas
+    const headers = ['Apellidos y nombre']
+    fechas.forEach(fecha => {
+      headers.push(formatearFechaCorta(fecha))
+    })
+    sheetData.push(headers)
+    
+    // Filas de estudiantes
+    estudiantesGrupo.forEach((item: any) => {
+      const fila = [`${item.estudiante.apellido}, ${item.estudiante.nombre}`]
+      
+      fechas.forEach(fecha => {
+        const fechaStr = fecha.toISOString().split('T')[0]
+        const asistencia = item.asistencias?.find(
+          (a: any) => a.fecha?.split('T')[0] === fechaStr
+        )
+        
+        if (asistencia) {
+          switch (asistencia.estado?.toUpperCase()) {
+            case 'PRESENTE':
+              fila.push('X')
+              break
+            case 'TARDANZA':
+              fila.push('T')
+              break
+            case 'AUSENTE':
+              fila.push('F')
+              break
+            case 'JUSTIFICADA':
+              fila.push('J')
+              break
+            default:
+              fila.push('-')
+          }
+        } else {
+          fila.push('-')
+        }
+      })
+      
+      sheetData.push(fila)
+    })
+    
+    // Agregar leyenda
+    sheetData.push([])
+    sheetData.push(['Leyenda:'])
+    sheetData.push(['X = Presente', 'T = Tardanza', 'F = Falta', 'J = Justificada'])
+    
+    // Crear hoja
+    const ws = XLSX.utils.aoa_to_sheet(sheetData)
+    
+    // Ajustar ancho de columnas
+    ws['!cols'] = [{ wch: 35 }] // Primera columna más ancha
+    fechas.forEach(() => {
+      ws['!cols']?.push({ wch: 8 })
+    })
+    
+    // Nombre de la hoja (máximo 31 caracteres)
+    const sheetName = gradoSeccion.substring(0, 31)
+    XLSX.utils.book_append_sheet(workbook, ws, sheetName)
+  })
+
+  // Hoja de Resumen
   const resumenData = [
-    ['Reporte de Asistencia'],
+    ['REPORTE DE ASISTENCIAS'],
     [''],
-    ['Tipo de Reporte:', filtros.tipoReporte.charAt(0).toUpperCase() + filtros.tipoReporte.slice(1)],
+    ['Información del Reporte'],
+    ['Tipo:', filtros.tipoReporte.charAt(0).toUpperCase() + filtros.tipoReporte.slice(1)],
     ['Período:', `${filtros.fechaInicio} - ${filtros.fechaFin}`],
     ['Grado:', filtros.grado],
     ['Sección:', filtros.seccion],
     ['Fecha de generación:', new Date().toLocaleDateString()],
     [''],
-    ['Estadísticas Generales'],
-    ['Total de estudiantes:', estadisticas.totalEstudiantes],
-    ['Promedio de asistencia:', `${estadisticas.promedioAsistencia.toFixed(1)}%`],
+    ['Resumen Ejecutivo'],
+    ['Total estudiantes:', estadisticas.totalEstudiantes],
+    ['Promedio asistencia:', `${estadisticas.promedioAsistencia.toFixed(1)}%`],
     ['Estudiantes con baja asistencia:', estadisticas.estudiantesConBajaAsistencia],
     ['Días analizados:', estadisticas.diasAnalizados]
   ]
 
   const resumenWS = XLSX.utils.aoa_to_sheet(resumenData)
   XLSX.utils.book_append_sheet(workbook, resumenWS, 'Resumen')
-
-  // Hoja de datos detallados
-  const detailData = [
-    ['Apellido', 'Nombre', 'DNI', 'Grado', 'Sección', 'Días Presente', 'Días Ausente', 'Tardanzas', 'Retiros', '% Asistencia']
-  ]
-
-  reportes.forEach((item: any) => {
-    detailData.push([
-      item.estudiante.apellido,
-      item.estudiante.nombre,
-      item.estudiante.dni,
-      item.estudiante.grado,
-      item.estudiante.seccion,
-      item.resumen.diasPresente,
-      item.resumen.diasAusente,
-      item.resumen.diasTardanza,
-      item.resumen.diasRetirado,
-      `${item.resumen.porcentajeAsistencia.toFixed(1)}%`
-    ])
-  })
-
-  const detailWS = XLSX.utils.aoa_to_sheet(detailData)
-  XLSX.utils.book_append_sheet(workbook, detailWS, 'Detalle')
 
   return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }))
 }

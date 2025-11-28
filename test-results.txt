@@ -1,0 +1,7 @@
+﻿======================================================================
+🧪 PRUEBAS COMPLETAS DE TODAS LAS APIs DEL SISTEMA
+======================================================================
+🔐 Intentando login con admin...
+❌ Error en login: fetch failed
+
+⚠️ No se pudo hacer login. Abortando pruebas.

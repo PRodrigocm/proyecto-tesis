@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import NotificationBell from '@/components/NotificationBell'
+import { useAutoAttendance } from '@/hooks/useAutoAttendance'
 
 export default function AuxiliarLayout({
   children,
@@ -15,6 +16,9 @@ export default function AuxiliarLayout({
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  
+  // Hook para procesar faltas automáticamente
+  useAutoAttendance(user?.ie?.idIe || user?.idIe)
 
   // Cargar datos del usuario
   useEffect(() => {

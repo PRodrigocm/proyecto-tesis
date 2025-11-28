@@ -101,92 +101,87 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Función para generar PDF con normas APA
+// Función para generar PDF con formato similar al auxiliar
 async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
   const { metadatos, resumenEjecutivo, estudiantes } = datos
   
-  // Crear nuevo documento PDF
-  const doc = new jsPDF()
+  // Crear documento PDF en orientación vertical para la portada
+  const doc = new jsPDF('portrait', 'mm', 'a4')
   
-  // Configurar fuente
+  // ===== PÁGINA 1: PORTADA Y RESUMEN =====
   doc.setFont('helvetica')
   
   // Título principal
-  doc.setFontSize(16)
+  doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
-  doc.text(`REPORTE ${metadatos.tipoReporte.toUpperCase()} DE ASISTENCIAS Y RETIROS`, 20, 20)
+  doc.text('REPORTE DE ASISTENCIAS', 105, 30, { align: 'center' })
+  doc.setFontSize(14)
+  doc.text(metadatos.tipoReporte.toUpperCase(), 105, 40, { align: 'center' })
+  
+  // Línea decorativa
+  doc.setDrawColor(46, 125, 50)
+  doc.setLineWidth(1)
+  doc.line(20, 45, 190, 45)
   
   // Información institucional
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  let yPos = 35
-  doc.text(metadatos.institucion.nombre, 20, yPos)
+  let yPos = 55
+  doc.text(metadatos.institucion.nombre, 105, yPos, { align: 'center' })
   yPos += 7
   if (metadatos.institucion.direccion) {
-    doc.text(metadatos.institucion.direccion, 20, yPos)
-    yPos += 7
-  }
-  if (metadatos.institucion.telefono || metadatos.institucion.email) {
-    doc.text(`${metadatos.institucion.telefono || ''} | ${metadatos.institucion.email || ''}`, 20, yPos)
-    yPos += 7
+    doc.setFontSize(10)
+    doc.text(metadatos.institucion.direccion, 105, yPos, { align: 'center' })
+    yPos += 6
   }
   
   // Información del generador
-  yPos += 5
+  yPos += 10
+  doc.setFontSize(10)
   doc.text(`Generado por: ${metadatos.generadoPor.nombre}`, 20, yPos)
-  yPos += 7
+  yPos += 6
   if (metadatos.generadoPor.especialidad) {
     doc.text(`Especialidad: ${metadatos.generadoPor.especialidad}`, 20, yPos)
-    yPos += 7
+    yPos += 6
   }
   doc.text(`Fecha de generación: ${new Date(metadatos.fechaGeneracion).toLocaleDateString('es-ES')}`, 20, yPos)
-  yPos += 7
+  yPos += 6
   doc.text(`Período: ${new Date(metadatos.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(metadatos.fechaFin).toLocaleDateString('es-ES')}`, 20, yPos)
   
   // Resumen ejecutivo
   yPos += 15
-  doc.setFontSize(14)
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.text('RESUMEN EJECUTIVO', 20, yPos)
   
-  yPos += 10
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
+  yPos += 8
   
-  // Estadísticas principales
+  // Tabla de estadísticas
   const estadisticas = [
-    ['Total de estudiantes evaluados:', resumenEjecutivo.totalEstudiantes.toString()],
-    ['Total de registros de asistencia:', resumenEjecutivo.totalAsistencias.toString()],
-    ['Total de retiros registrados:', resumenEjecutivo.totalRetiros.toString()],
-    ['', ''],
-    ['ESTADÍSTICAS DE ASISTENCIA:', ''],
-    ['Presente:', `${resumenEjecutivo.estadisticasAsistencia.presente} (${resumenEjecutivo.porcentajes.asistencia}%)`],
-    ['Tardanzas:', `${resumenEjecutivo.estadisticasAsistencia.tardanza} (${resumenEjecutivo.porcentajes.tardanzas}%)`],
-    ['Inasistencias:', `${resumenEjecutivo.estadisticasAsistencia.inasistencia} (${resumenEjecutivo.porcentajes.inasistencias}%)`],
-    ['Justificadas:', resumenEjecutivo.estadisticasAsistencia.justificada.toString()]
+    ['Total de estudiantes evaluados', resumenEjecutivo.totalEstudiantes.toString()],
+    ['Total de registros de asistencia', resumenEjecutivo.totalAsistencias.toString()],
+    ['Total de retiros registrados', resumenEjecutivo.totalRetiros.toString()],
+    ['Presentes', `${resumenEjecutivo.estadisticasAsistencia.presente} (${resumenEjecutivo.porcentajes.asistencia}%)`],
+    ['Tardanzas', `${resumenEjecutivo.estadisticasAsistencia.tardanza} (${resumenEjecutivo.porcentajes.tardanzas}%)`],
+    ['Inasistencias', `${resumenEjecutivo.estadisticasAsistencia.inasistencia} (${resumenEjecutivo.porcentajes.inasistencias}%)`],
+    ['Justificadas', resumenEjecutivo.estadisticasAsistencia.justificada.toString()]
   ]
   
-  // Agregar tabla de estadísticas
   autoTable(doc, {
     startY: yPos,
     head: [['Métrica', 'Valor']],
     body: estadisticas,
-    theme: 'grid',
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [41, 128, 185] }
+    theme: 'striped',
+    styles: { fontSize: 9, font: 'helvetica' },
+    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 100 },
+      1: { cellWidth: 50, halign: 'center' }
+    }
   })
   
-  // Detalle por grado y sección (Aulas)
+  // ===== PÁGINAS DE DETALLE: TABLAS EN LANDSCAPE =====
   if (estudiantes.length > 0) {
-    doc.addPage()
-    yPos = 20
-    
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('DETALLE POR GRADO Y SECCIÓN (AULAS)', 20, yPos)
-    
-    yPos += 15
-    
     // Agrupar estudiantes por grado y sección
     const aulaGroups = estudiantes.reduce((groups: any, estudiante: any) => {
       const aulaKey = `${estudiante.grado}° ${estudiante.seccion}`
@@ -195,160 +190,140 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
           grado: estudiante.grado,
           seccion: estudiante.seccion,
           nivel: estudiante.nivel,
-          estudiantes: [],
-          estadisticas: {
-            totalEstudiantes: 0,
-            totalAsistencias: 0,
-            presente: 0,
-            tardanza: 0,
-            inasistencia: 0,
-            justificada: 0,
-            totalRetiros: 0
-          }
+          estudiantes: []
         }
       }
-      
       groups[aulaKey].estudiantes.push(estudiante)
-      groups[aulaKey].estadisticas.totalEstudiantes++
-      groups[aulaKey].estadisticas.totalAsistencias += estudiante.estadisticas.totalAsistencias
-      groups[aulaKey].estadisticas.presente += estudiante.estadisticas.presente
-      groups[aulaKey].estadisticas.tardanza += estudiante.estadisticas.tardanza
-      groups[aulaKey].estadisticas.inasistencia += estudiante.estadisticas.inasistencia
-      groups[aulaKey].estadisticas.justificada += estudiante.estadisticas.justificada
-      groups[aulaKey].estadisticas.totalRetiros += estudiante.estadisticas.totalRetiros
-      
       return groups
     }, {})
     
-    // Generar tabla resumen por aula
-    const aulasData = Object.entries(aulaGroups).map(([aulaKey, aula]: [string, any]) => {
-      const porcentajeAsistencia = aula.estadisticas.totalAsistencias > 0 ? 
-        (((aula.estadisticas.presente + aula.estadisticas.tardanza) / aula.estadisticas.totalAsistencias) * 100).toFixed(1) : '0'
-      
-      return [
-        aulaKey,
-        aula.nivel,
-        aula.estadisticas.totalEstudiantes.toString(),
-        aula.estadisticas.totalAsistencias.toString(),
-        aula.estadisticas.presente.toString(),
-        aula.estadisticas.tardanza.toString(),
-        aula.estadisticas.inasistencia.toString(),
-        aula.estadisticas.justificada.toString(),
-        aula.estadisticas.totalRetiros.toString(),
-        `${porcentajeAsistencia}%`
-      ]
-    })
-    
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Aula', 'Nivel', 'Est.', 'Total Asist.', 'Presente', 'Tardanzas', 'Faltas', 'Justif.', 'Retiros', '% Asist.']],
-      body: aulasData,
-      theme: 'striped',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [52, 152, 219] },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 15 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 15 },
-        5: { cellWidth: 15 },
-        6: { cellWidth: 15 },
-        7: { cellWidth: 15 },
-        8: { cellWidth: 15 },
-        9: { cellWidth: 20 }
-      }
-    })
-    
-    // Detalle por cada aula con formato de tabla de asistencia (fechas como columnas)
-    let currentY = (doc as any).lastAutoTable.finalY + 20
-    
-    // Obtener fechas del período
+    // Obtener fechas del período (solo días laborables: lunes a viernes)
     const fechasPeriodo: Date[] = []
     const fechaInicio = new Date(metadatos.fechaInicio)
     const fechaFin = new Date(metadatos.fechaFin)
     for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
-      fechasPeriodo.push(new Date(d))
+      const diaSemana = d.getDay()
+      // Solo incluir días laborables (lunes=1 a viernes=5)
+      if (diaSemana >= 1 && diaSemana <= 5) {
+        fechasPeriodo.push(new Date(d))
+      }
     }
     
-    // Limitar a máximo 15 fechas por tabla para que quepa en la página
-    const fechasPorPagina = 15
-    
+    // Para cada aula, crear una nueva página en landscape
     Object.entries(aulaGroups).forEach(([aulaKey, aula]: [string, any]) => {
-      // Dividir fechas en grupos si hay muchas
-      for (let i = 0; i < fechasPeriodo.length; i += fechasPorPagina) {
-        const fechasGrupo = fechasPeriodo.slice(i, i + fechasPorPagina)
-        
-        // Verificar si necesitamos nueva página
-        if (currentY > 200) {
-          doc.addPage()
-          currentY = 20
-        }
-        
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.text(`Grado y sección: ${aulaKey}`, 20, currentY)
-        currentY += 10
-        
-        // Headers: Apellidos y nombre + fechas
-        const headers = ['Apellidos y nombre']
-        fechasGrupo.forEach(fecha => {
-          const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
-          const dia = dias[fecha.getDay()]
-          const numero = fecha.getDate().toString().padStart(2, '0')
-          headers.push(`${dia}${numero}`)
-        })
-        
-        // Datos de estudiantes
-        const estudiantesAulaData = aula.estudiantes.map((estudiante: any) => {
-          const fila = [`${estudiante.apellido}, ${estudiante.nombre}`]
-          
-          fechasGrupo.forEach(fecha => {
-            const fechaStr = fecha.toISOString().split('T')[0]
-            const asistencia = estudiante.asistencias?.find(
-              (a: any) => a.fecha?.split('T')[0] === fechaStr
-            )
-            
-            if (asistencia) {
-              switch (asistencia.estado?.toLowerCase()) {
-                case 'presente': fila.push('X'); break
-                case 'tardanza': fila.push('T'); break
-                case 'inasistencia': fila.push('F'); break
-                case 'justificada': fila.push('J'); break
-                default: fila.push('-')
-              }
-            } else {
-              fila.push('-')
-            }
-          })
-          
-          return fila
-        })
-        
-        // Configurar anchos de columna
-        const columnStyles: any = { 0: { cellWidth: 45 } }
-        fechasGrupo.forEach((_, idx) => {
-          columnStyles[idx + 1] = { cellWidth: 10 }
-        })
-        
-        autoTable(doc, {
-          startY: currentY,
-          head: [headers],
-          body: estudiantesAulaData,
-          theme: 'grid',
-          styles: { fontSize: 7, cellPadding: 1 },
-          headStyles: { fillColor: [46, 204, 113], fontSize: 6 },
-          columnStyles
-        })
-        
-        currentY = (doc as any).lastAutoTable.finalY + 5
-      }
+      // Nueva página en LANDSCAPE para la tabla de asistencia
+      doc.addPage('a4', 'landscape')
       
-      // Agregar leyenda después de cada aula
-      doc.setFontSize(7)
+      // Título del aula
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Grado y sección: ${aulaKey}`, 15, 15)
+      
+      // Información del período
+      doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
-      doc.text('Leyenda: X=Presente, T=Tardanza, F=Falta, J=Justificada', 20, currentY)
-      currentY += 15
+      const mesNombre = fechasPeriodo.length > 0 
+        ? fechasPeriodo[0].toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase()
+        : ''
+      doc.text(`${mesNombre} • ${fechasPeriodo.length} días laborables`, 15, 22)
+      
+      // Headers: Apellidos y nombre + todas las fechas del mes
+      const headers = ['Apellidos y nombre']
+      fechasPeriodo.forEach(fecha => {
+        const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+        const dia = dias[fecha.getDay()]
+        const numero = fecha.getDate().toString().padStart(2, '0')
+        headers.push(`${dia}${numero}`)
+      })
+      
+      // Datos de estudiantes
+      const estudiantesData = aula.estudiantes.map((estudiante: any) => {
+        const fila = [`${estudiante.apellido}, ${estudiante.nombre}`]
+        
+        fechasPeriodo.forEach(fecha => {
+          const fechaStr = fecha.toISOString().split('T')[0]
+          const asistencia = estudiante.asistencias?.find(
+            (a: any) => a.fecha?.split('T')[0] === fechaStr
+          )
+          
+          if (asistencia) {
+            switch (asistencia.estado?.toUpperCase()) {
+              case 'PRESENTE': fila.push('X'); break
+              case 'TARDANZA': fila.push('T'); break
+              case 'AUSENTE':
+              case 'INASISTENCIA': fila.push('F'); break
+              case 'JUSTIFICADA':
+              case 'JUSTIFICADO': fila.push('J'); break
+              default: fila.push('-')
+            }
+          } else {
+            fila.push('-')
+          }
+        })
+        
+        return fila
+      })
+      
+      // Calcular ancho de columnas dinámicamente
+      const pageWidth = 277 // A4 landscape width in mm minus margins
+      const nombreColWidth = 50
+      const fechaColWidth = Math.min(8, (pageWidth - nombreColWidth) / fechasPeriodo.length)
+      
+      const columnStyles: any = { 0: { cellWidth: nombreColWidth, fontStyle: 'bold' } }
+      fechasPeriodo.forEach((_, idx) => {
+        columnStyles[idx + 1] = { cellWidth: fechaColWidth, halign: 'center' }
+      })
+      
+      // Tabla de asistencia
+      autoTable(doc, {
+        startY: 28,
+        head: [headers],
+        body: estudiantesData,
+        theme: 'grid',
+        styles: { 
+          fontSize: 7, 
+          cellPadding: 1,
+          font: 'helvetica',
+          overflow: 'hidden'
+        },
+        headStyles: { 
+          fillColor: [46, 125, 50], 
+          textColor: 255, 
+          fontSize: 6,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles,
+        didParseCell: function(data) {
+          // Colorear celdas según el estado
+          if (data.section === 'body' && data.column.index > 0) {
+            const value = data.cell.text[0]
+            if (value === 'X') {
+              data.cell.styles.textColor = [46, 125, 50] // Verde
+              data.cell.styles.fontStyle = 'bold'
+            } else if (value === 'T') {
+              data.cell.styles.textColor = [255, 152, 0] // Naranja
+              data.cell.styles.fontStyle = 'bold'
+            } else if (value === 'F') {
+              data.cell.styles.textColor = [244, 67, 54] // Rojo
+              data.cell.styles.fontStyle = 'bold'
+            } else if (value === 'J') {
+              data.cell.styles.textColor = [33, 150, 243] // Azul
+              data.cell.styles.fontStyle = 'bold'
+            } else {
+              data.cell.styles.textColor = [200, 200, 200] // Gris claro
+            }
+          }
+        }
+      })
+      
+      // Leyenda al final de la tabla
+      const finalY = (doc as any).lastAutoTable.finalY + 5
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Leyenda: X=Presente, T=Tardanza, F=Falta, J=Justificada', 15, finalY)
+      doc.setTextColor(0, 0, 0)
     })
   }
   
@@ -369,12 +344,13 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
   )
   
   if (justificaciones.length > 0) {
-    doc.addPage()
+    // Nueva página en portrait para justificaciones
+    doc.addPage('a4', 'portrait')
     yPos = 20
     
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
-    doc.text('DETALLE DE JUSTIFICACIONES', 20, yPos)
+    doc.text('DETALLE DE JUSTIFICACIONES', 105, yPos, { align: 'center' })
     
     yPos += 10
     doc.setFontSize(10)
@@ -397,20 +373,20 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
     
     autoTable(doc, {
       startY: yPos,
-      head: [['#', 'Estudiante', 'DNI', 'Aula', 'Fecha Falta', 'Motivo', 'Fecha Just.', 'Documento']],
+      head: [['#', 'Estudiante', 'DNI', 'Aula', 'Fecha Falta', 'Motivo', 'Fecha Just.', 'Doc.']],
       body: justificacionesData,
       theme: 'striped',
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [231, 76, 60] },
+      styles: { fontSize: 8, font: 'helvetica' },
+      headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 35 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 15 }
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 40 },
+        6: { cellWidth: 22 },
+        7: { cellWidth: 12, halign: 'center' }
       }
     })
     
@@ -544,23 +520,28 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
     }
   }
   
-  // Pie de página con referencia APA
+  // Pie de página con número de página
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
+    
+    // Detectar orientación de la página actual
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const isLandscape = pageWidth > pageHeight
+    
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Página ${i} de ${pageCount}`, 20, 285)
+    doc.setTextColor(100, 100, 100)
     
-    if (i === pageCount) {
-      doc.text('---', 20, 270)
-      doc.text('Documento generado automáticamente por el Sistema de Gestión Educativa', 20, 275)
-      doc.text(`Fecha y hora de generación: ${new Date().toLocaleString('es-ES')}`, 20, 280)
-      
-      // Referencia APA
-      doc.setFontSize(7)
-      doc.text(`Referencia APA: ${metadatos.generadoPor.nombre}. (${new Date().getFullYear()}). Reporte ${metadatos.tipoReporte} de asistencias y retiros. ${metadatos.institucion.nombre}.`, 20, 290)
-    }
+    // Posición del pie según orientación
+    const footerY = isLandscape ? 200 : 285
+    const footerX = 15
+    
+    doc.text(`Página ${i} de ${pageCount}`, footerX, footerY)
+    doc.text(`${metadatos.institucion.nombre}`, pageWidth - 15, footerY, { align: 'right' })
+    
+    doc.setTextColor(0, 0, 0)
   }
   
   // Convertir a buffer

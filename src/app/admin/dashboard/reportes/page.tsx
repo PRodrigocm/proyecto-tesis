@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface ReporteStats {
   totalEstudiantes: number
@@ -374,48 +375,107 @@ export default function ReportesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
+      {/* Header Mejorado */}
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="text-white">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Reportes y Estadísticas</h1>
-                <p className="mt-1 text-sm text-gray-600">
+                <h1 className="text-2xl font-bold">Reportes y Estadísticas</h1>
+                <p className="text-purple-100 mt-1">
                   Genera reportes detallados y visualiza estadísticas del sistema
                 </p>
               </div>
-              <div className="flex items-center space-x-3">
-                <select
-                  value={selectedPeriodo}
-                  onChange={(e) => setSelectedPeriodo(e.target.value)}
-                  className="px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black font-medium bg-white hover:border-indigo-400 transition-all"
-                >
-                  <option value="dia" className="text-black font-medium">Hoy</option>
-                  <option value="semana" className="text-black font-medium">Esta Semana</option>
-                  <option value="mes" className="text-black font-medium">Este Mes</option>
-                  <option value="año" className="text-black font-medium">Este Año</option>
-                </select>
-                <button
-                  onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
-                  className={`px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    mostrarFiltrosAvanzados 
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {mostrarFiltrosAvanzados ? '🔍 Ocultar Filtros' : '🔍 Filtros Avanzados'}
-                </button>
-                <button
-                  onClick={() => loadReportesData()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  Actualizar
-                </button>
-              </div>
             </div>
           </div>
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={selectedPeriodo}
+              onChange={(e) => setSelectedPeriodo(e.target.value)}
+              className="px-4 py-2 border-2 border-white/30 rounded-lg bg-white/20 text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              <option value="dia" className="text-gray-900">Hoy</option>
+              <option value="semana" className="text-gray-900">Esta Semana</option>
+              <option value="mes" className="text-gray-900">Este Mes</option>
+              <option value="año" className="text-gray-900">Este Año</option>
+            </select>
+            <button
+              onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                mostrarFiltrosAvanzados 
+                  ? 'bg-white text-purple-600' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              🔍 {mostrarFiltrosAvanzados ? 'Ocultar Filtros' : 'Filtros'}
+            </button>
+            <button
+              onClick={() => loadReportesData()}
+              className="px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 font-medium transition-colors"
+            >
+              ↻ Actualizar
+            </button>
+          </div>
         </div>
+      </div>
+
+      {/* Accesos Rápidos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link 
+          href="/auxiliar/asistencia"
+          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-blue-500 hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition-colors">
+              <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">Ver Asistencia</h3>
+              <p className="text-sm text-gray-500">Control de asistencia en tiempo real</p>
+            </div>
+          </div>
+        </Link>
+        
+        <Link 
+          href="/auxiliar/retiros"
+          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-orange-500 hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-orange-100 rounded-xl group-hover:bg-orange-200 transition-colors">
+              <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">Gestión de Retiros</h3>
+              <p className="text-sm text-gray-500">Administra retiros de estudiantes</p>
+            </div>
+          </div>
+        </Link>
+        
+        <Link 
+          href="/admin/dashboard/horarios/clases"
+          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-green-500 hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-100 rounded-xl group-hover:bg-green-200 transition-colors">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-green-600">Horarios de Clases</h3>
+              <p className="text-sm text-gray-500">Gestiona horarios académicos</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Filtros Avanzados */}

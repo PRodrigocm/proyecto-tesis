@@ -194,3 +194,167 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+/**
+ * PATCH - Actualizar estado de un apoderado
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID del apoderado es requerido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { estado } = body
+
+    if (!estado || !['ACTIVO', 'INACTIVO'].includes(estado)) {
+      return NextResponse.json(
+        { error: 'Estado inválido. Debe ser ACTIVO o INACTIVO' },
+        { status: 400 }
+      )
+    }
+
+    const apoderadoId = parseInt(id)
+
+    // Buscar el apoderado
+    const apoderado = await prisma.apoderado.findUnique({
+      where: { idApoderado: apoderadoId },
+      include: { usuario: true }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json(
+        { error: 'Apoderado no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Actualizar el estado del usuario asociado
+    await prisma.usuario.update({
+      where: { idUsuario: apoderado.idUsuario },
+      data: { estado }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Estado del apoderado actualizado exitosamente',
+      id: apoderadoId,
+      nuevoEstado: estado
+    })
+
+  } catch (error) {
+    console.error('Error updating apoderado estado:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PUT - Actualizar datos completos de un apoderado
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID del apoderado es requerido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { nombre, apellido, email, telefono, dni, direccion, ocupacion, estado } = body
+
+    const apoderadoId = parseInt(id)
+
+    // Buscar el apoderado
+    const apoderado = await prisma.apoderado.findUnique({
+      where: { idApoderado: apoderadoId },
+      include: { usuario: true }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json(
+        { error: 'Apoderado no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar DNI único
+    if (dni && dni !== apoderado.usuario.dni) {
+      const existingDni = await prisma.usuario.findFirst({
+        where: { dni, idUsuario: { not: apoderado.idUsuario } }
+      })
+      if (existingDni) {
+        return NextResponse.json(
+          { error: 'El DNI ya está registrado por otro usuario' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Verificar email único
+    if (email && email !== apoderado.usuario.email) {
+      const existingEmail = await prisma.usuario.findFirst({
+        where: { email, idUsuario: { not: apoderado.idUsuario } }
+      })
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: 'El email ya está registrado por otro usuario' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Actualizar en transacción
+    const updated = await prisma.$transaction(async (tx) => {
+      // Actualizar usuario
+      await tx.usuario.update({
+        where: { idUsuario: apoderado.idUsuario },
+        data: {
+          ...(nombre && { nombre }),
+          ...(apellido && { apellido }),
+          ...(email && { email }),
+          ...(telefono && { telefono }),
+          ...(dni && { dni }),
+          ...(estado && { estado })
+        }
+      })
+
+      // Actualizar apoderado
+      return await tx.apoderado.update({
+        where: { idApoderado: apoderadoId },
+        data: {
+          ...(direccion !== undefined && { direccion }),
+          ...(ocupacion !== undefined && { ocupacion })
+        },
+        include: {
+          usuario: true
+        }
+      })
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Apoderado actualizado exitosamente',
+      data: updated
+    })
+
+  } catch (error) {
+    console.error('Error updating apoderado:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}

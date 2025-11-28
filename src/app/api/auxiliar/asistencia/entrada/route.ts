@@ -69,9 +69,44 @@ export async function POST(request: NextRequest) {
     // Obtener fecha y hora actual
     const ahora = new Date()
     const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+    const horaActual = ahora.toTimeString().slice(0, 5) // HH:MM
 
     console.log('📅 Registrando entrada para:', estudiante.usuario.nombre, estudiante.usuario.apellido)
     console.log('🕐 Hora de entrada:', ahora.toTimeString().slice(0, 8))
+
+    // Obtener configuración de horarios de la IE
+    const configuracion = await prisma.configuracionIE.findUnique({
+      where: { idIe: ieId }
+    })
+
+    // Obtener valores de configuración
+    const horaIngreso = configuracion?.horaIngreso || '07:30'
+    const toleranciaMinutos = configuracion?.toleranciaMinutos || 15
+
+    // Calcular hora límite: hora de ingreso + tolerancia
+    // La tolerancia se aplica DESDE la hora de ingreso
+    const [horaIng, minIng] = horaIngreso.split(':').map(Number)
+    const fechaIngreso = new Date(ahora)
+    fechaIngreso.setHours(horaIng, minIng, 0, 0)
+    
+    const fechaLimiteConTolerancia = new Date(fechaIngreso.getTime() + toleranciaMinutos * 60 * 1000)
+    const horaLimiteConTolerancia = fechaLimiteConTolerancia.toTimeString().slice(0, 5)
+
+    // Determinar estado según la hora:
+    // - PRESENTE: llegó antes o igual a la hora de ingreso + tolerancia
+    // - TARDANZA: llegó después de la hora de ingreso + tolerancia
+    let estadoAsistencia: string
+    let esTardanza = false
+
+    if (horaActual <= horaLimiteConTolerancia) {
+      estadoAsistencia = 'PRESENTE'
+    } else {
+      estadoAsistencia = 'TARDANZA'
+      esTardanza = true
+    }
+
+    console.log(`⏰ Hora ingreso: ${horaIngreso}, Tolerancia: ${toleranciaMinutos}min, Límite: ${horaLimiteConTolerancia}`)
+    console.log(`⏰ Hora actual: ${horaActual}, Estado: ${estadoAsistencia}`)
 
     // Verificar si ya tiene entrada registrada hoy en AsistenciaIE
     const asistenciaExistente = await prisma.asistenciaIE.findFirst({
@@ -91,7 +126,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Registrar entrada en AsistenciaIE
+    // Registrar entrada en AsistenciaIE con estado automático (PRESENTE o TARDANZA)
     let nuevaAsistenciaIE
     if (asistenciaExistente) {
       // Actualizar registro existente
@@ -99,7 +134,7 @@ export async function POST(request: NextRequest) {
         where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
         data: {
           horaIngreso: ahora,
-          estado: 'INGRESADO',
+          estado: estadoAsistencia,
           registradoIngresoPor: userInfo.idUsuario
         }
       })
@@ -111,13 +146,13 @@ export async function POST(request: NextRequest) {
           idIe: ieId,
           fecha: fechaHoy,
           horaIngreso: ahora,
-          estado: 'INGRESADO',
+          estado: estadoAsistencia,
           registradoIngresoPor: userInfo.idUsuario
         }
       })
     }
 
-    console.log(`✅ Entrada registrada manualmente`)
+    console.log(`✅ Entrada registrada automáticamente como: ${estadoAsistencia}`)
 
     // Enviar notificaciones al apoderado
     try {
@@ -135,7 +170,12 @@ export async function POST(request: NextRequest) {
       })
 
       if (apoderado && apoderado.usuario.email) {
-        console.log(`📧 Enviando notificación de entrada al apoderado...`)
+        console.log(`📧 Enviando notificación de ${estadoAsistencia} al apoderado...`)
+        
+        // Texto personalizado según el estado
+        const textoEstado = esTardanza 
+          ? `⚠️ TARDANZA - Ingreso a las ${horaActual} (límite: ${horaLimiteConTolerancia})`
+          : `✅ PRESENTE - Ingreso puntual a las ${horaActual}`
         
         await notificarEntradaSalida({
           estudianteNombre: estudiante.usuario.nombre || '',
@@ -147,16 +187,35 @@ export async function POST(request: NextRequest) {
           hora: ahora.toISOString(),
           fecha: fechaHoy.toISOString(),
           emailApoderado: apoderado.usuario.email,
-          telefonoApoderado: apoderado.usuario.telefono || ''
+          telefonoApoderado: apoderado.usuario.telefono || '',
+          textoPersonalizado: textoEstado
         })
+
+        // Si es tardanza, crear notificación adicional en el sistema
+        if (esTardanza) {
+          await prisma.notificacion.create({
+            data: {
+              idUsuario: apoderado.usuario.idUsuario,
+              titulo: '⚠️ Tardanza Registrada',
+              mensaje: `Su hijo/a ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} llegó tarde hoy a las ${horaActual}. El horario de ingreso es ${horaIngreso} con tolerancia de ${toleranciaMinutos} minutos (límite: ${horaLimiteConTolerancia}).`,
+              tipo: 'ALERTA',
+              leida: false
+            }
+          })
+        }
       }
     } catch (notifError) {
       console.error(`⚠️ Error al enviar notificación:`, notifError)
     }
 
+    // Mensaje de respuesta según el estado
+    const mensajeRespuesta = esTardanza 
+      ? `⚠️ Tardanza registrada - ${estudiante.usuario.nombre} llegó a las ${horaActual}`
+      : `✅ Asistencia registrada - ${estudiante.usuario.nombre} llegó puntual`
+
     return NextResponse.json({
       success: true,
-      message: `Entrada registrada exitosamente`,
+      message: mensajeRespuesta,
       estudiante: {
         id: estudiante.idEstudiante,
         nombre: estudiante.usuario.nombre,
@@ -166,8 +225,11 @@ export async function POST(request: NextRequest) {
       },
       asistencia: {
         id: nuevaAsistenciaIE.idAsistenciaIE,
-        estado: nuevaAsistenciaIE.estado,
-        horaIngreso: nuevaAsistenciaIE.horaIngreso?.toTimeString().slice(0, 5)
+        estado: estadoAsistencia,
+        horaIngreso: nuevaAsistenciaIE.horaIngreso?.toTimeString().slice(0, 5),
+        esTardanza,
+        horaLimite: horaLimiteConTolerancia,
+        toleranciaMinutos
       }
     })
 

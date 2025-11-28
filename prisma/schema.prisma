@@ -551,3 +551,18 @@ model Reunion {
 
   @@map("reunion")
 }
+
+// Configuración de horarios de la institución
+model ConfiguracionIE {
+  idConfiguracion      Int       @id @default(autoincrement()) @map("id_configuracion")
+  idIe                 Int       @unique @map("id_ie")
+  horaIngreso          String?   @map("hora_ingreso") @db.VarChar(5)
+  horaFinIngreso       String?   @map("hora_fin_ingreso") @db.VarChar(5)
+  horaSalida           String?   @map("hora_salida") @db.VarChar(5)
+  toleranciaMinutos    Int       @default(15) @map("tolerancia_minutos")
+  diasLaborables       String[]  @default(["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES"]) @map("dias_laborables")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("configuracion_ie")
+}

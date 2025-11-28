@@ -52,6 +52,8 @@ export default function AsistenciaControl() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGrado, setSelectedGrado] = useState('')
   const [selectedSeccion, setSelectedSeccion] = useState('')
+  const [selectedEstado, setSelectedEstado] = useState('')
+  const [selectedFecha, setSelectedFecha] = useState(new Date().toISOString().split('T')[0])
   const [grados, setGrados] = useState<Grado[]>([])
   const [secciones, setSecciones] = useState<Seccion[]>([])
   const [fechaActual, setFechaActual] = useState('')
@@ -70,6 +72,7 @@ export default function AsistenciaControl() {
   const [searchLoading, setSearchLoading] = useState(false)
   const [stats, setStats] = useState({
     presentes: 0,
+    tardanzas: 0,
     ausentes: 0,
     retirados: 0,
     total: 0
@@ -105,10 +108,11 @@ export default function AsistenciaControl() {
     loadSecciones()
   }, [router])
 
-  const loadEstudiantes = async () => {
+  const loadEstudiantes = async (fecha?: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/auxiliar/asistencia/estudiantes', {
+      const fechaParam = fecha || selectedFecha
+      const response = await fetch(`/api/auxiliar/asistencia/estudiantes?fecha=${fechaParam}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -167,31 +171,42 @@ export default function AsistenciaControl() {
   }
 
   const calculateStats = (estudiantesList: Estudiante[]) => {
-    const stats = {
+    const newStats = {
       presentes: estudiantesList.filter(e => e.estado === 'PRESENTE').length,
+      tardanzas: estudiantesList.filter(e => e.estado === 'TARDANZA').length,
       ausentes: estudiantesList.filter(e => e.estado === 'AUSENTE').length,
       retirados: estudiantesList.filter(e => e.estado === 'RETIRADO').length,
       total: estudiantesList.length
     }
-    setStats(stats)
+    setStats(newStats)
   }
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term)
-    filterEstudiantes(term, selectedGrado, selectedSeccion)
+    filterEstudiantes(term, selectedGrado, selectedSeccion, selectedEstado)
   }
 
   const handleGradoChange = (grado: string) => {
     setSelectedGrado(grado)
-    filterEstudiantes(searchTerm, grado, selectedSeccion)
+    filterEstudiantes(searchTerm, grado, selectedSeccion, selectedEstado)
   }
 
   const handleSeccionChange = (seccion: string) => {
     setSelectedSeccion(seccion)
-    filterEstudiantes(searchTerm, selectedGrado, seccion)
+    filterEstudiantes(searchTerm, selectedGrado, seccion, selectedEstado)
   }
 
-  const filterEstudiantes = (term: string, grado: string, seccion: string) => {
+  const handleEstadoChange = (estado: string) => {
+    setSelectedEstado(estado)
+    filterEstudiantes(searchTerm, selectedGrado, selectedSeccion, estado)
+  }
+
+  const handleFechaChange = (fecha: string) => {
+    setSelectedFecha(fecha)
+    loadEstudiantes(fecha)
+  }
+
+  const filterEstudiantes = (term: string, grado: string, seccion: string, estado: string) => {
     let filtered = estudiantes
 
     if (term) {
@@ -209,6 +224,10 @@ export default function AsistenciaControl() {
 
     if (seccion) {
       filtered = filtered.filter(e => e.seccion === seccion)
+    }
+
+    if (estado) {
+      filtered = filtered.filter(e => e.estado === estado)
     }
 
     setFilteredEstudiantes(filtered)
@@ -325,17 +344,17 @@ export default function AsistenciaControl() {
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <CheckCircleIcon className="h-6 w-6 text-green-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-4 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Presentes</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.presentes}</dd>
+                  <dd className="text-lg font-bold text-green-600">{stats.presentes}</dd>
                 </dl>
               </div>
             </div>
@@ -343,15 +362,31 @@ export default function AsistenciaControl() {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ClockIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-4 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Tardanzas</dt>
+                  <dd className="text-lg font-bold text-yellow-600">{stats.tardanzas}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <XCircleIcon className="h-6 w-6 text-red-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-4 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Ausentes</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.ausentes}</dd>
+                  <dd className="text-lg font-bold text-red-600">{stats.ausentes}</dd>
                 </dl>
               </div>
             </div>
@@ -359,15 +394,17 @@ export default function AsistenciaControl() {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <ClockIcon className="h-6 w-6 text-orange-600" />
+                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-4 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Retirados</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.retirados}</dd>
+                  <dd className="text-lg font-bold text-orange-600">{stats.retirados}</dd>
                 </dl>
               </div>
             </div>
@@ -375,15 +412,15 @@ export default function AsistenciaControl() {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <UserGroupIcon className="h-6 w-6 text-blue-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-4 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.total}</dd>
+                  <dd className="text-lg font-bold text-blue-600">{stats.total}</dd>
                 </dl>
               </div>
             </div>
@@ -429,8 +466,33 @@ export default function AsistenciaControl() {
       {/* Filters */}
       <div className="bg-white shadow rounded-lg mb-8">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Filtros</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">Filtros de Búsqueda</h3>
+            <button
+              onClick={() => loadEstudiantes()}
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Actualizar
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            {/* Fecha */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha
+              </label>
+              <input
+                type="date"
+                value={selectedFecha}
+                onChange={(e) => handleFechaChange(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+              />
+            </div>
+
+            {/* Buscar */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Buscar
@@ -439,11 +501,12 @@ export default function AsistenciaControl() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Nombre, apellido o DNI"
+                placeholder="Nombre, DNI..."
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
               />
             </div>
             
+            {/* Grado */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Grado
@@ -453,7 +516,7 @@ export default function AsistenciaControl() {
                 onChange={(e) => handleGradoChange(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
               >
-                <option value="">Todos los grados</option>
+                <option value="">Todos</option>
                 {grados.map((grado) => (
                   <option key={grado.id} value={grado.nombre}>
                     {grado.nombre}
@@ -462,6 +525,7 @@ export default function AsistenciaControl() {
               </select>
             </div>
 
+            {/* Sección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sección
@@ -471,7 +535,7 @@ export default function AsistenciaControl() {
                 onChange={(e) => handleSeccionChange(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
               >
-                <option value="">Todas las secciones</option>
+                <option value="">Todas</option>
                 {secciones.map((seccion) => (
                   <option key={seccion.id} value={seccion.nombre}>
                     {seccion.nombre}
@@ -480,18 +544,38 @@ export default function AsistenciaControl() {
               </select>
             </div>
 
+            {/* Estado */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Estado
+              </label>
+              <select
+                value={selectedEstado}
+                onChange={(e) => handleEstadoChange(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+              >
+                <option value="">Todos</option>
+                <option value="PRESENTE">Presente</option>
+                <option value="AUSENTE">Ausente</option>
+                <option value="TARDANZA">Tardanza</option>
+                <option value="RETIRADO">Retirado</option>
+              </select>
+            </div>
+
+            {/* Limpiar */}
             <div className="flex items-end">
               <button
                 onClick={() => {
                   setSearchTerm('')
                   setSelectedGrado('')
                   setSelectedSeccion('')
-                  setFilteredEstudiantes(estudiantes)
-                  calculateStats(estudiantes)
+                  setSelectedEstado('')
+                  setSelectedFecha(new Date().toISOString().split('T')[0])
+                  loadEstudiantes(new Date().toISOString().split('T')[0])
                 }}
                 className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Limpiar Filtros
+                Limpiar
               </button>
             </div>
           </div>
@@ -547,11 +631,16 @@ export default function AsistenciaControl() {
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         estudiante.estado === 'PRESENTE' 
                           ? 'bg-green-100 text-green-800'
+                          : estudiante.estado === 'TARDANZA'
+                          ? 'bg-yellow-100 text-yellow-800'
                           : estudiante.estado === 'RETIRADO'
                           ? 'bg-orange-100 text-orange-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {estudiante.estado}
+                        {estudiante.estado === 'PRESENTE' ? '✓ Presente' :
+                         estudiante.estado === 'TARDANZA' ? '⚠ Tardanza' :
+                         estudiante.estado === 'RETIRADO' ? '↩ Retirado' :
+                         '✗ Ausente'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

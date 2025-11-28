@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { notificarCambioAsistencia } from '@/lib/notifications'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function GET(request: NextRequest) {
   try {
@@ -98,6 +102,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Obtener información del usuario que modifica
+    const authHeader = request.headers.get('authorization')
+    let modificadoPor = 'Sistema'
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7)
+        const decoded = jwt.verify(token, JWT_SECRET) as any
+        const usuario = await prisma.usuario.findUnique({
+          where: { idUsuario: decoded.userId }
+        })
+        if (usuario) {
+          modificadoPor = `${usuario.nombre} ${usuario.apellido}`
+        }
+      } catch {
+        // Si falla la verificación del token, continuar con "Sistema"
+      }
+    }
+
     const body = await request.json()
     const {
       estudianteId,
@@ -131,10 +154,16 @@ export async function POST(request: NextRequest) {
       where: {
         idEstudiante: parseInt(estudianteId),
         fecha: new Date(fecha)
+      },
+      include: {
+        estadoAsistencia: true
       }
     })
 
     if (existingAsistencia) {
+      // Guardar estado anterior para la notificación
+      const estadoAnterior = existingAsistencia.estadoAsistencia?.nombreEstado || 'Sin estado'
+      
       // Actualizar asistencia existente
       const updatedAsistencia = await prisma.asistencia.update({
         where: { idAsistencia: existingAsistencia.idAsistencia },
@@ -144,9 +173,64 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // NOTIFICAR AL APODERADO SI EL ESTADO CAMBIÓ
+      if (estadoAnterior !== estado) {
+        try {
+          // Obtener datos del estudiante y apoderado
+          const estudiante = await prisma.estudiante.findUnique({
+            where: { idEstudiante: parseInt(estudianteId) },
+            include: {
+              usuario: true,
+              gradoSeccion: {
+                include: {
+                  grado: true,
+                  seccion: true
+                }
+              },
+              apoderados: {
+                include: {
+                  apoderado: {
+                    include: {
+                      usuario: true
+                    }
+                  }
+                }
+              }
+            }
+          })
+
+          if (estudiante && estudiante.apoderados.length > 0) {
+            const apoderado = estudiante.apoderados[0].apoderado
+            
+            console.log(`📧 Notificando cambio de asistencia al apoderado de ${estudiante.usuario.nombre}...`)
+            
+            await notificarCambioAsistencia({
+              estudianteId: estudiante.idEstudiante,
+              estudianteNombre: estudiante.usuario.nombre || '',
+              estudianteApellido: estudiante.usuario.apellido || '',
+              estudianteDNI: estudiante.usuario.dni,
+              grado: estudiante.gradoSeccion?.grado?.nombre || '',
+              seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+              estadoAnterior,
+              estadoNuevo: estado,
+              fecha: fecha,
+              observaciones: observaciones || undefined,
+              modificadoPor,
+              emailApoderado: apoderado.usuario.email || '',
+              telefonoApoderado: apoderado.usuario.telefono || '',
+              apoderadoUsuarioId: apoderado.usuario.idUsuario
+            })
+          }
+        } catch (notifError) {
+          console.error('⚠️ Error al enviar notificación (no crítico):', notifError)
+          // No fallar la actualización si la notificación falla
+        }
+      }
+
       return NextResponse.json({
         message: 'Asistencia actualizada exitosamente',
-        id: updatedAsistencia.idAsistencia
+        id: updatedAsistencia.idAsistencia,
+        notificacionEnviada: estadoAnterior !== estado
       })
     } else {
       // Crear nueva asistencia
