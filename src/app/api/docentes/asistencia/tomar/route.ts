@@ -342,6 +342,13 @@ export async function GET(request: NextRequest) {
 
     // Obtener estudiantes ACTIVOS de la clase con sus asistencias del día
     const fechaConsulta = new Date(fecha)
+    
+    // Crear rango de fechas para la consulta (inicio y fin del día)
+    const fechaInicio = new Date(fecha)
+    fechaInicio.setHours(0, 0, 0, 0)
+    const fechaFin = new Date(fecha)
+    fechaFin.setHours(23, 59, 59, 999)
+    
     const estudiantes = await prisma.estudiante.findMany({
       where: {
         idGradoSeccion: docenteAula.idGradoSeccion,
@@ -357,6 +364,15 @@ export async function GET(request: NextRequest) {
           },
           include: {
             estadoAsistencia: true
+          }
+        },
+        // También incluir asistencias IE (institucionales) para ver faltas automáticas
+        asistenciasIE: {
+          where: {
+            fecha: {
+              gte: fechaInicio,
+              lte: fechaFin
+            }
           }
         },
         retiros: {
@@ -377,10 +393,14 @@ export async function GET(request: NextRequest) {
     // Transformar datos
     const estudiantesTransformados = estudiantes.map(estudiante => {
       const asistenciaDelDia = estudiante.asistencias[0]
+      const asistenciaIEDelDia = estudiante.asistenciasIE?.[0]
       const retiroDelDia = estudiante.retiros?.[0]
       
       // Mapear estados de la BD al formato del frontend
       let estadoFrontend = 'sin_registrar'
+      let horaLlegada = null
+      
+      // Primero verificar asistencia en aula (Asistencia)
       if (asistenciaDelDia?.estadoAsistencia?.codigo) {
         const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toUpperCase()
         switch (codigoEstado) {
@@ -404,6 +424,37 @@ export async function GET(request: NextRequest) {
           default:
             estadoFrontend = 'sin_registrar'
         }
+        horaLlegada = asistenciaDelDia?.horaRegistro ? 
+          asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : null
+      }
+      // Si no hay asistencia en aula, verificar asistencia IE (institucional)
+      else if (asistenciaIEDelDia) {
+        const estadoIE = asistenciaIEDelDia.estado?.toUpperCase()
+        switch (estadoIE) {
+          case 'PRESENTE':
+            estadoFrontend = 'presente'
+            break
+          case 'TARDANZA':
+            estadoFrontend = 'tardanza'
+            break
+          case 'AUSENTE':
+          case 'FALTA':
+            estadoFrontend = 'inasistencia'
+            break
+          case 'RETIRADO':
+            estadoFrontend = 'retirado'
+            break
+          default:
+            estadoFrontend = 'sin_registrar'
+        }
+        horaLlegada = asistenciaIEDelDia?.horaIngreso ? 
+          new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : null
       }
       
       return {
@@ -413,11 +464,7 @@ export async function GET(request: NextRequest) {
         dni: estudiante.usuario.dni,
         codigo: estudiante.codigoQR || estudiante.usuario.dni,
         estado: estadoFrontend,
-        horaLlegada: asistenciaDelDia?.horaRegistro ? 
-          asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }) : null,
+        horaLlegada: horaLlegada,
         tieneRetiro: !!retiroDelDia,
         retiro: retiroDelDia ? {
           id: retiroDelDia.idRetiro,

@@ -373,6 +373,28 @@ export async function GET(request: NextRequest) {
           throw error
         }
         break
+      case 'estudiantes-activos':
+        console.log('📊 Generando reporte de estudiantes activos...')
+        reportTitle = 'Reporte de Estudiantes Activos'
+        try {
+          reportData = await generateEstudiantesActivosData(ieId, gradoId || undefined, seccionId || undefined)
+          console.log('📊 Datos de estudiantes activos generados:', reportData.length, 'registros')
+        } catch (error) {
+          console.error('❌ Error generando reporte de estudiantes activos:', error)
+          throw error
+        }
+        break
+      case 'docentes-asignaciones':
+        console.log('📊 Generando reporte de docentes y asignaciones...')
+        reportTitle = 'Reporte de Docentes y Asignaciones'
+        try {
+          reportData = await generateDocentesAsignacionesData(ieId)
+          console.log('📊 Datos de docentes y asignaciones generados:', reportData.length, 'registros')
+        } catch (error) {
+          console.error('❌ Error generando reporte de docentes:', error)
+          throw error
+        }
+        break
       default:
         return NextResponse.json(
           { error: 'Tipo de reporte no válido' },
@@ -2473,4 +2495,130 @@ function calcularDiasHabiles(fechaInicio: Date, fechaFin: Date): number {
   }
   
   return diasHabiles
+}
+
+// Función para generar reporte de estudiantes activos
+async function generateEstudiantesActivosData(ieId: number, gradoId?: string, seccionId?: string) {
+  console.log('📊 Generando datos de estudiantes activos...')
+  
+  try {
+    const whereClause: any = {
+      usuario: {
+        idIe: ieId,
+        estado: 'ACTIVO'
+      }
+    }
+
+    if (gradoId || seccionId) {
+      whereClause.gradoSeccion = {}
+      if (gradoId) whereClause.gradoSeccion.idGrado = parseInt(gradoId)
+      if (seccionId) whereClause.gradoSeccion.idSeccion = parseInt(seccionId)
+    }
+
+    const estudiantes = await prisma.estudiante.findMany({
+      where: whereClause,
+      include: {
+        usuario: true,
+        gradoSeccion: {
+          include: {
+            grado: true,
+            seccion: true
+          }
+        }
+      },
+      orderBy: [
+        { gradoSeccion: { grado: { nombre: 'asc' } } },
+        { gradoSeccion: { seccion: { nombre: 'asc' } } },
+        { usuario: { apellido: 'asc' } },
+        { usuario: { nombre: 'asc' } }
+      ]
+    })
+
+    return estudiantes.map((estudiante, index) => ({
+      'N°': (index + 1).toString(),
+      'Apellidos y Nombres': `${estudiante.usuario.apellido} ${estudiante.usuario.nombre}`,
+      'DNI': estudiante.usuario.dni || 'N/A',
+      'Grado': estudiante.gradoSeccion?.grado?.nombre ? `${estudiante.gradoSeccion.grado.nombre}°` : 'N/A',
+      'Sección': estudiante.gradoSeccion?.seccion?.nombre || 'N/A',
+      'Estado': estudiante.usuario.estado || 'ACTIVO',
+      'Código QR': estudiante.codigoQR || 'Sin código'
+    }))
+
+  } catch (error) {
+    console.error('❌ Error generando datos de estudiantes activos:', error)
+    return [{
+      'N°': '1',
+      'Apellidos y Nombres': 'Error al cargar datos',
+      'DNI': 'N/A',
+      'Grado': 'N/A',
+      'Sección': 'N/A',
+      'Estado': 'ERROR',
+      'Código QR': 'N/A'
+    }]
+  }
+}
+
+// Función para generar reporte de docentes y asignaciones
+async function generateDocentesAsignacionesData(ieId: number) {
+  console.log('📊 Generando datos de docentes y asignaciones...')
+  
+  try {
+    const docentes = await prisma.docente.findMany({
+      where: {
+        usuario: {
+          idIe: ieId,
+          estado: 'ACTIVO'
+        }
+      },
+      include: {
+        usuario: true,
+        aulas: {
+          include: {
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { usuario: { apellido: 'asc' } },
+        { usuario: { nombre: 'asc' } }
+      ]
+    })
+
+    const reportData: any[] = []
+
+    docentes.forEach((docente, index) => {
+      const asignaciones = docente.aulas.map(aula => 
+        `${aula.gradoSeccion?.grado?.nombre || '?'}° ${aula.gradoSeccion?.seccion?.nombre || '?'}`
+      ).join(', ') || 'Sin asignaciones'
+
+      reportData.push({
+        'N°': (index + 1).toString(),
+        'Apellidos y Nombres': `${docente.usuario.apellido} ${docente.usuario.nombre}`,
+        'DNI': docente.usuario.dni || 'N/A',
+        'Email': docente.usuario.email || 'N/A',
+        'Teléfono': docente.usuario.telefono || 'N/A',
+        'Aulas Asignadas': asignaciones,
+        'Total Aulas': docente.aulas.length.toString()
+      })
+    })
+
+    return reportData
+
+  } catch (error) {
+    console.error('❌ Error generando datos de docentes:', error)
+    return [{
+      'N°': '1',
+      'Apellidos y Nombres': 'Error al cargar datos',
+      'DNI': 'N/A',
+      'Email': 'N/A',
+      'Teléfono': 'N/A',
+      'Aulas Asignadas': 'ERROR',
+      'Total Aulas': '0'
+    }]
+  }
 }

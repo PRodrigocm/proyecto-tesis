@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { getCurrentUser, isAuthenticated, logoutCurrentSession } from '@/lib/multiSessionManager'
-import SessionDebugger from '@/components/dev/SessionDebugger'
 import NotificationBell from '@/components/NotificationBell'
 
 interface User {
@@ -80,22 +78,25 @@ export default function AdminLayout({
   )
 
   useEffect(() => {
-    // Verificar autenticación usando el sistema de múltiples sesiones transparente
-    if (!isAuthenticated()) {
-      console.log('❌ Admin Layout - No authenticated session, redirecting to login')
+    // Verificar autenticación
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (!token || !userStr) {
       router.push('/login')
       return
     }
 
-    const userData = getCurrentUser()
-    if (!userData || userData.rol !== 'ADMINISTRATIVO') {
-      console.log('❌ Admin Layout - Invalid role or no user, redirecting to login')
+    try {
+      const userData = JSON.parse(userStr)
+      if (!userData || userData.rol !== 'ADMINISTRATIVO') {
+        router.push('/login')
+        return
+      }
+      setUser(userData)
+    } catch (error) {
       router.push('/login')
-      return
     }
-
-    setUser(userData)
-    console.log('✅ Admin Layout - Multi-session authenticated as:', userData.rol)
   }, [router])
 
   // Actualizar estados de menús desplegables basado en la ruta actual
@@ -105,7 +106,8 @@ export default function AdminLayout({
   }, [pathname])
 
   const handleLogout = () => {
-    logoutCurrentSession()
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
     router.push('/login')
   }
 
@@ -377,8 +379,6 @@ export default function AdminLayout({
         />
       )}
 
-      {/* Session Debugger - Solo en desarrollo */}
-      <SessionDebugger />
     </div>
   )
 }

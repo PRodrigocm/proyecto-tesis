@@ -113,20 +113,24 @@ export async function procesarFaltasAutomaticas(ieId?: number) {
 
       if (apoderado) {
         // Crear notificación en el sistema
-        await prisma.notificacion.create({
-          data: {
-            idUsuario: apoderado.usuario.idUsuario,
-            titulo: '❌ Inasistencia Registrada',
-            mensaje: `Su hijo/a ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} no asistió a clases hoy ${fechaHoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}. Si tiene justificación, por favor comuníquese con la institución.`,
-            tipo: 'ALERTA',
-            leida: false
-          }
-        })
+        try {
+          await prisma.notificacion.create({
+            data: {
+              idUsuario: apoderado.usuario.idUsuario,
+              titulo: '❌ Inasistencia Registrada',
+              mensaje: `Su hijo/a ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} no asistió a clases hoy ${fechaHoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}. Si tiene justificación, por favor comuníquese con la institución.`,
+              tipo: 'ALERTA',
+              leida: false
+            }
+          })
+        } catch (notifError) {
+          console.error('Error creando notificación en sistema:', notifError)
+        }
 
         // Enviar email si tiene correo
         if (apoderado.usuario.email) {
           try {
-            await enviarEmailInasistencia({
+            const emailEnviado = await enviarEmailInasistencia({
               estudianteNombre: estudiante.usuario.nombre || '',
               estudianteApellido: estudiante.usuario.apellido || '',
               estudianteDNI: estudiante.usuario.dni,
@@ -136,11 +140,20 @@ export async function procesarFaltasAutomaticas(ieId?: number) {
               emailApoderado: apoderado.usuario.email,
               nombreApoderado: `${apoderado.usuario.nombre} ${apoderado.usuario.apellido}`
             })
-            totalNotificaciones++
+            if (emailEnviado) {
+              totalNotificaciones++
+              console.log(`📧 Email enviado a ${apoderado.usuario.email}`)
+            } else {
+              console.warn(`⚠️ No se pudo enviar email a ${apoderado.usuario.email}`)
+            }
           } catch (error) {
-            console.error('Error enviando email:', error)
+            console.error(`Error enviando email a ${apoderado.usuario.email}:`, error)
           }
+        } else {
+          console.log(`⚠️ Apoderado sin email para ${estudiante.usuario.nombre}`)
         }
+      } else {
+        console.log(`⚠️ No se encontró apoderado para ${estudiante.usuario.nombre}`)
       }
     }
   }

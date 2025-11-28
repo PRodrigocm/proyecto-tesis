@@ -100,12 +100,6 @@ export const useLogin = () => {
     setIsLoading(true)
     
     try {
-      console.log('🔐 Starting login process...')
-      console.log('Form data:', {
-        email: formData.email
-      })
-
-      // Login simplificado - el backend detecta automáticamente IE y Rol
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -117,48 +111,31 @@ export const useLogin = () => {
         })
       })
 
-      console.log('📡 Login response status:', response.status)
       const data = await response.json()
-      console.log('📡 Login response data:', data)
 
       if (response.ok) {
-        console.log('✅ Login successful!')
-        
-        // Usar el sistema de múltiples sesiones transparente
-        const { saveUserSession } = await import('@/lib/multiSessionManager')
-        saveUserSession(data.data.user, data.data.token)
-        
-        // Debug: Log the user data to see what role is being returned
-        console.log('👤 User data saved with multi-session support:', data.data.user)
-        console.log('🎭 User role:', data.data.user.rol)
-        console.log('🎭 Role type:', typeof data.data.user.rol)
+        // Guardar sesión en localStorage
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        localStorage.setItem('token', data.data.token)
         
         // Redirigir según el rol
-        console.log('🔄 Starting redirect logic...')
         switch (data.data.user.rol) {
           case 'ADMINISTRATIVO':
-            console.log('🚀 Redirecting to admin dashboard...')
             router.push('/admin/dashboard')
             break
           case 'DOCENTE':
-            console.log('🚀 Redirecting to docente dashboard...')
             router.push('/docente/dashboard')
             break
           case 'AUXILIAR':
-            console.log('🚀 Redirecting to auxiliar dashboard...')
             router.push('/auxiliar/dashboard')
             break
           case 'APODERADO':
-            console.log('🚀 Redirecting to apoderado dashboard...')
             router.push('/apoderado/dashboard')
             break
           default:
-            console.log('🚀 Redirecting to default dashboard...')
-            console.log('⚠️ Unrecognized role:', data.data.user.rol)
             router.push('/dashboard')
         }
       } else {
-        console.log('❌ Login failed:', data.error)
         setErrors(prev => ({ ...prev, general: data.error || 'Error en el login' }))
       }
     } catch (error) {

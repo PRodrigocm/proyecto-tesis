@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 interface ReporteStats {
   totalEstudiantes: number
@@ -422,60 +421,6 @@ export default function ReportesPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Accesos Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link 
-          href="/auxiliar/asistencia"
-          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-blue-500 hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition-colors">
-              <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">Ver Asistencia</h3>
-              <p className="text-sm text-gray-500">Control de asistencia en tiempo real</p>
-            </div>
-          </div>
-        </Link>
-        
-        <Link 
-          href="/auxiliar/retiros"
-          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-orange-500 hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-orange-100 rounded-xl group-hover:bg-orange-200 transition-colors">
-              <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-orange-600">Gestión de Retiros</h3>
-              <p className="text-sm text-gray-500">Administra retiros de estudiantes</p>
-            </div>
-          </div>
-        </Link>
-        
-        <Link 
-          href="/admin/dashboard/horarios/clases"
-          className="bg-white p-4 rounded-xl shadow-sm border-2 border-transparent hover:border-green-500 hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl group-hover:bg-green-200 transition-colors">
-              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-green-600">Horarios de Clases</h3>
-              <p className="text-sm text-gray-500">Gestiona horarios académicos</p>
-            </div>
-          </div>
-        </Link>
       </div>
 
       {/* Filtros Avanzados */}

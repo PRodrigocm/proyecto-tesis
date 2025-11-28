@@ -25,30 +25,22 @@ export default function DocenteClases() {
       const storedToken = localStorage.getItem('token')
       const storedUser = localStorage.getItem('user')
       
-      console.log('🔍 Verificando autenticación...')
-      console.log('🔑 Token en localStorage:', storedToken ? 'Presente' : 'Ausente')
-      console.log('👤 User en localStorage:', storedUser ? 'Presente' : 'Ausente')
-      
       if (storedToken && storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser)
-          console.log('✅ Datos de usuario parseados:', parsedUser)
-          
           setToken(storedToken)
           setUser(parsedUser)
           
           // Cargar aulas inmediatamente después de establecer el usuario
           setTimeout(() => {
-            console.log('🔄 Iniciando carga de aulas...')
             loadAulasDocenteWithData(storedToken, parsedUser)
           }, 100)
           
         } catch (error) {
-          console.error('❌ Error parsing user data:', error)
+          console.error('Error parsing user data:', error)
           router.push('/login')
         }
       } else {
-        console.log('⚠️ No hay datos de autenticación, redirigiendo al login')
         router.push('/login')
       }
     }
@@ -59,14 +51,9 @@ export default function DocenteClases() {
     try {
       setLoading(true)
       
-      // Verificar qué propiedad tiene el ID del usuario
       const userId = userData.idUsuario || userData.id
-      console.log('🔍 Cargando aulas para docente ID:', userId)
-      console.log('👤 Usuario completo:', userData)
-      console.log('🔍 Propiedades disponibles:', Object.keys(userData))
 
       if (!userId) {
-        console.error('❌ No se encontró ID de usuario válido')
         setLoading(false)
         return
       }
@@ -79,65 +66,18 @@ export default function DocenteClases() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Datos de aulas recibidos:', data)
         
         if (data.data && data.data.length > 0) {
           setAulas(data.data)
-          console.log('📚 Aulas cargadas desde BD:', data.data.length)
         } else {
-          console.log('⚠️ No hay aulas asignadas en BD:', data.message)
-          console.log('🔍 Debug info:', data.debug)
-          setAulas([{
-            id: 'no-asignadas',
-            materia: 'Sin asignación',
-            grado: 'N/A',
-            seccion: 'N/A',
-            estudiantes: 0,
-            horario: 'No asignado',
-            aula: 'Sin aula asignada - Contacte al administrador',
-            estado: 'pendiente'
-          }])
+          setAulas([])
         }
       } else {
-        console.error('❌ Error al cargar aulas del docente. Status:', response.status)
-        const errorData = await response.text()
-        console.error('❌ Error details:', errorData)
-        // Datos de fallback solo si hay error
-        setAulas([
-        {
-          id: 1,
-          materia: 'Matemáticas',
-          grado: '5to',
-          seccion: 'A',
-          estudiantes: 28,
-          horario: 'Lunes, Miércoles, Viernes 08:00-09:30',
-          aula: 'Aula 201',
-          estado: 'activa'
-        },
-        {
-          id: 2,
-          materia: 'Física',
-          grado: '4to',
-          seccion: 'B',
-          estudiantes: 25,
-          horario: 'Martes, Jueves 10:00-11:30',
-          aula: 'Lab. Física',
-          estado: 'activa'
-        },
-        {
-          id: 3,
-          materia: 'Matemáticas',
-          grado: '3ro',
-          seccion: 'C',
-          estudiantes: 30,
-          horario: 'Lunes, Miércoles 14:00-15:30',
-          aula: 'Aula 105',
-          estado: 'activa'
-        }
-      ])
+        setAulas([])
       }
     } catch (error) {
-      console.error('❌ Error loading aulas:', error)
+      console.error('Error loading aulas:', error)
+      setAulas([])
     } finally {
       setLoading(false)
     }
@@ -148,12 +88,8 @@ export default function DocenteClases() {
       setLoading(true)
       
       if (!token || !user?.idUsuario) {
-        console.error('No hay token o usuario válido')
         return
       }
-
-      console.log('🔍 Cargando aulas para docente ID:', user.idUsuario)
-      console.log('👤 Usuario completo:', user)
 
       const response = await fetch(`/api/docentes/${user.idUsuario}/aulas`, {
         headers: {
@@ -163,66 +99,18 @@ export default function DocenteClases() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Datos de aulas recibidos:', data)
         
         if (data.data && data.data.length > 0) {
           setAulas(data.data)
-          console.log('📚 Aulas cargadas desde BD:', data.data.length)
         } else {
-          console.log('⚠️ No hay aulas asignadas en BD:', data.message)
-          console.log('🔍 Debug info:', data.debug)
-          // Mostrar mensaje informativo en lugar de datos de fallback
-          setAulas([{
-            id: 'no-asignadas',
-            materia: 'Sin asignación',
-            grado: 'N/A',
-            seccion: 'N/A',
-            estudiantes: 0,
-            horario: 'No asignado',
-            aula: 'Sin aula asignada - Contacte al administrador',
-            estado: 'pendiente'
-          }])
+          setAulas([])
         }
       } else {
-        console.error('❌ Error al cargar aulas del docente. Status:', response.status)
-        const errorData = await response.text()
-        console.error('❌ Error details:', errorData)
-        // Datos de fallback solo si hay error
-        setAulas([
-        {
-          id: 1,
-          materia: 'Matemáticas',
-          grado: '5to',
-          seccion: 'A',
-          estudiantes: 28,
-          horario: 'Lunes, Miércoles, Viernes 08:00-09:30',
-          aula: 'Aula 201',
-          estado: 'activa'
-        },
-        {
-          id: 2,
-          materia: 'Física',
-          grado: '4to',
-          seccion: 'B',
-          estudiantes: 25,
-          horario: 'Martes, Jueves 10:00-11:30',
-          aula: 'Lab. Física',
-          estado: 'activa'
-        },
-        {
-          id: 3,
-          materia: 'Matemáticas',
-          grado: '3ro',
-          seccion: 'C',
-          estudiantes: 30,
-          horario: 'Lunes, Miércoles 14:00-15:30',
-          aula: 'Aula 105',
-          estado: 'activa'
-        }
-      ])
+        setAulas([])
       }
     } catch (error) {
       console.error('Error loading aulas:', error)
+      setAulas([])
     } finally {
       setLoading(false)
     }
@@ -240,7 +128,6 @@ export default function DocenteClases() {
 
 
   const handleTomarAsistencia = (aulaId: number) => {
-    console.log('Redirigiendo a asistencias para aula:', aulaId)
     router.push('/docente/asistencias')
   }
 
@@ -248,7 +135,6 @@ export default function DocenteClases() {
     const aula = aulas.find(a => a.id === aulaId)
     const aulaNombre = aula ? `${aula.grado} ${aula.seccion} - ${aula.aula}` : `Aula ${aulaId}`
     
-    console.log('Abriendo modal de estudiantes para aula:', aulaId, aulaNombre)
     setModalEstudiantes({
       isOpen: true,
       aulaId: aulaId,
@@ -265,7 +151,6 @@ export default function DocenteClases() {
   }
 
   const handleVerReportes = (aulaId: number) => {
-    console.log('Redirigiendo a reportes para aula:', aulaId)
     router.push('/docente/reportes')
   }
 
@@ -278,19 +163,6 @@ export default function DocenteClases() {
           <p className="mt-2 text-sm text-gray-700">
             Gestiona tus aulas asignadas y estudiantes
           </p>
-        </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-          <button
-            onClick={() => {
-              console.log('🔄 Debug: Forzando recarga de aulas...')
-              console.log('👤 Usuario actual:', user)
-              console.log('🔑 Token actual:', token ? 'Presente' : 'Ausente')
-              loadAulasDocente()
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-yellow-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600"
-          >
-            🔍 Debug Aulas
-          </button>
         </div>
       </div>
 
