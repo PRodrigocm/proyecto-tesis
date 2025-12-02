@@ -32,6 +32,12 @@ const SchoolIcon = () => (
   </svg>
 )
 
+const AttendanceIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+  </svg>
+)
+
 const CalendarIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -156,6 +162,12 @@ export default function AdminLayout({
       href: '/admin/dashboard/salones',
       icon: SchoolIcon,
       current: pathname === '/admin/dashboard/salones'
+    },
+    {
+      name: 'Asistencia',
+      href: '/admin/dashboard/asistencia',
+      icon: AttendanceIcon,
+      current: pathname === '/admin/dashboard/asistencia' || pathname.startsWith('/admin/dashboard/asistencia/')
     },
     {
       name: 'Calendario',
@@ -331,6 +343,7 @@ export default function AdminLayout({
                 {pathname === '/admin' && 'Dashboard'}
                 {pathname.includes('/usuarios') && 'Gestión de Usuarios'}
                 {pathname.includes('/salones') && 'Gestión de Salones'}
+                {pathname.includes('/asistencia') && 'Control de Asistencia'}
                 {pathname.includes('/calendarios') && 'Calendario Escolar'}
                 {pathname.includes('/horarios') && 'Horarios de Clases'}
                 {pathname.includes('/retiros') && 'Gestión de Retiros'}

@@ -73,14 +73,16 @@ export default function TomarAsistenciaButton({
   }
 
   const defaultClassName = `
-    inline-flex items-center px-6 py-3 
+    flex-1 sm:flex-none inline-flex items-center justify-center 
+    px-3 sm:px-4 md:px-6 py-2.5 sm:py-2 md:py-3 
     bg-gradient-to-r from-blue-600 to-blue-700 
-    text-white font-medium rounded-lg 
+    text-white text-sm font-medium rounded-lg 
     hover:from-blue-700 hover:to-blue-800 
+    active:from-blue-800 active:to-blue-900
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
     disabled:opacity-50 disabled:cursor-not-allowed
-    transition-all duration-200 shadow-lg hover:shadow-xl
-    transform hover:scale-105 active:scale-95
+    transition-all duration-200 shadow-lg
+    min-h-[44px]
   `.trim().replace(/\s+/g, ' ')
 
   return (
@@ -106,12 +108,12 @@ export default function TomarAsistenciaButton({
       {isTabOpen ? (
         <>
           <span className="hidden sm:inline">🗂️ Pestaña Abierta</span>
-          <span className="sm:hidden">🗂️</span>
+          <span className="sm:hidden">🗂️ Abierta</span>
         </>
       ) : (
         <>
           <span className="hidden sm:inline">📋 Tomar Asistencia</span>
-          <span className="sm:hidden">📋</span>
+          <span className="sm:hidden">📋 Asistencia</span>
         </>
       )}
       {isTabOpen && (

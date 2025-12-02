@@ -104,7 +104,6 @@ export default function RetirosPage() {
                   <li className="flex items-start"><span className="text-yellow-500 mr-2">⏳</span><span><strong>Pendiente:</strong> Esperando autorización</span></li>
                   <li className="flex items-start"><span className="text-green-500 mr-2">✓</span><span><strong>Autorizado:</strong> Listo para recoger</span></li>
                   <li className="flex items-start"><span className="text-red-500 mr-2">✗</span><span><strong>Rechazado:</strong> No autorizado</span></li>
-                  <li className="flex items-start"><span className="text-blue-500 mr-2">✓</span><span><strong>Completado:</strong> Retirado</span></li>
                 </ul>
               </div>
             </div>

@@ -164,16 +164,35 @@ export async function PUT(
           }
         })
 
-        // Crear registros en AsistenciaJustificacion
-        await prisma.asistenciaJustificacion.createMany({
-          data: asistenciasPorJustificar.map(asistencia => ({
-            idAsistencia: asistencia.idAsistencia,
+        // Verificar cuáles registros ya existen en AsistenciaJustificacion
+        const existentes = await prisma.asistenciaJustificacion.findMany({
+          where: {
             idJustificacion: justificacionId,
-            aplicadoPor: decoded.idUsuario
-          }))
+            idAsistencia: {
+              in: asistenciasPorJustificar.map(a => a.idAsistencia)
+            }
+          },
+          select: { idAsistencia: true }
         })
 
-        console.log(`✅ ${asistenciasPorJustificar.length} asistencias actualizadas a JUSTIFICADA`)
+        const idsExistentes = new Set(existentes.map(e => e.idAsistencia))
+        const asistenciasNuevas = asistenciasPorJustificar.filter(
+          a => !idsExistentes.has(a.idAsistencia)
+        )
+
+        // Crear solo los registros que no existen
+        if (asistenciasNuevas.length > 0) {
+          await prisma.asistenciaJustificacion.createMany({
+            data: asistenciasNuevas.map(asistencia => ({
+              idAsistencia: asistencia.idAsistencia,
+              idJustificacion: justificacionId,
+              aplicadoPor: decoded.idUsuario
+            })),
+            skipDuplicates: true
+          })
+        }
+
+        console.log(`✅ ${asistenciasPorJustificar.length} asistencias actualizadas a JUSTIFICADA (${asistenciasNuevas.length} nuevos registros)`)
       }
     }
 

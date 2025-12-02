@@ -3,7 +3,6 @@ interface RetirosStatsProps {
     total: number
     pendientes: number
     autorizados: number
-    completados: number
     rechazados: number
   }
 }
@@ -37,20 +36,6 @@ export default function RetirosStats({ stats }: RetirosStatsProps) {
       iconColor: 'text-blue-600',
       valueColor: 'text-blue-700',
       borderColor: 'border-blue-200'
-    },
-    {
-      label: 'Completados',
-      value: stats.completados,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ),
-      bgColor: 'bg-emerald-50',
-      iconBg: 'bg-emerald-100',
-      iconColor: 'text-emerald-600',
-      valueColor: 'text-emerald-700',
-      borderColor: 'border-emerald-200'
     },
     {
       label: 'Rechazados',

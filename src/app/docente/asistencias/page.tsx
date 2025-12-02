@@ -294,7 +294,7 @@ export default function DocenteAsistencias() {
 
       // Guardar cada asistencia editada
       for (const estudiante of estudiantesEditados) {
-        await fetch('/api/asistencias', {
+        await fetch('/api/asistencia', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -339,6 +339,75 @@ export default function DocenteAsistencias() {
     setModoEdicion(true)
   }
 
+  // Marcar como INASISTENCIA a todos los estudiantes sin registro QR
+  const handleMarcarInasistencias = async () => {
+    if (!claseSeleccionada || estudiantes.length === 0) {
+      alert('Primero selecciona una clase y carga los estudiantes')
+      return
+    }
+
+    const sinRegistrar = estudiantes.filter(e => e.estado === 'sin_registrar')
+    
+    if (sinRegistrar.length === 0) {
+      alert('✅ Todos los estudiantes ya tienen asistencia registrada')
+      return
+    }
+
+    const confirmacion = confirm(
+      `⚠️ ¿Estás seguro de marcar como INASISTENCIA a ${sinRegistrar.length} estudiante(s) sin registro?\n\n` +
+      `Esto enviará notificaciones a los padres de familia.\n\n` +
+      `Estudiantes afectados:\n${sinRegistrar.map(e => `• ${e.nombre}`).join('\n')}`
+    )
+
+    if (!confirmacion) return
+
+    try {
+      setLoading(true)
+      let exitosos = 0
+      let fallidos = 0
+
+      for (const estudiante of sinRegistrar) {
+        try {
+          const response = await fetch('/api/asistencia', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              estudianteId: estudiante.id,
+              claseId: claseSeleccionada,
+              fecha: fechaSeleccionada,
+              estado: 'AUSENTE',
+              observaciones: 'Inasistencia registrada automáticamente - Sin registro QR'
+            })
+          })
+
+          if (response.ok) {
+            exitosos++
+          } else {
+            fallidos++
+          }
+        } catch (error) {
+          console.error(`Error marcando inasistencia para ${estudiante.nombre}:`, error)
+          fallidos++
+        }
+      }
+
+      if (exitosos > 0) {
+        alert(`✅ ${exitosos} inasistencia(s) registrada(s) correctamente.\n${fallidos > 0 ? `❌ ${fallidos} fallaron.` : ''}\n\nSe han enviado notificaciones a los padres.`)
+        loadEstudiantes() // Recargar para ver cambios
+      } else {
+        alert('❌ No se pudo registrar ninguna inasistencia')
+      }
+    } catch (error) {
+      console.error('Error marcando inasistencias:', error)
+      alert('❌ Error al marcar inasistencias')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleTomarAsistenciaQR = async (estudiantesActualizados: any[]) => {
     console.log('📥 Callback directo recibido (no se usa, se prefiere el evento)')
     // No hacer nada aquí, el listener de eventos se encargará de recargar
@@ -378,18 +447,18 @@ export default function DocenteAsistencias() {
   const stats = contarEstados()
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="sm:flex sm:items-center sm:justify-between">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-bold text-gray-900">Control de Asistencias</h1>
-          <p className="mt-2 text-sm text-gray-700">
+    <div className="p-3 sm:p-4 md:p-6 lg:px-8">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Control de Asistencias</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-700 hidden sm:block">
             Registra y gestiona la asistencia de tus estudiantes
           </p>
         </div>
         
-        {/* Botones de acción en el header */}
-        <div className="mt-4 sm:mt-0 flex space-x-3">
+        {/* Botones de acción - Grandes y táctiles */}
+        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <TomarAsistenciaButton
             claseId={claseSeleccionada}
             fecha={fechaSeleccionada}
@@ -399,23 +468,22 @@ export default function DocenteAsistencias() {
           <button
             onClick={() => setModoEdicion(!modoEdicion)}
             disabled={!claseSeleccionada || estudiantes.length === 0}
-            className={`inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            className={`flex-1 sm:flex-none inline-flex items-center justify-center rounded-md border border-transparent px-3 sm:px-4 py-2.5 sm:py-2 text-sm font-medium text-white shadow-sm min-h-[44px] ${
               !claseSeleccionada || estudiantes.length === 0
                 ? 'bg-gray-400 cursor-not-allowed'
                 : modoEdicion 
-                  ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
-                  : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                  ? 'bg-red-600 hover:bg-red-700 active:bg-red-800' 
+                  : 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800'
             }`}
-            title={!claseSeleccionada ? 'Selecciona una clase primero' : estudiantes.length === 0 ? 'Carga los estudiantes primero' : modoEdicion ? 'Cancelar edición' : 'Editar asistencias'}
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {modoEdicion ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               ) : (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               )}
             </svg>
-            {modoEdicion ? 'Cancelar' : 'Editar'}
+            <span>{modoEdicion ? 'Cancelar' : 'Editar'}</span>
           </button>
         </div>
       </div>
@@ -452,25 +520,25 @@ export default function DocenteAsistencias() {
         </div>
       )}
 
-      {/* Filtros Mejorados */}
-      <div className="mt-6 bg-gradient-to-br from-white to-gray-50 shadow-lg rounded-xl p-6 border border-gray-200">
-        <div className="flex items-center space-x-3 mb-6 pb-4 border-b-2 border-gray-200">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-lg">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Filtros - Responsive */}
+      <div className="bg-gradient-to-br from-white to-gray-50 shadow-lg rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200">
+        <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4 md:mb-6 pb-3 sm:pb-4 border-b-2 border-gray-200">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-1.5 sm:p-2 rounded-lg">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900">Seleccionar Fecha y Clase</h3>
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Fecha y Clase</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {/* Fecha */}
           <div>
-            <label htmlFor="fecha" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+            <label htmlFor="fecha" className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2 flex items-center">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
               </svg>
-              Fecha de Clase
+              Fecha
             </label>
             <div className="relative">
               <input
@@ -478,7 +546,7 @@ export default function DocenteAsistencias() {
                 id="fecha"
                 value={fechaSeleccionada}
                 onChange={(e) => setFechaSeleccionada(e.target.value)}
-                className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black font-medium bg-white hover:border-blue-400 transition-all"
+                className="block w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-base sm:text-sm font-medium bg-white min-h-[44px]"
               />
             </div>
             <p className="mt-2 text-xs text-gray-500 flex items-center">
@@ -491,19 +559,19 @@ export default function DocenteAsistencias() {
 
           {/* Clase */}
           <div>
-            <label htmlFor="clase" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+            <label htmlFor="clase" className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2 flex items-center">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
               </svg>
-              Clase / Aula
+              Clase
             </label>
             <select
               id="clase"
               value={claseSeleccionada}
               onChange={(e) => setClaseSeleccionada(e.target.value)}
-              className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black font-medium bg-white hover:border-blue-400 transition-all"
+              className="block w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-base sm:text-sm font-medium bg-white min-h-[44px]"
             >
-              <option value="" className="text-gray-500">Seleccionar clase</option>
+              <option value="" className="text-gray-500">Seleccionar</option>
               {clases.map((clase) => (
                 <option key={clase.id} value={clase.id} className="text-black font-medium">
                   {clase.nombre}
@@ -511,21 +579,21 @@ export default function DocenteAsistencias() {
               ))}
             </select>
             {clases.length === 0 && (
-              <p className="mt-2 text-xs text-amber-600 flex items-center">
+              <p className="mt-1 sm:mt-2 text-xs text-amber-600 flex items-center">
                 <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
                 </svg>
-                No tienes clases asignadas
+                Sin clases
               </p>
             )}
           </div>
 
           {/* Botón Cargar */}
-          <div className="flex items-end">
+          <div className="flex items-end col-span-1 sm:col-span-2 md:col-span-1">
             <button 
               onClick={loadEstudiantes}
               disabled={!claseSeleccionada || !fechaSeleccionada || loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed font-semibold flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 transition-all shadow-md disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed font-semibold flex items-center justify-center space-x-2 min-h-[44px]"
             >
               {loading ? (
                 <>
@@ -583,154 +651,166 @@ export default function DocenteAsistencias() {
         )}
       </div>
 
-      {/* Estadísticas */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.total}</dd>
-                </dl>
-              </div>
+      {/* Estadísticas - Compactas en móvil */}
+      <div className="mt-4 md:mt-6 grid grid-cols-5 gap-1.5 sm:gap-2 md:gap-4">
+        <div className="bg-white overflow-hidden shadow rounded-lg p-2 sm:p-3">
+          <div className="text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-500 rounded-md flex items-center justify-center mx-auto mb-1">
+              <span className="text-white text-xs sm:text-sm">👥</span>
             </div>
+            <p className="text-[10px] sm:text-xs text-gray-500">Total</p>
+            <p className="text-base sm:text-lg font-bold text-gray-900">{stats.total}</p>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Presentes</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.presente}</dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-2 sm:p-3">
+          <div className="text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-md flex items-center justify-center mx-auto mb-1">
+              <span className="text-white text-xs sm:text-sm">✓</span>
             </div>
+            <p className="text-[10px] sm:text-xs text-gray-500">Pres.</p>
+            <p className="text-base sm:text-lg font-bold text-green-600">{stats.presente}</p>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Tardanzas</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.tardanza}</dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-2 sm:p-3">
+          <div className="text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500 rounded-md flex items-center justify-center mx-auto mb-1">
+              <span className="text-white text-xs sm:text-sm">⏰</span>
             </div>
+            <p className="text-[10px] sm:text-xs text-gray-500">Tard.</p>
+            <p className="text-base sm:text-lg font-bold text-yellow-600">{stats.tardanza}</p>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Inasistencias</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.inasistencia}</dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-2 sm:p-3">
+          <div className="text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center mx-auto mb-1">
+              <span className="text-white text-xs sm:text-sm">✗</span>
             </div>
+            <p className="text-[10px] sm:text-xs text-gray-500">Inas.</p>
+            <p className="text-base sm:text-lg font-bold text-red-600">{stats.inasistencia}</p>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Justificadas</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.justificada}</dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-2 sm:p-3">
+          <div className="text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-md flex items-center justify-center mx-auto mb-1">
+              <span className="text-white text-xs sm:text-sm">📄</span>
             </div>
+            <p className="text-[10px] sm:text-xs text-gray-500">Just.</p>
+            <p className="text-base sm:text-lg font-bold text-blue-600">{stats.justificada}</p>
           </div>
         </div>
       </div>
 
       {/* Lista de Estudiantes */}
-      <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">Lista de Estudiantes</h3>
-            <p className="text-sm text-gray-600">
-              {fechaSeleccionada} - {claseSeleccionada ? clases.find(c => c.id.toString() === claseSeleccionada)?.nombre : 'Seleccionar clase'}
-            </p>
-            {modoEdicion && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Modo edición activo - Las horas de llegada se actualizarán automáticamente
+      <div className="mt-4 sm:mt-6 bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
+            <div>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900">Estudiantes</h3>
+              <p className="text-sm text-gray-600">
+                {fechaSeleccionada} - {claseSeleccionada ? clases.find(c => c.id.toString() === claseSeleccionada)?.nombre : 'Seleccionar clase'}
               </p>
-            )}
+              {modoEdicion && (
+                <p className="text-xs text-orange-600 mt-1">
+                  ⚠️ Modo edición activo - Las horas de llegada se actualizarán automáticamente
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {/* Botón Marcar Inasistencias - Solo visible si hay estudiantes sin registrar */}
+              {estudiantes.filter(e => e.estado === 'sin_registrar').length > 0 && esFechaHoy() && (
+                <button
+                  onClick={handleMarcarInasistencias}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-md shadow-sm transition-colors min-h-[40px] disabled:bg-gray-400"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="hidden sm:inline">Marcar Inasistencias</span>
+                  <span className="sm:hidden">Inasist.</span>
+                  <span className="ml-1 bg-red-800 px-1.5 py-0.5 rounded text-xs">
+                    {estudiantes.filter(e => e.estado === 'sin_registrar').length}
+                  </span>
+                </button>
+              )}
+              {modoEdicion && (
+                <button
+                  onClick={handleGuardarAsistencia}
+                  className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm transition-colors min-h-[40px]"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Guardar
+                </button>
+              )}
+            </div>
           </div>
-          {modoEdicion && (
-            <button
-              onClick={handleGuardarAsistencia}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Guardar Asistencia
-            </button>
-          )}
         </div>
         
-        <div className="overflow-x-auto">
+        {/* Vista móvil - tarjetas */}
+        <div className="sm:hidden divide-y divide-gray-200">
+          {estudiantes.map((estudiante) => (
+            <div key={estudiante.id} className="p-3 hover:bg-gray-50 active:bg-gray-100">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-gray-700">
+                      {estudiante.nombre.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{estudiante.nombre}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
+                        {getEstadoLabel(estudiante.estado)}
+                      </span>
+                      {estudiante.horaLlegada && (
+                        <span className="text-[10px] text-green-600">{estudiante.horaLlegada}</span>
+                      )}
+                      {estudiante.tieneRetiro && (
+                        <span className="text-[10px] text-orange-600">🚪</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {modoEdicion && (
+                  <select
+                    value={estudiante.estado}
+                    onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
+                    className="rounded-md border-gray-300 shadow-sm text-xs text-black py-1.5 px-2 min-h-[36px]"
+                  >
+                    {estadosAsistencia.map((estado) => (
+                      <option key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Vista desktop - tabla */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estudiante
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                   Código
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estado
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Hora
                 </th>
                 {modoEdicion && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 )}
@@ -739,60 +819,53 @@ export default function DocenteAsistencias() {
             <tbody className="bg-white divide-y divide-gray-200">
               {estudiantes.map((estudiante) => (
                 <tr key={estudiante.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-700">
+                      <div className="flex-shrink-0 h-8 w-8 md:h-10 md:w-10">
+                        <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-xs md:text-sm font-medium text-gray-700">
                             {estudiante.nombre.split(' ').map((n: string) => n[0]).join('')}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4">
+                      <div className="ml-3 md:ml-4">
                         <div className="text-sm font-medium text-gray-900">{estudiante.nombre}</div>
+                        <div className="text-xs text-gray-500 md:hidden">{estudiante.codigo}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
                     {estudiante.codigo}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
+                  <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-1 md:space-x-2">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
                         {getEstadoLabel(estudiante.estado)}
                       </span>
                       {estudiante.tieneRetiro && (
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          Retiro
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                          🚪
                         </span>
                       )}
                     </div>
-                    {estudiante.tieneRetiro && estudiante.retiro && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {estudiante.retiro.motivo} - {estudiante.retiro.hora}
-                      </div>
-                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">
                     <div>
                       {estudiante.horaLlegada && (
-                        <div className="text-green-600">Entrada: {estudiante.horaLlegada}</div>
+                        <div className="text-green-600">{estudiante.horaLlegada}</div>
                       )}
                       {estudiante.horaSalida && (
-                        <div className="text-orange-600">Salida: {estudiante.horaSalida}</div>
+                        <div className="text-orange-600">{estudiante.horaSalida}</div>
                       )}
                       {!estudiante.horaLlegada && !estudiante.horaSalida && '-'}
                     </div>
                   </td>
                   {modoEdicion && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium">
                       <select
                         value={estudiante.estado}
                         onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-black"
+                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-black min-h-[36px]"
                       >
                         {estadosAsistencia.map((estado) => (
                           <option key={estado.value} value={estado.value}>
@@ -810,63 +883,51 @@ export default function DocenteAsistencias() {
       </div>
 
       {/* Acciones Rápidas */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pb-4">
         <button 
           onClick={handleMarcarTodosPresentes}
           disabled={!claseSeleccionada || estudiantes.length === 0 || !esFechaHoy()}
-          className={`bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left ${
+          className={`bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow hover:shadow-md active:bg-gray-50 transition-all border border-gray-200 text-center sm:text-left ${
             !claseSeleccionada || estudiantes.length === 0 || !esFechaHoy() ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">✅</span>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-900">Marcar Todos Presentes</p>
-              <p className="text-xs text-gray-500">Marca como presente a los sin registrar</p>
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-900">Todos Presentes</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Sin registrar → Presente</p>
             </div>
           </div>
         </button>
 
         <button 
           onClick={() => router.push('/docente/reportes')}
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+          className="bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow hover:shadow-md active:bg-gray-50 transition-all border border-gray-200 text-center sm:text-left"
         >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">📊</span>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-900">Generar Reporte</p>
-              <p className="text-xs text-gray-500">Ir a reportes de asistencia</p>
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-900">Reportes</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Ver reportes</p>
             </div>
           </div>
         </button>
 
         <button 
           onClick={() => router.push('/docente/horarios')}
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 text-left"
+          className="bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow hover:shadow-md active:bg-gray-50 transition-all border border-gray-200 text-center sm:text-left"
         >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">🕐</span>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-900">Ver Horarios</p>
-              <p className="text-xs text-gray-500">Consultar horarios de clases</p>
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-900">Horarios</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Ver horarios</p>
             </div>
           </div>
         </button>

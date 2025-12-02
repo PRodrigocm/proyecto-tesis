@@ -730,3 +730,176 @@ ${observaciones ? `Obs: ${observaciones}` : ''}
 
   return { emailEnviado, smsEnviado, notificacionCreada }
 }
+
+/**
+ * Notificar inasistencia del estudiante al apoderado
+ * Se envía cuando el estudiante no asiste a clases
+ */
+export async function notificarInasistencia(data: {
+  estudianteId: number
+  estudianteNombre: string
+  estudianteApellido: string
+  estudianteDNI: string
+  grado: string
+  seccion: string
+  fecha: string
+  materia?: string
+  emailApoderado: string
+  telefonoApoderado: string
+  apoderadoUsuarioId?: number
+}): Promise<{ emailEnviado: boolean; smsEnviado: boolean; notificacionCreada: boolean }> {
+  
+  const {
+    estudianteNombre,
+    estudianteApellido,
+    estudianteDNI,
+    grado,
+    seccion,
+    fecha,
+    materia,
+    emailApoderado,
+    telefonoApoderado,
+    apoderadoUsuarioId
+  } = data
+
+  // Formatear fecha
+  const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+
+  // CONTENIDO DEL EMAIL
+  const asuntoEmail = `❌ Inasistencia Registrada - ${estudianteNombre} ${estudianteApellido}`
+  
+  const contenidoEmail = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #ef4444; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #ef4444; }
+        .value { color: #333; }
+        .alerta { background: #fee2e2; padding: 20px; margin: 15px 0; border-radius: 8px; border: 2px solid #ef4444; text-align: center; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+        .icon { font-size: 48px; margin-bottom: 10px; }
+        .accion-box { background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="icon">❌</div>
+          <h1>Inasistencia Registrada</h1>
+          <p>Sistema de Control de Asistencia Escolar</p>
+        </div>
+        
+        <div class="content">
+          <h2>Estimado Apoderado,</h2>
+          <p>Le informamos que su hijo/a <strong>NO asistió</strong> a clases:</p>
+          
+          <div class="alerta">
+            <h2 style="color: #dc2626; margin: 0;">⚠️ INASISTENCIA</h2>
+            <p style="margin: 10px 0 0 0; color: #7f1d1d;">Se ha registrado la falta de su hijo/a</p>
+          </div>
+
+          <div class="info-box">
+            <h3>👤 Información del Estudiante</h3>
+            <div class="info-row">
+              <span class="label">Nombre:</span>
+              <span class="value">${estudianteNombre} ${estudianteApellido}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">DNI:</span>
+              <span class="value">${estudianteDNI}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Grado y Sección:</span>
+              <span class="value">${grado}° ${seccion}</span>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <h3>📅 Detalles de la Inasistencia</h3>
+            <div class="info-row">
+              <span class="label">Fecha:</span>
+              <span class="value">${fechaFormateada}</span>
+            </div>
+            ${materia ? `
+            <div class="info-row">
+              <span class="label">Materia:</span>
+              <span class="value">${materia}</span>
+            </div>
+            ` : ''}
+          </div>
+
+          <div class="accion-box">
+            <strong>📋 ¿Qué hacer?</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+              <li>Si la inasistencia fue justificada, por favor presente la justificación correspondiente.</li>
+              <li>Puede justificar la falta a través del sistema o comunicándose con la institución.</li>
+              <li>Las inasistencias no justificadas afectan el récord de asistencia del estudiante.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Este es un mensaje automático del Sistema de Control Escolar.</p>
+          <p>Por favor, no responda a este correo.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  // CONTENIDO DEL SMS
+  const mensajeSMS = `❌ INASISTENCIA
+${estudianteNombre} ${estudianteApellido}
+Fecha: ${fechaFormateada}
+Grado: ${grado}° ${seccion}
+${materia ? `Materia: ${materia}` : ''}
+Por favor justifique la falta.
+- Sistema Escolar`
+
+  // ENVIAR NOTIFICACIONES EXTERNAS
+  console.log('📧 Enviando notificaciones de inasistencia...')
+  
+  const emailEnviado = await enviarEmail(emailApoderado, asuntoEmail, contenidoEmail)
+  const smsEnviado = await enviarSMS(telefonoApoderado, mensajeSMS)
+
+  console.log(`📧 Email inasistencia: ${emailEnviado ? '✅ Enviado' : '❌ Falló'}`)
+  console.log(`📱 SMS inasistencia: ${smsEnviado ? '✅ Enviado' : '❌ Falló'}`)
+
+  // CREAR NOTIFICACIÓN INTERNA EN EL SISTEMA
+  let notificacionCreada = false
+  if (apoderadoUsuarioId) {
+    try {
+      const { prisma } = await import('@/lib/prisma')
+      
+      await prisma.notificacion.create({
+        data: {
+          idUsuario: apoderadoUsuarioId,
+          titulo: `❌ Inasistencia - ${estudianteNombre}`,
+          mensaje: `Su hijo/a ${estudianteNombre} ${estudianteApellido} no asistió a clases el ${fechaFormateada}.${materia ? ` Materia: ${materia}.` : ''} Por favor justifique la falta si corresponde.`,
+          tipo: 'INASISTENCIA',
+          leida: false,
+          origen: 'SISTEMA'
+        }
+      })
+      
+      notificacionCreada = true
+      console.log('🔔 Notificación interna de inasistencia creada')
+    } catch (error) {
+      console.error('❌ Error creando notificación interna de inasistencia:', error)
+    }
+  }
+
+  return { emailEnviado, smsEnviado, notificacionCreada }
+}

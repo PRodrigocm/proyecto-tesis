@@ -155,114 +155,80 @@ export default function DocenteClases() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="px-3 sm:px-4 md:px-6 lg:px-8">
       {/* Header */}
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-bold text-gray-900">Mis Aulas</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Gestiona tus aulas asignadas y estudiantes
-          </p>
-        </div>
+      <div className="mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Aulas</h1>
+        <p className="mt-1 text-xs sm:text-sm text-gray-700">
+          Gestiona tus aulas y estudiantes
+        </p>
       </div>
 
 
       {/* Lista de Aulas */}
-      <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Cargando aulas...</span>
+          <div className="flex justify-center items-center py-8 sm:py-12">
+            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600 text-sm">Cargando...</span>
           </div>
         ) : (
           <>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900">
                 Aulas Asignadas ({aulas.length})
               </h3>
-              {user && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Usuario logueado: {user.nombre || user.nombres} {user.apellido || user.apellidos} (ID: {user.idUsuario || user.id})
-                </p>
-              )}
             </div>
             
             <div className="divide-y divide-gray-200">
               {aulas.map((aula: any) => (
-                <div key={aula.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                          </div>
+                <div key={aula.id} className="p-3 sm:p-4 md:p-6 hover:bg-gray-50 active:bg-gray-100">
+                  <div className="flex flex-col gap-3">
+                    {/* Header del aula */}
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg sm:text-xl">📚</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <h4 className="text-sm sm:text-lg font-medium text-gray-900">{aula.aula}</h4>
+                          <span className="px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-green-100 text-green-800">
+                            {aula.estado}
+                          </span>
                         </div>
-                        <div className="ml-4 flex-1">
-                          <div className="flex items-center">
-                            <h4 className="text-lg font-medium text-gray-900">{aula.aula}</h4>
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {aula.estado}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex items-center text-sm text-gray-500">
-                            <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            {aula.grado}° - Sección {aula.seccion}
-                            <span className="mx-2">•</span>
-                            <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                            {aula.materia}
-                          </div>
-                          <div className="mt-1 flex items-center text-sm text-gray-500">
-                            <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {aula.horario}
-                          </div>
-                          <div className="mt-1 flex items-center text-sm text-gray-500">
-                            <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                            </svg>
-                            {aula.estudiantes} estudiantes
-                          </div>
+                        <div className="mt-1 text-xs sm:text-sm text-gray-500">
+                          <span>{aula.grado}° - {aula.seccion}</span>
+                          <span className="mx-1.5">•</span>
+                          <span className="truncate">{aula.materia}</span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-gray-500 flex flex-wrap gap-x-3">
+                          <span>🕐 {aula.horario}</span>
+                          <span>👥 {aula.estudiantes}</span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row gap-2 ml-4">
+                    {/* Botones de acción */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
                         onClick={() => handleTomarAsistencia(aula.id)}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="flex-1 px-2 sm:px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 text-xs sm:text-sm font-medium min-h-[40px] transition-colors"
                       >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        Asistencia
+                        📋 <span className="hidden sm:inline">Asistencia</span>
                       </button>
                       
                       <button
                         onClick={() => handleVerEstudiantes(aula.id)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 text-xs sm:text-sm font-medium min-h-[40px] transition-colors"
                       >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                        </svg>
-                        Estudiantes
+                        👥 <span className="hidden sm:inline">Estudiantes</span>
                       </button>
                       
                       <button
                         onClick={() => handleVerReportes(aula.id)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 text-xs sm:text-sm font-medium min-h-[40px] transition-colors"
                       >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        Reportes
+                        📊 <span className="hidden sm:inline">Reportes</span>
                       </button>
                     </div>
                   </div>
@@ -270,13 +236,11 @@ export default function DocenteClases() {
               ))}
               
               {aulas.length === 0 && (
-                <div className="text-center py-12">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No hay aulas asignadas</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    No tienes aulas asignadas en este momento.
+                <div className="text-center py-8 sm:py-12">
+                  <div className="text-4xl sm:text-5xl mb-3">📚</div>
+                  <h3 className="text-sm font-medium text-gray-900">No hay aulas asignadas</h3>
+                  <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                    No tienes aulas asignadas
                   </p>
                 </div>
               )}
@@ -286,67 +250,41 @@ export default function DocenteClases() {
       </div>
 
       {/* Estadísticas Rápidas */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Aulas</dt>
-                  <dd className="text-lg font-medium text-gray-900">{aulas.length}</dd>
-                </dl>
-              </div>
+      <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-white overflow-hidden shadow rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm sm:text-lg">📚</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Aulas</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">{aulas.length}</p>
             </div>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Estudiantes</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {aulas.reduce((total, aula) => total + aula.estudiantes, 0)}
-                  </dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm sm:text-lg">👥</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Estudiantes</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">
+                {aulas.reduce((total, aula) => total + aula.estudiantes, 0)}
+              </p>
             </div>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Promedio por Aula</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {aulas.length > 0 ? Math.round(aulas.reduce((total, aula) => total + aula.estudiantes, 0) / aulas.length) : 0}
-                  </dd>
-                </dl>
-              </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm sm:text-lg">📊</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Promedio</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">
+                {aulas.length > 0 ? Math.round(aulas.reduce((total, aula) => total + aula.estudiantes, 0) / aulas.length) : 0}
+              </p>
             </div>
           </div>
         </div>

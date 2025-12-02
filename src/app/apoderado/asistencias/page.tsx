@@ -119,12 +119,12 @@ export default function AsistenciasPage() {
 
   if (loading && estudiantes.length === 0) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/2 sm:w-1/4 mb-4"></div>
+          <div className="space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              <div key={i} className="h-14 bg-gray-200 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -133,24 +133,26 @@ export default function AsistenciasPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Asistencias</h1>
-        <p className="text-gray-600">Consulta las asistencias de tus hijos y configura notificaciones</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <span>📋</span> Asistencias
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">Consulta asistencias y configura notificaciones</p>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Estudiante
+      <div className="bg-white shadow-md rounded-xl p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="sm:col-span-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+              👨‍🎓 Estudiante
             </label>
             <select
               value={selectedEstudiante}
               onChange={(e) => setSelectedEstudiante(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
             >
               {estudiantes.map((estudiante) => (
                 <option key={estudiante.id} value={estudiante.id}>
@@ -161,149 +163,198 @@ export default function AsistenciasPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fecha Inicio
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+              📅 Desde
             </label>
             <input
               type="date"
               value={fechaInicio}
               onChange={(e) => setFechaInicio(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fecha Fin
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+              📅 Hasta
             </label>
             <input
               type="date"
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
             />
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
+      <div className="bg-white shadow-md rounded-xl overflow-hidden">
+        <div className="border-b border-gray-200 overflow-x-auto">
+          <nav className="-mb-px flex px-2 sm:px-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-3 sm:py-4 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600 bg-blue-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.name}
+                <span className="mr-1 sm:mr-2">{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.name}</span>
+                <span className="sm:hidden">{tab.name.split(' ')[0]}</span>
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {activeTab === 'ie' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Entrada y Salida de la Institución</h3>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">🏫 Entrada y Salida IE</h3>
               {loading ? (
-                <div className="animate-pulse space-y-4">
+                <div className="animate-pulse space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                    <div key={i} className="h-14 bg-gray-200 rounded-lg"></div>
                   ))}
                 </div>
               ) : asistenciasIE.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">No hay registros de asistencia para el período seleccionado</p>
+                  <span className="text-4xl mb-2 block">📭</span>
+                  <p className="text-gray-500 text-sm">No hay registros para este período</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora Entrada</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora Salida</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {asistenciasIE.map((asistencia) => (
-                        <tr key={asistencia.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(asistencia.fecha).toLocaleDateString('es-ES')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asistencia.horaEntrada || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asistencia.horaSalida || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                              {asistencia.estado}
-                            </span>
-                          </td>
+                <>
+                  {/* Vista móvil - tarjetas */}
+                  <div className="sm:hidden space-y-2">
+                    {asistenciasIE.map((asistencia) => (
+                      <div key={asistencia.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {new Date(asistencia.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
+                            {asistencia.estado}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-gray-600">
+                          <span>🟢 {asistencia.horaEntrada || '--:--'}</span>
+                          <span>🔴 {asistencia.horaSalida || '--:--'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Vista desktop - tabla */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrada</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salida</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {asistenciasIE.map((asistencia) => (
+                          <tr key={asistencia.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(asistencia.fecha).toLocaleDateString('es-ES')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-green-600 font-medium">
+                              {asistencia.horaEntrada || '-'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {asistencia.horaSalida || '-'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
+                                {asistencia.estado}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           )}
 
           {activeTab === 'aulas' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Asistencia a Clases</h3>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">📚 Asistencia a Clases</h3>
               {loading ? (
-                <div className="animate-pulse space-y-4">
+                <div className="animate-pulse space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                    <div key={i} className="h-14 bg-gray-200 rounded-lg"></div>
                   ))}
                 </div>
               ) : asistenciasAulas.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">No hay registros de asistencia a clases para el período seleccionado</p>
+                  <span className="text-4xl mb-2 block">📭</span>
+                  <p className="text-gray-500 text-sm">No hay registros para este período</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aula</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {asistenciasAulas.map((asistencia) => (
-                        <tr key={asistencia.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(asistencia.fecha).toLocaleDateString('es-ES')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asistencia.hora}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asistencia.aula}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                              {asistencia.estado}
+                <>
+                  {/* Vista móvil - tarjetas */}
+                  <div className="sm:hidden space-y-2">
+                    {asistenciasAulas.map((asistencia) => (
+                      <div key={asistencia.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <span className="text-sm font-medium text-gray-900 block">
+                              {new Date(asistencia.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                             </span>
-                          </td>
+                            <span className="text-xs text-gray-500">{asistencia.aula}</span>
+                          </div>
+                          <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
+                            {asistencia.estado}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          🕐 {asistencia.hora}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Vista desktop - tabla */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aula</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {asistenciasAulas.map((asistencia) => (
+                          <tr key={asistencia.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(asistencia.fecha).toLocaleDateString('es-ES')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              {asistencia.hora}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {asistencia.aula}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
+                                {asistencia.estado}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           )}

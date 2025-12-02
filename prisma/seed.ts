@@ -162,8 +162,7 @@ async function main() {
   const estadosRetiro = [
     { codigo: 'PENDIENTE', nombre: 'Pendiente', orden: 1 },
     { codigo: 'AUTORIZADO', nombre: 'Autorizado', orden: 2 },
-    { codigo: 'COMPLETADO', nombre: 'Completado', orden: 3 },
-    { codigo: 'RECHAZADO', nombre: 'Rechazado', orden: 4 }
+    { codigo: 'RECHAZADO', nombre: 'Rechazado', orden: 3 }
   ]
 
   for (const estado of estadosRetiro) {

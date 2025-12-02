@@ -1,16 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import jwt from 'jsonwebtoken'
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
-    const ieId = url.searchParams.get('ieId')
+    let ieId = url.searchParams.get('ieId')
 
+    // Si no viene ieId en query, intentar obtenerlo del token
     if (!ieId) {
-      return NextResponse.json(
-        { error: 'Institution ID is required' },
-        { status: 400 }
-      )
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.substring(7)
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+          ieId = decoded.ieId?.toString() || '1'
+        } catch {
+          ieId = '1' // Default fallback
+        }
+      } else {
+        ieId = '1' // Default fallback
+      }
     }
 
     // Obtener grados que tienen GradoSeccion en la institución
@@ -18,7 +28,7 @@ export async function GET(request: NextRequest) {
       where: {
         grado: {
           nivel: {
-            idIe: parseInt(ieId)
+            idIe: parseInt(ieId || '1')
           }
         }
       },
@@ -36,17 +46,23 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Extraer grados únicos
+    // Extraer grados únicos y formatear para el frontend
     const gradosMap = new Map()
     gradoSecciones.forEach(gs => {
       if (!gradosMap.has(gs.grado.idGrado)) {
-        gradosMap.set(gs.grado.idGrado, gs.grado)
+        gradosMap.set(gs.grado.idGrado, {
+          id: gs.grado.idGrado.toString(),
+          idGrado: gs.grado.idGrado,
+          nombre: gs.grado.nombre,
+          nivel: gs.grado.nivel?.nombre || ''
+        })
       }
     })
     
     const grados = Array.from(gradosMap.values())
 
     return NextResponse.json({
+      grados: grados,
       data: grados,
       total: grados.length
     })

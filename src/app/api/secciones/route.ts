@@ -28,9 +28,14 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      const secciones = gradoSecciones.map(gs => gs.seccion)
+      const secciones = gradoSecciones.map(gs => ({
+        id: gs.seccion.idSeccion.toString(),
+        idSeccion: gs.seccion.idSeccion,
+        nombre: gs.seccion.nombre
+      }))
 
       return NextResponse.json({
+        secciones: secciones,
         data: secciones,
         total: secciones.length
       })
@@ -64,22 +69,34 @@ export async function GET(request: NextRequest) {
         }
       })
       
-      const secciones = Array.from(seccionesMap.values())
+      const seccionesArray = Array.from(seccionesMap.values()).map((s: any) => ({
+        id: s.idSeccion.toString(),
+        idSeccion: s.idSeccion,
+        nombre: s.nombre
+      }))
 
       return NextResponse.json({
-        data: secciones,
-        total: secciones.length
+        secciones: seccionesArray,
+        data: seccionesArray,
+        total: seccionesArray.length
       })
     }
 
     // Si no se proporciona ningún parámetro, obtener todas las secciones
-    const secciones = await prisma.seccion.findMany({
+    const seccionesDB = await prisma.seccion.findMany({
       orderBy: {
         nombre: 'asc'
       }
     })
 
+    const secciones = seccionesDB.map(s => ({
+      id: s.idSeccion.toString(),
+      idSeccion: s.idSeccion,
+      nombre: s.nombre
+    }))
+
     return NextResponse.json({
+      secciones: secciones,
       data: secciones,
       total: secciones.length
     })

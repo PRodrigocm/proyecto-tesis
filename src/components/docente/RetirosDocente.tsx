@@ -334,6 +334,7 @@ export default function RetirosDocente() {
       email: string
     } | null
   }>>([])
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
 
   // Cargar estudiantes al montar el componente
   useEffect(() => {
@@ -421,8 +422,8 @@ export default function RetirosDocente() {
   }
 
   const handleEditRetiro = (retiro: Retiro) => {
-    if (retiro.estado === 'AUTORIZADO' || retiro.estado === 'COMPLETADO') {
-      alert('No se puede editar un retiro que ya fue autorizado o completado')
+    if (retiro.estado === 'AUTORIZADO') {
+      alert('No se puede editar un retiro que ya fue autorizado')
       return
     }
     setEditingRetiro(retiro)
@@ -443,8 +444,8 @@ export default function RetirosDocente() {
   }
 
   const handleDeleteRetiro = async (retiro: Retiro) => {
-    if (retiro.estado === 'AUTORIZADO' || retiro.estado === 'COMPLETADO') {
-      alert('No se puede eliminar un retiro que ya fue autorizado o completado')
+    if (retiro.estado === 'AUTORIZADO') {
+      alert('No se puede eliminar un retiro que ya fue autorizado')
       return
     }
 
@@ -469,8 +470,7 @@ export default function RetirosDocente() {
     const badges = {
       'PENDIENTE': 'bg-yellow-100 text-yellow-800',
       'AUTORIZADO': 'bg-green-100 text-green-800',
-      'RECHAZADO': 'bg-red-100 text-red-800',
-      'COMPLETADO': 'bg-blue-100 text-blue-800'
+      'RECHAZADO': 'bg-red-100 text-red-800'
     }
     return badges[estado as keyof typeof badges] || 'bg-gray-100 text-gray-800'
   }
@@ -478,36 +478,42 @@ export default function RetirosDocente() {
   return (
     <div className="bg-white rounded-lg shadow-md">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center mb-2">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center">
           <button
             onClick={handleCreateRetiro}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium min-h-[44px] text-sm sm:text-base"
           >
             + Solicitar Retiro
+          </button>
+          <button
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="sm:hidden px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center justify-center gap-2"
+          >
+            🔍 {mostrarFiltros ? 'Ocultar Filtros' : 'Mostrar Filtros'}
           </button>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div>
+      <div className={`p-3 sm:p-4 md:p-6 border-b border-gray-200 ${mostrarFiltros ? 'block' : 'hidden sm:block'}`}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <div className="col-span-2 md:col-span-1">
             <input
               type="text"
-              placeholder="Buscar estudiante, DNI o motivo..."
+              placeholder="Buscar..."
               value={filters.searchTerm}
               onChange={(e) => updateFilters({ searchTerm: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             />
           </div>
           <div>
             <select
               value={filters.grado}
               onChange={(e) => updateFilters({ grado: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             >
-              <option value="">Todos los grados</option>
+              <option value="">Grado</option>
               {grados.map(grado => (
                 <option key={grado} value={grado}>{grado}°</option>
               ))}
@@ -517,13 +523,12 @@ export default function RetirosDocente() {
             <select
               value={filters.estado}
               onChange={(e) => updateFilters({ estado: e.target.value as any })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             >
-              <option value="TODOS">Todos los estados</option>
-              <option value="PENDIENTE">Pendientes</option>
-              <option value="AUTORIZADO">Autorizados</option>
-              <option value="RECHAZADO">Rechazados</option>
-              <option value="COMPLETADO">Completados</option>
+              <option value="TODOS">Estado</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="AUTORIZADO">Autorizado</option>
+              <option value="RECHAZADO">Rechazado</option>
             </select>
           </div>
           <div>
@@ -531,32 +536,28 @@ export default function RetirosDocente() {
               type="date"
               value={filters.fecha}
               onChange={(e) => updateFilters({ fecha: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             />
           </div>
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-            <div className="text-sm text-black">Total</div>
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-[10px] sm:text-sm text-black">Total</div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.pendientes}</div>
-            <div className="text-sm text-black">Pendientes</div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-yellow-600">{stats.pendientes}</div>
+            <div className="text-[10px] sm:text-sm text-black">Pend.</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.autorizados}</div>
-            <div className="text-sm text-black">Autorizados</div>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-green-600">{stats.autorizados}</div>
+            <div className="text-[10px] sm:text-sm text-black">Autoriz.</div>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-red-600">{stats.rechazados}</div>
-            <div className="text-sm text-black">Rechazados</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-600">{stats.completados}</div>
-            <div className="text-sm text-black">Completados</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-red-600">{stats.rechazados}</div>
+            <div className="text-[10px] sm:text-sm text-black">Rechaz.</div>
           </div>
         </div>
       </div>
@@ -570,132 +571,97 @@ export default function RetirosDocente() {
       )}
 
       {/* Lista de retiros */}
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         {retiros.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-6xl mb-4">🚪</div>
-            <h3 className="text-lg font-medium text-black mb-2">No hay retiros</h3>
-            <p className="text-black mb-4">
+          <div className="text-center py-6 sm:py-8">
+            <div className="text-gray-400 text-4xl sm:text-6xl mb-3 sm:mb-4">🚪</div>
+            <h3 className="text-base sm:text-lg font-medium text-black mb-2">No hay retiros</h3>
+            <p className="text-sm text-black mb-4">
               {filters.searchTerm || filters.grado || filters.estado !== 'TODOS' 
-                ? 'No se encontraron retiros que coincidan con los filtros' 
+                ? 'No se encontraron retiros' 
                 : 'Aún no se han solicitado retiros'
               }
             </p>
             <button
               onClick={handleCreateRetiro}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-sm min-h-[44px]"
             >
               Solicitar Primer Retiro
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {retiros.map((retiro) => (
               <div
                 key={retiro.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md active:bg-gray-50 transition-all"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  {/* Información principal */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-black">
-                        {retiro.estudiante.nombre} {retiro.estudiante.apellido}
-                      </h3>
-                      <span className="text-sm text-black">
-                        DNI: {retiro.estudiante.dni}
-                      </span>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        {retiro.estudiante.grado}° {retiro.estudiante.seccion}
-                      </span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getEstadoBadge(retiro.estado)}`}>
-                        {retiro.estado}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-black">Fecha:</span>
-                        <p className="text-black">{formatearFecha(retiro.fecha)}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-black">Hora:</span>
-                        <p className="text-black">{formatearHora(retiro.horaRetiro)}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-black">Motivo:</span>
-                        <p className="text-black">{retiro.motivo}</p>
-                      </div>
-                    </div>
-
-                    {retiro.personaRecoge && (
-                      <div className="mt-2 text-sm">
-                        <span className="font-medium text-black">Persona que recoge:</span>
-                        <span className="text-black ml-2">
-                          {retiro.personaRecoge}
-                          {retiro.dniPersonaRecoge && ` (DNI: ${retiro.dniPersonaRecoge})`}
-                        </span>
-                      </div>
-                    )}
-
-                    {retiro.observaciones && (
-                      <div className="mt-2 text-sm">
-                        <span className="font-medium text-black">Observaciones:</span>
-                        <p className="text-black mt-1">{retiro.observaciones}</p>
-                      </div>
-                    )}
-
-                    {retiro.autorizadoPor && (
-                      <div className="mt-2 p-3 bg-gray-50 rounded border">
-                        <div className="text-sm">
-                          <span className="font-medium text-black">
-                            {retiro.estado === 'AUTORIZADO' ? 'Autorizado' : 'Revisado'} por:
-                          </span>
-                          <span className="text-black ml-2">
-                            {retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}
-                          </span>
-                          {retiro.fechaAutorizacion && (
-                            <span className="text-black ml-4">
-                              el {formatearFecha(retiro.fechaAutorizacion)}
-                            </span>
-                          )}
-                        </div>
-                        {retiro.observacionesAutorizacion && (
-                          <div className="mt-2">
-                            <span className="font-medium text-black">Observaciones:</span>
-                            <p className="text-black mt-1">{retiro.observacionesAutorizacion}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                <div className="flex flex-col gap-3">
+                  {/* Header con nombre y badges */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-black text-sm sm:text-base">
+                      {retiro.estudiante.nombre} {retiro.estudiante.apellido}
+                    </h3>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      {retiro.estudiante.grado}° {retiro.estudiante.seccion}
+                    </span>
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${getEstadoBadge(retiro.estado)}`}>
+                      {retiro.estado}
+                    </span>
                   </div>
 
+                  {/* Info grid */}
+                  <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
+                    <div>
+                      <span className="font-medium text-gray-600">Fecha</span>
+                      <p className="text-black">{formatearFecha(retiro.fecha)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Hora</span>
+                      <p className="text-black">{formatearHora(retiro.horaRetiro)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Motivo</span>
+                      <p className="text-black truncate">{retiro.motivo}</p>
+                    </div>
+                  </div>
+
+                  {retiro.personaRecoge && (
+                    <div className="text-xs sm:text-sm text-gray-600">
+                      <span className="font-medium">Recoge:</span> {retiro.personaRecoge}
+                      {retiro.dniPersonaRecoge && <span className="hidden sm:inline"> (DNI: {retiro.dniPersonaRecoge})</span>}
+                    </div>
+                  )}
+
+                  {retiro.autorizadoPor && (
+                    <div className="text-xs bg-gray-50 rounded p-2 sm:p-3">
+                      <span className="font-medium text-gray-600">
+                        {retiro.estado === 'AUTORIZADO' ? '✅' : '📝'} {retiro.autorizadoPor.nombre}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Acciones */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
                     {retiro.estado === 'PENDIENTE' && (
                       <>
                         <button
                           onClick={() => handleEditRetiro(retiro)}
-                          className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+                          className="flex-1 sm:flex-none px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 active:bg-yellow-800 transition-colors text-xs sm:text-sm min-h-[40px]"
                         >
                           ✏️ Editar
                         </button>
                         <button
                           onClick={() => handleDeleteRetiro(retiro)}
-                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                          className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors text-xs sm:text-sm min-h-[40px]"
                         >
                           🗑️ Eliminar
                         </button>
                       </>
                     )}
                     {retiro.estado === 'AUTORIZADO' && (
-                      <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg text-sm">
-                        ✅ Listo para recoger
-                      </span>
-                    )}
-                    {retiro.estado === 'COMPLETADO' && (
-                      <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
-                        ✅ Completado
+                      <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg text-xs sm:text-sm">
+                        ✅ Autorizado
                       </span>
                     )}
                   </div>

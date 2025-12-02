@@ -30,7 +30,7 @@ export interface Retiro {
 export interface RetirosFilters {
   fecha: string
   grado: string
-  estado: 'TODOS' | 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO' | 'COMPLETADO'
+  estado: 'TODOS' | 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO'
   searchTerm: string
 }
 
@@ -166,27 +166,6 @@ export const useRetiros = () => {
     }
   }
 
-  const completarRetiro = async (retiroId: string) => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/retiros/${retiroId}/completar`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        loadRetiros()
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error completing retiro:', error)
-      return false
-    }
-  }
 
   const modificarRetiro = async (retiroId: string, data: {
     fecha?: string
@@ -211,18 +190,21 @@ export const useRetiros = () => {
 
       console.log('Respuesta del servidor:', response.status, response.statusText)
       
-      if (response.ok) {
-        const result = await response.json()
+      const result = await response.json()
+      
+      if (response.ok && result.success) {
         console.log('Resultado de la actualización:', result)
         loadRetiros()
         return true
       } else {
-        const error = await response.json()
-        console.error('Error del servidor:', error)
+        const errorMsg = result.error || result.message || `Error ${response.status}: ${response.statusText}`
+        console.error('Error del servidor:', errorMsg)
+        alert(`Error al modificar retiro: ${errorMsg}`)
+        return false
       }
-      return false
     } catch (error) {
       console.error('Error updating retiro:', error)
+      alert('Error de conexión al modificar retiro')
       return false
     }
   }
@@ -256,7 +238,6 @@ export const useRetiros = () => {
     total: filteredRetiros.length,
     pendientes: filteredRetiros.filter(r => r.estado === 'PENDIENTE').length,
     autorizados: filteredRetiros.filter(r => r.estado === 'AUTORIZADO').length,
-    completados: filteredRetiros.filter(r => r.estado === 'COMPLETADO').length,
     rechazados: filteredRetiros.filter(r => r.estado === 'RECHAZADO').length
   }
 
@@ -269,7 +250,6 @@ export const useRetiros = () => {
     loadRetiros,
     solicitarRetiro,
     autorizarRetiro,
-    completarRetiro,
     modificarRetiro,
     eliminarRetiro,
     updateFilters

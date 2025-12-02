@@ -77,24 +77,23 @@ export default function ReportesDocente() {
   return (
     <div className="bg-white rounded-lg shadow-md">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center mb-4">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
           <div>
-            <h2 className="text-xl font-bold text-black">Reportes de Asistencia</h2>
-            <p className="text-gray-600 text-sm">Genera reportes mensuales en formato Excel, PDF y Word</p>
+            <h2 className="text-lg sm:text-xl font-bold text-black">Reportes de Asistencia</h2>
+            <p className="text-gray-600 text-xs sm:text-sm">Genera reportes en Excel, PDF y Word</p>
           </div>
           {/* Info de envío automático */}
-          <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-2">
-            <p className="text-xs text-teal-700 font-medium">📧 Envío automático mensual</p>
-            <p className="text-xs text-teal-600">PDF, Excel y Word</p>
+          <div className="bg-teal-50 border border-teal-200 rounded-xl px-3 py-2">
+            <p className="text-xs text-teal-700 font-medium">📧 Envío automático</p>
           </div>
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              📅 Tipo de Reporte
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              📅 Tipo
             </label>
             <select
               value={filtrosForm.tipoReporte}
@@ -102,7 +101,7 @@ export default function ReportesDocente() {
                 ...prev, 
                 tipoReporte: e.target.value as 'semanal' | 'mensual' 
               }))}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white transition-all"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white text-sm"
             >
               <option value="semanal">Semanal</option>
               <option value="mensual">Mensual</option>
@@ -110,56 +109,56 @@ export default function ReportesDocente() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              📆 Fecha Inicio
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              📆 Inicio
             </label>
             <input
               type="date"
               value={filtrosForm.fechaInicio || ''}
               onChange={(e) => setFiltrosForm(prev => ({ ...prev, fechaInicio: e.target.value }))}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white transition-all"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white text-sm"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              📆 Fecha Fin
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              📆 Fin
             </label>
             <input
               type="date"
               value={filtrosForm.fechaFin || ''}
               onChange={(e) => setFiltrosForm(prev => ({ ...prev, fechaFin: e.target.value }))}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white transition-all"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white text-sm"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               🏫 Clase
             </label>
             <select
               value={filtrosForm.claseId || ''}
               onChange={(e) => setFiltrosForm(prev => ({ ...prev, claseId: e.target.value }))}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white transition-all"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white text-sm"
             >
-              <option value="">Todas las clases</option>
+              <option value="">Todas</option>
               {getClasesDisponibles().map(clase => (
                 <option key={clase.id} value={clase.id}>
-                  {clase.materia} - {clase.grado}° {clase.seccion}
+                  {clase.grado}° {clase.seccion}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-between items-center mt-4 gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center mt-3 gap-2 sm:gap-3">
           <button
             onClick={handleGenerarReporte}
             disabled={loading}
-            className="px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl hover:from-teal-600 hover:to-cyan-700 disabled:opacity-50 transition-all font-medium shadow-md"
+            className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 active:from-teal-700 active:to-cyan-800 disabled:opacity-50 transition-all font-medium shadow-md text-sm min-h-[44px]"
           >
             {loading ? (
-              <span className="flex items-center">
+              <span className="flex items-center justify-center">
                 <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -170,30 +169,30 @@ export default function ReportesDocente() {
           </button>
 
           {reporteData && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2">
               <button
                 onClick={() => handleExportar('pdf')}
-                className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors text-sm font-medium shadow-sm"
+                className="px-2 sm:px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 active:bg-red-700 transition-colors text-xs sm:text-sm font-medium shadow-sm min-h-[40px]"
               >
-                📕 PDF
+                📕 <span className="hidden sm:inline">PDF</span>
               </button>
               <button
                 onClick={() => handleExportar('excel')}
-                className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors text-sm font-medium shadow-sm"
+                className="px-2 sm:px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors text-xs sm:text-sm font-medium shadow-sm min-h-[40px]"
               >
-                📊 Excel
+                📊 <span className="hidden sm:inline">Excel</span>
               </button>
               <button
                 onClick={() => handleExportar('word')}
-                className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-sm font-medium shadow-sm"
+                className="px-2 sm:px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors text-xs sm:text-sm font-medium shadow-sm min-h-[40px]"
               >
-                📝 Word
+                📝 <span className="hidden sm:inline">Word</span>
               </button>
               <button
                 onClick={handleExportarTodos}
-                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all text-sm font-medium shadow-sm"
+                className="px-2 sm:px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 active:from-purple-700 active:to-pink-700 transition-all text-xs sm:text-sm font-medium shadow-sm min-h-[40px]"
               >
-                📦 Exportar Todos
+                📦 <span className="hidden sm:inline">Todos</span>
               </button>
             </div>
           )}
@@ -210,12 +209,12 @@ export default function ReportesDocente() {
 
       {/* Contenido del reporte */}
       {reporteData && !loading && (
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {/* Toggle de vista */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-4 sm:mb-6 w-full sm:w-fit">
             <button
               onClick={() => setVistaActual('resumen')}
-              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all min-h-[40px] ${
                 vistaActual === 'resumen' 
                   ? 'bg-white text-teal-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
@@ -225,70 +224,70 @@ export default function ReportesDocente() {
             </button>
             <button
               onClick={() => setVistaActual('detalle')}
-              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all min-h-[40px] ${
                 vistaActual === 'detalle' 
                   ? 'bg-white text-teal-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              📋 Tabla de Asistencia
+              📋 Tabla
             </button>
           </div>
 
           {/* Vista Resumen */}
           {vistaActual === 'resumen' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Estadísticas principales */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-blue-600">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-blue-600">
                     {reporteData.resumenEjecutivo.totalEstudiantes}
                   </div>
-                  <div className="text-sm text-blue-700 font-medium">Estudiantes</div>
+                  <div className="text-xs sm:text-sm text-blue-700 font-medium">Estudiantes</div>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-green-600">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-green-600">
                     {reporteData.resumenEjecutivo.porcentajes.asistencia}%
                   </div>
-                  <div className="text-sm text-green-700 font-medium">Asistencia</div>
+                  <div className="text-xs sm:text-sm text-green-700 font-medium">Asistencia</div>
                 </div>
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-yellow-600">
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-yellow-600">
                     {reporteData.resumenEjecutivo.estadisticasAsistencia.tardanza}
                   </div>
-                  <div className="text-sm text-yellow-700 font-medium">Tardanzas</div>
+                  <div className="text-xs sm:text-sm text-yellow-700 font-medium">Tardanzas</div>
                 </div>
-                <div className="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold text-red-600">
+                <div className="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-red-600">
                     {reporteData.resumenEjecutivo.totalRetiros}
                   </div>
-                  <div className="text-sm text-red-700 font-medium">Retiros</div>
+                  <div className="text-xs sm:text-sm text-red-700 font-medium">Retiros</div>
                 </div>
               </div>
 
               {/* Estadísticas avanzadas */}
               {estadisticasAvanzadas && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
-                    <h4 className="font-semibold text-green-800 mb-2 flex items-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg sm:rounded-xl p-3 sm:p-5">
+                    <h4 className="font-semibold text-green-800 mb-1 sm:mb-2 flex items-center text-sm sm:text-base">
                       <span className="mr-2">🏆</span> Mejor Asistencia
                     </h4>
-                    <p className="text-sm text-green-700">
+                    <p className="text-xs sm:text-sm text-green-700 truncate">
                       <strong>{estadisticasAvanzadas.mejorAsistencia.estudiante}</strong>
                     </p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">
+                    <p className="text-xl sm:text-2xl font-bold text-green-600 mt-1">
                       {estadisticasAvanzadas.mejorAsistencia.porcentaje}%
                     </p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-5">
-                    <h4 className="font-semibold text-yellow-800 mb-2 flex items-center">
+                  <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg sm:rounded-xl p-3 sm:p-5">
+                    <h4 className="font-semibold text-yellow-800 mb-1 sm:mb-2 flex items-center text-sm sm:text-base">
                       <span className="mr-2">⏰</span> Más Tardanzas
                     </h4>
-                    <p className="text-sm text-yellow-700">
+                    <p className="text-xs sm:text-sm text-yellow-700 truncate">
                       <strong>{estadisticasAvanzadas.masTardanzas.estudiante}</strong>
                     </p>
-                    <p className="text-2xl font-bold text-yellow-600 mt-1">
+                    <p className="text-xl sm:text-2xl font-bold text-yellow-600 mt-1">
                       {estadisticasAvanzadas.masTardanzas.cantidad} tardanzas
                     </p>
                   </div>
@@ -299,7 +298,7 @@ export default function ReportesDocente() {
 
           {/* Vista Detalle - Tabla estilo Excel */}
           {vistaActual === 'detalle' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Agrupar por grado y sección */}
               {(() => {
                 // Agrupar estudiantes por grado y sección
@@ -313,26 +312,27 @@ export default function ReportesDocente() {
                 const fechas = generarFechasTabla()
 
                 return Object.entries(grupos).map(([gradoSeccion, estudiantes]) => (
-                  <div key={gradoSeccion} className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div key={gradoSeccion} className="border border-gray-200 rounded-lg sm:rounded-xl overflow-hidden">
                     {/* Header del grupo */}
-                    <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 py-3">
-                      <h3 className="text-white font-bold">
-                        Grado y sección: <span className="text-teal-100">{gradoSeccion}</span>
+                    <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-3 sm:px-4 py-2 sm:py-3">
+                      <h3 className="text-white font-bold text-sm sm:text-base">
+                        <span className="hidden sm:inline">Grado y sección: </span>
+                        <span className="text-teal-100">{gradoSeccion}</span>
                       </h3>
                     </div>
 
                     {/* Tabla de asistencia */}
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
+                    <div className="overflow-x-auto -mx-px">
+                      <table className="min-w-full text-xs sm:text-sm">
                         <thead>
                           <tr className="bg-gray-50">
-                            <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-r border-gray-200 min-w-[200px]">
-                              Apellidos y nombre
+                            <th className="sticky left-0 bg-gray-50 px-2 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-r border-gray-200 min-w-[120px] sm:min-w-[200px]">
+                              Nombre
                             </th>
                             {fechas.map((fecha, idx) => (
                               <th 
                                 key={idx} 
-                                className="px-2 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 min-w-[60px]"
+                                className="px-1 sm:px-2 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200 min-w-[40px] sm:min-w-[60px]"
                               >
                                 {formatearFechaCorta(fecha)}
                               </th>
@@ -342,8 +342,9 @@ export default function ReportesDocente() {
                         <tbody className="divide-y divide-gray-100">
                           {estudiantes.map((estudiante, estIdx) => (
                             <tr key={estudiante.id} className={estIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
-                                {estudiante.apellido}, {estudiante.nombre}
+                              <td className="sticky left-0 bg-inherit px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 border-r border-gray-200 truncate max-w-[120px] sm:max-w-none">
+                                <span className="sm:hidden">{estudiante.apellido.split(' ')[0]}</span>
+                                <span className="hidden sm:inline">{estudiante.apellido}, {estudiante.nombre}</span>
                               </td>
                               {fechas.map((fecha, fechaIdx) => {
                                 // Buscar si hay asistencia para esta fecha
@@ -383,7 +384,7 @@ export default function ReportesDocente() {
                                 return (
                                   <td 
                                     key={fechaIdx} 
-                                    className={`px-2 py-3 text-center text-sm ${colorClass}`}
+                                    className={`px-1 sm:px-2 py-2 sm:py-3 text-center text-xs sm:text-sm ${colorClass}`}
                                   >
                                     {contenido}
                                   </td>
@@ -396,23 +397,23 @@ export default function ReportesDocente() {
                     </div>
 
                     {/* Leyenda */}
-                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                      <div className="flex flex-wrap gap-4 text-xs">
+                    <div className="bg-gray-50 px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-2 sm:gap-4 text-[10px] sm:text-xs">
                         <span className="flex items-center gap-1">
-                          <span className="w-5 h-5 bg-green-100 text-green-600 rounded flex items-center justify-center font-bold">X</span>
-                          Presente
+                          <span className="w-4 h-4 sm:w-5 sm:h-5 bg-green-100 text-green-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">X</span>
+                          <span className="hidden sm:inline">Presente</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-5 h-5 bg-yellow-100 text-yellow-600 rounded flex items-center justify-center font-bold">T</span>
-                          Tardanza
+                          <span className="w-4 h-4 sm:w-5 sm:h-5 bg-yellow-100 text-yellow-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">T</span>
+                          <span className="hidden sm:inline">Tardanza</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-5 h-5 bg-red-100 text-red-600 rounded flex items-center justify-center font-bold">F</span>
-                          Falta
+                          <span className="w-4 h-4 sm:w-5 sm:h-5 bg-red-100 text-red-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">F</span>
+                          <span className="hidden sm:inline">Falta</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center font-bold">J</span>
-                          Justificada
+                          <span className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">J</span>
+                          <span className="hidden sm:inline">Justificada</span>
                         </span>
                       </div>
                     </div>

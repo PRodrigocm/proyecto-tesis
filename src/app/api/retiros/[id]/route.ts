@@ -64,10 +64,10 @@ export async function PUT(
       }, { status: 404 })
     }
 
-    // Verificar que el retiro no esté en estado final
-    if (retiroExistente.estadoRetiro?.esFinal) {
+    // Verificar que el retiro no esté en estado RECHAZADO (único estado que no se puede editar)
+    if (retiroExistente.estadoRetiro?.codigo === 'RECHAZADO') {
       return NextResponse.json({ 
-        error: 'No se puede modificar un retiro en estado final' 
+        error: 'No se puede modificar un retiro rechazado' 
       }, { status: 400 })
     }
 

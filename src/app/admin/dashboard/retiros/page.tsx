@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRetiros } from '@/hooks/useRetiros'
 import RetirosTable from '@/components/admin/RetirosTable'
 import RetirosStats from '@/components/admin/RetirosStats'
-import CreateRetiroModal from '@/components/admin/CreateRetiroModal'
 
 interface Grado {
   idGrado: number
@@ -26,7 +25,6 @@ interface Estudiante {
 }
 
 export default function RetirosPage() {
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [gradosDB, setGradosDB] = useState<Grado[]>([])
   const [seccionesDB, setSeccionesDB] = useState<Seccion[]>([])
   const [estudiantesDB, setEstudiantesDB] = useState<Estudiante[]>([])
@@ -43,9 +41,7 @@ export default function RetirosPage() {
     grados,
     stats,
     loadRetiros,
-    solicitarRetiro,
     autorizarRetiro,
-    completarRetiro,
     modificarRetiro,
     eliminarRetiro,
     updateFilters
@@ -173,16 +169,6 @@ export default function RetirosPage() {
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Nuevo Retiro
-        </button>
       </div>
 
       {/* Filters mejorados */}
@@ -275,7 +261,6 @@ export default function RetirosPage() {
               <option value="TODOS">Todos los Estados</option>
               <option value="PENDIENTE">Pendientes</option>
               <option value="AUTORIZADO">Autorizados</option>
-              <option value="COMPLETADO">Completados</option>
               <option value="RECHAZADO">Rechazados</option>
             </select>
           </div>
@@ -311,18 +296,10 @@ export default function RetirosPage() {
         <RetirosTable
           retiros={retiros}
           onAutorizar={autorizarRetiro}
-          onCompletar={completarRetiro}
           onModificar={modificarRetiro}
           onEliminar={eliminarRetiro}
         />
       </div>
-
-      {/* Modal de crear retiro */}
-      <CreateRetiroModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSubmit={solicitarRetiro}
-      />
     </div>
   )
 }

@@ -62,7 +62,18 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
 
       if (response.ok) {
         const data = await response.json()
-        setNotifications(data.notifications || [])
+        // Mapear el formato del API al formato del componente
+        const notifs = (data.notificaciones || data.notifications || []).map((n: any) => ({
+          id: n.id?.toString() || n.idNotificacion?.toString() || '',
+          title: n.title || n.titulo || '',
+          message: n.message || n.mensaje || '',
+          type: n.type || n.tipo || 'info',
+          isRead: n.isRead ?? n.leida ?? false,
+          createdAt: n.createdAt || n.fechaEnvio || new Date().toISOString(),
+          relatedTo: n.relatedTo || n.origen || '',
+          actionUrl: n.actionUrl || ''
+        }))
+        setNotifications(notifs)
       }
     } catch (error) {
       console.error('Error loading notifications:', error)

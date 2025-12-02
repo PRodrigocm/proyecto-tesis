@@ -112,33 +112,36 @@ export default function SolicitarRetiro() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Solicitar Retiro</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Solicita el retiro anticipado de tu hijo de la institución educativa
+    <div className="p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <span>🚪</span> Solicitar Retiro
+        </h1>
+        <p className="mt-1 text-xs sm:text-sm text-gray-600">
+          Solicita el retiro anticipado de tu hijo
         </p>
       </div>
 
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow rounded-lg">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <div className="max-w-lg mx-auto">
+        <div className="bg-white shadow-md rounded-xl overflow-hidden">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
             {/* Selección de estudiante */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estudiante *
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                👨‍🎓 Estudiante *
               </label>
               <select
                 name="estudianteId"
                 value={formData.estudianteId}
                 onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                 required
               >
                 <option value="">Seleccionar estudiante</option>
@@ -152,49 +155,49 @@ export default function SolicitarRetiro() {
 
             {/* Tipo de retiro */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Retiro *
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                📋 Tipo de Retiro *
               </label>
               <select
                 name="tipoRetiro"
                 value={formData.tipoRetiro}
                 onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                 required
               >
-                <option value="TEMPRANO">Retiro Temprano</option>
-                <option value="EMERGENCIA">Emergencia</option>
-                <option value="MEDICO">Cita Médica</option>
-                <option value="FAMILIAR">Asunto Familiar</option>
+                <option value="TEMPRANO">🕐 Retiro Temprano</option>
+                <option value="EMERGENCIA">🚨 Emergencia</option>
+                <option value="MEDICO">🏥 Cita Médica</option>
+                <option value="FAMILIAR">👨‍👩‍👧 Asunto Familiar</option>
               </select>
             </div>
 
             {/* Fecha y hora */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha del Retiro *
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  📅 Fecha *
                 </label>
                 <input
                   type="date"
                   name="fecha"
                   value={formData.fecha}
                   onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hora del Retiro *
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  🕐 Hora *
                 </label>
                 <input
                   type="time"
                   name="hora"
                   value={formData.hora}
                   onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                   required
                 />
               </div>
@@ -202,75 +205,64 @@ export default function SolicitarRetiro() {
 
             {/* Motivo */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Motivo del Retiro *
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                ✏️ Motivo *
               </label>
               <input
                 type="text"
                 name="motivo"
                 value={formData.motivo}
                 onChange={handleInputChange}
-                placeholder="Ej: Cita médica, emergencia familiar, etc."
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                placeholder="Ej: Cita médica, emergencia..."
+                className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                 required
               />
             </div>
 
             {/* Observaciones */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Observaciones Adicionales
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                📝 Observaciones (Opcional)
               </label>
               <textarea
                 name="observaciones"
                 value={formData.observaciones}
                 onChange={handleInputChange}
-                rows={4}
-                placeholder="Información adicional sobre el retiro..."
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                rows={3}
+                placeholder="Información adicional..."
+                className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm resize-none"
               />
             </div>
 
             {/* Información importante */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex">
-                <svg className="h-5 w-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-medium text-blue-800 mb-2">Información Importante:</h4>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• La solicitud debe ser enviada con al menos 2 horas de anticipación</li>
-                    <li>• Para emergencias, puede solicitar el retiro inmediato</li>
-                    <li>• Debe presentarse personalmente o enviar a una persona autorizada</li>
-                    <li>• Traer documento de identidad para retirar al estudiante</li>
-                  </ul>
-                </div>
-              </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+              <p className="text-xs text-blue-700">
+                ℹ️ Envíe con 2h de anticipación. Para emergencias, retiro inmediato. Presente DNI al retirar.
+              </p>
             </div>
 
             {/* Botones */}
-            <div className="flex justify-end space-x-4">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => router.push('/apoderado/dashboard')}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors text-sm"
                 disabled={submitting}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 text-sm"
                 disabled={submitting}
               >
                 {submitting ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                     Enviando...
-                  </div>
+                  </span>
                 ) : (
-                  'Enviar Solicitud'
+                  '✅ Enviar'
                 )}
               </button>
             </div>

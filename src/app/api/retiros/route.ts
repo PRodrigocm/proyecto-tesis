@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
+import { 
+  notificarRetiroCreadoPorApoderado, 
+  notificarRetiroCreadoPorDocente 
+} from '@/lib/retiro-notifications'
 
 // Función para actualizar la asistencia cuando se crea un retiro
 async function actualizarAsistenciaPorRetiro(tx: any, params: {
@@ -438,6 +442,73 @@ export async function POST(request: NextRequest) {
     })
     
     console.log(`✅ Retiro y asistencia procesados exitosamente`)
+
+    // Obtener información del estudiante para notificaciones
+    const estudianteInfo = await prisma.estudiante.findUnique({
+      where: { idEstudiante: parseInt(estudianteId) },
+      include: {
+        usuario: true,
+        gradoSeccion: {
+          include: {
+            grado: true,
+            seccion: true
+          }
+        }
+      }
+    })
+
+    // Obtener información del creador
+    let creadorInfo = null
+    let creadorRol = 'DESCONOCIDO'
+    if (userId) {
+      const creador = await prisma.usuario.findUnique({
+        where: { idUsuario: userId },
+        include: {
+          roles: {
+            include: { rol: true }
+          }
+        }
+      })
+      if (creador) {
+        creadorInfo = {
+          id: creador.idUsuario,
+          nombre: creador.nombre || '',
+          apellido: creador.apellido || '',
+          rol: creador.roles[0]?.rol?.nombre || 'USUARIO',
+          email: creador.email || undefined
+        }
+        creadorRol = creador.roles[0]?.rol?.nombre || 'USUARIO'
+      }
+    }
+
+    // Enviar notificaciones según quién creó el retiro
+    if (estudianteInfo && creadorInfo) {
+      const notificationData = {
+        retiroId: resultado.idRetiro,
+        estudianteNombre: estudianteInfo.usuario.nombre || '',
+        estudianteApellido: estudianteInfo.usuario.apellido || '',
+        estudianteDNI: estudianteInfo.usuario.dni,
+        grado: estudianteInfo.gradoSeccion?.grado?.nombre || '',
+        seccion: estudianteInfo.gradoSeccion?.seccion?.nombre || '',
+        fecha: fechaRetiro.toISOString(),
+        horaRetiro: horaRetiro,
+        motivo: motivo,
+        observaciones: observaciones,
+        personaRecoge: personaRecoge,
+        ieId: ieId
+      }
+
+      // Flujo de aprobación cruzada
+      if (creadorRol === 'APODERADO') {
+        // Si crea el apoderado -> notificar a docentes y admin
+        console.log('📧 Notificando retiro creado por APODERADO...')
+        await notificarRetiroCreadoPorApoderado(notificationData, creadorInfo)
+      } else if (creadorRol === 'DOCENTE' || creadorRol === 'AUXILIAR') {
+        // Si crea el docente -> notificar a apoderados y admin
+        console.log('📧 Notificando retiro creado por DOCENTE/AUXILIAR...')
+        await notificarRetiroCreadoPorDocente(notificationData, creadorInfo)
+      }
+    }
 
     const mensaje = esAdministrativo 
       ? 'Retiro aprobado y asistencia actualizada exitosamente'

@@ -6,12 +6,11 @@ import EditRetiroModal from './EditRetiroModal'
 interface RetirosTableProps {
   retiros: Retiro[]
   onAutorizar: (retiroId: string, autorizado: boolean, observaciones?: string) => Promise<boolean>
-  onCompletar: (retiroId: string) => Promise<boolean>
   onModificar: (retiroId: string, data: any) => Promise<boolean>
   onEliminar: (retiroId: string) => Promise<boolean>
 }
 
-export default function RetirosTable({ retiros, onAutorizar, onCompletar, onModificar, onEliminar }: RetirosTableProps) {
+export default function RetirosTable({ retiros, onAutorizar, onModificar, onEliminar }: RetirosTableProps) {
   const [selectedRetiro, setSelectedRetiro] = useState<Retiro | null>(null)
   const [showViewModal, setShowViewModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -57,8 +56,6 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar, onModi
       case 'PENDIENTE':
         return 'bg-yellow-100 text-yellow-800'
       case 'AUTORIZADO':
-        return 'bg-blue-100 text-blue-800'
-      case 'COMPLETADO':
         return 'bg-green-100 text-green-800'
       case 'RECHAZADO':
         return 'bg-red-100 text-red-800'
@@ -187,17 +184,6 @@ export default function RetirosTable({ retiros, onAutorizar, onCompletar, onModi
                         ❌ Rechazar
                       </button>
                     </div>
-                  )}
-                  
-                  {/* Botón de completar */}
-                  {retiro.estado === 'AUTORIZADO' && (
-                    <button
-                      onClick={() => onCompletar(retiro.id)}
-                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200"
-                      title="Marcar como completado"
-                    >
-                      ✅ Completar
-                    </button>
                   )}
                   
                   {/* Mostrar quién autorizó */}

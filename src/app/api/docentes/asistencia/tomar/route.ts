@@ -400,8 +400,16 @@ export async function GET(request: NextRequest) {
       let estadoFrontend = 'sin_registrar'
       let horaLlegada = null
       
-      // Primero verificar asistencia en aula (Asistencia)
-      if (asistenciaDelDia?.estadoAsistencia?.codigo) {
+      // PRIMERO: Si tiene retiro COMPLETADO ese día, mostrar como RETIRADO
+      if (retiroDelDia && retiroDelDia.estadoRetiro?.codigo === 'COMPLETADO') {
+        estadoFrontend = 'retirado'
+        horaLlegada = retiroDelDia.hora?.toLocaleTimeString('es-ES', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }) || null
+      }
+      // Verificar asistencia en aula (Asistencia)
+      else if (asistenciaDelDia?.estadoAsistencia?.codigo) {
         const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toUpperCase()
         switch (codigoEstado) {
           case 'PRESENTE':

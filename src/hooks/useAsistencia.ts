@@ -54,7 +54,7 @@ export const useAsistencia = () => {
         ...(filters.sesion !== 'TODOS' && { sesion: filters.sesion })
       })
 
-      const response = await fetch(`/api/asistencias?${params}`, {
+      const response = await fetch(`/api/asistencia?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -88,7 +88,7 @@ export const useAsistencia = () => {
   const marcarAsistencia = async (estudianteId: string, estado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'JUSTIFICADO', observaciones?: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/asistencias', {
+      const response = await fetch('/api/asistencia', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ export const useAsistencia = () => {
   const registrarSalida = async (asistenciaId: string) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/asistencias/${asistenciaId}/salida`, {
+      const response = await fetch(`/api/asistencia/${asistenciaId}/salida`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

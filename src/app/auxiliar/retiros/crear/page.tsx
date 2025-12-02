@@ -398,7 +398,7 @@ export default function CrearRetiro() {
                 <div className="mt-2 text-sm text-yellow-700">
                   <ul className="list-disc list-inside space-y-1">
                     <li>El retiro se creará en estado PENDIENTE</li>
-                    <li>Requiere autorización antes de ser completado</li>
+                    <li>Requiere autorización del administrativo</li>
                     <li>Solo estudiantes presentes pueden ser retirados</li>
                     <li>Verifique que el apoderado esté autorizado para retirar al estudiante</li>
                   </ul>

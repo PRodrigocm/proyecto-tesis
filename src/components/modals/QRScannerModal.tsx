@@ -443,17 +443,18 @@ export default function QRScannerModal({
   return (
     <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center p-0 md:p-4">
       <div className="bg-white rounded-none md:rounded-lg shadow-xl w-full h-full md:max-w-6xl md:max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
+        {/* Header - Botón de cierre grande y accesible */}
         <div className="flex justify-between items-center p-3 md:p-6 border-b flex-shrink-0">
-          <div>
-            <h2 className="text-base md:text-xl font-bold text-black">Scanner QR - Control de Asistencia</h2>
+          <div className="flex-1">
+            <h2 className="text-base md:text-xl font-bold text-black">Scanner QR</h2>
             <p className="text-xs md:text-sm text-black font-medium">
-              Modo: {accionSeleccionada === 'entrada' ? 'Registro de Entrada' : 'Registro de Salida'}
+              {accionSeleccionada === 'entrada' ? '🟢 Entrada' : '🔵 Salida'}
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 text-xl font-bold transition-colors"
+            aria-label="Cerrar"
           >
             ×
           </button>
@@ -617,20 +618,12 @@ export default function QRScannerModal({
                       </div>
                     )}
                     
-                    <div 
-                      id="qr-reader-auxiliar" 
-                      className="w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden [&_video]:w-full [&_video]:h-full [&_video]:object-cover"
-                      style={{ 
-                        height: '400px'
-                      }}
-                    />
-                    
                     {!scannerActive && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                         <button
                           onClick={iniciarEscaner}
                           disabled={!camaraSeleccionada || permisosCamara !== 'granted'}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                          className="px-6 py-4 bg-blue-600 text-white text-lg font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed min-h-[56px] min-w-[200px]"
                         >
                           📷 Iniciar Cámara
                         </button>
@@ -675,20 +668,20 @@ export default function QRScannerModal({
                       type="text"
                       value={qrCode}
                       onChange={(e) => setQrCode(e.target.value)}
-                      placeholder="Ingresar código QR del estudiante"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
+                      placeholder="Ingresar código QR"
+                      className="flex-1 px-3 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black min-h-[48px]"
                       onKeyPress={(e) => e.key === 'Enter' && handleQRScan()}
                     />
                     <button
                       onClick={handleQRScan}
                       disabled={!qrCode.trim()}
-                      className={`inline-flex items-center px-3 md:px-4 py-2 border border-transparent text-xs md:text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white min-h-[48px] min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed ${
                         accionSeleccionada === 'entrada' 
-                          ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                          : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                          ? 'bg-green-600 hover:bg-green-700 active:bg-green-800'
+                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
                       }`}
                     >
-                      <QrCodeIcon className="h-4 w-4 mr-1 md:mr-2" />
+                      <QrCodeIcon className="h-5 w-5 mr-1" />
                       {accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'}
                     </button>
                   </div>
@@ -748,16 +741,16 @@ export default function QRScannerModal({
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-between items-center gap-2 md:gap-3 mt-3 md:mt-6 pt-3 md:pt-6 border-t flex-shrink-0">
+          {/* Footer - Botones grandes y táctiles */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3 mt-3 md:mt-6 pt-3 md:pt-6 border-t flex-shrink-0">
             <button
               onClick={() => setEstudiantesEscaneados([])}
-              className="px-3 md:px-4 py-2 border border-gray-300 text-black text-sm font-medium rounded-md hover:bg-gray-50"
+              className="px-4 py-3 border border-gray-300 text-black text-sm font-medium rounded-lg hover:bg-gray-50 active:bg-gray-100 min-h-[48px] order-2 sm:order-1"
             >
-              Limpiar Lista
+              🗑️ Limpiar
             </button>
             
-            <div className="flex gap-2 md:gap-3">
+            <div className="flex gap-2 md:gap-3 order-1 sm:order-2">
               <button
                 onClick={async () => {
                   if (estudiantesEscaneados.length === 0) {
@@ -765,7 +758,6 @@ export default function QRScannerModal({
                     return
                   }
                   
-                  // Aquí se guardará la asistencia
                   try {
                     const token = localStorage.getItem('token')
                     const response = await fetch('/api/auxiliar/asistencia/guardar', {
@@ -781,30 +773,30 @@ export default function QRScannerModal({
                     })
                     
                     if (response.ok) {
-                      alert(`✅ Asistencia guardada exitosamente para ${estudiantesEscaneados.length} estudiantes`)
+                      alert(`✅ Asistencia guardada para ${estudiantesEscaneados.length} estudiantes`)
                       setEstudiantesEscaneados([])
                       onClose()
                     } else {
                       const error = await response.json()
-                      alert(`❌ Error: ${error.message || 'No se pudo guardar la asistencia'}`)
+                      alert(`❌ Error: ${error.message || 'No se pudo guardar'}`)
                     }
                   } catch (error) {
                     console.error('Error guardando asistencia:', error)
-                    alert('❌ Error al guardar la asistencia')
+                    alert('❌ Error al guardar')
                   }
                 }}
                 disabled={estudiantesEscaneados.length === 0}
-                className="px-3 md:px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="flex-1 sm:flex-none px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[48px]"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Guardar Asistencia
+                <span className="hidden sm:inline">Guardar</span>
               </button>
               
               <button
                 onClick={handleClose}
-                className="px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                className="flex-1 sm:flex-none px-4 py-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 active:bg-gray-800 min-h-[48px]"
               >
                 Cerrar
               </button>

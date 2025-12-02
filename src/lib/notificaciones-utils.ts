@@ -192,13 +192,39 @@ export async function limpiarNotificacionesAntiguas(diasAntiguedad: number = 30)
  */
 export const notificacionesRetiro = {
   /**
-   * Notifica cuando se solicita un retiro
+   * Notifica cuando se solicita un retiro (para aprobadores)
    */
-  async solicitudCreada(idUsuario: number, nombreEstudiante: string, fecha: string) {
+  async solicitudCreada(idUsuario: number, nombreEstudiante: string, fecha: string, creadoPor: string) {
     return crearNotificacion({
       idUsuario,
-      titulo: 'Solicitud de Retiro Creada',
-      mensaje: `Se ha creado una solicitud de retiro para ${nombreEstudiante} el día ${fecha}.`,
+      titulo: '🚪 Nueva Solicitud de Retiro',
+      mensaje: `${creadoPor} ha solicitado un retiro para ${nombreEstudiante} el día ${fecha}. Requiere su aprobación.`,
+      tipo: 'RETIRO',
+      origen: 'Módulo de Retiros'
+    })
+  },
+
+  /**
+   * Notifica cuando un retiro requiere aprobación del apoderado
+   */
+  async requiereAprobacionApoderado(idUsuario: number, nombreEstudiante: string, fecha: string, creadoPor: string) {
+    return crearNotificacion({
+      idUsuario,
+      titulo: '⚠️ Retiro Pendiente de Aprobación',
+      mensaje: `El docente ${creadoPor} ha solicitado un retiro para su hijo/a ${nombreEstudiante} el día ${fecha}. Por favor, apruebe o rechace esta solicitud.`,
+      tipo: 'RETIRO',
+      origen: 'Módulo de Retiros'
+    })
+  },
+
+  /**
+   * Notifica cuando un retiro requiere aprobación del docente/admin
+   */
+  async requiereAprobacionDocente(idUsuario: number, nombreEstudiante: string, fecha: string, apoderadoNombre: string) {
+    return crearNotificacion({
+      idUsuario,
+      titulo: '🚪 Retiro Solicitado por Apoderado',
+      mensaje: `El apoderado ${apoderadoNombre} ha solicitado un retiro para ${nombreEstudiante} el día ${fecha}. Requiere su autorización.`,
       tipo: 'RETIRO',
       origen: 'Módulo de Retiros'
     })
@@ -207,11 +233,11 @@ export const notificacionesRetiro = {
   /**
    * Notifica cuando se aprueba un retiro
    */
-  async retiroAprobado(idUsuario: number, nombreEstudiante: string, fecha: string) {
+  async retiroAprobado(idUsuario: number, nombreEstudiante: string, fecha: string, aprobadoPor: string) {
     return crearNotificacion({
       idUsuario,
-      titulo: 'Retiro Aprobado',
-      mensaje: `El retiro de ${nombreEstudiante} para el día ${fecha} ha sido aprobado.`,
+      titulo: '✅ Retiro Aprobado',
+      mensaje: `El retiro de ${nombreEstudiante} para el día ${fecha} ha sido aprobado por ${aprobadoPor}.`,
       tipo: 'RETIRO',
       origen: 'Módulo de Retiros'
     })
@@ -224,7 +250,7 @@ export const notificacionesRetiro = {
     const mensajeMotivo = motivo ? ` Motivo: ${motivo}` : ''
     return crearNotificacion({
       idUsuario,
-      titulo: 'Retiro Rechazado',
+      titulo: '❌ Retiro Rechazado',
       mensaje: `El retiro de ${nombreEstudiante} para el día ${fecha} ha sido rechazado.${mensajeMotivo}`,
       tipo: 'ALERTA',
       origen: 'Módulo de Retiros'

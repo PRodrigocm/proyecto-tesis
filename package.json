@@ -63,7 +63,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "prisma": "^6.18.0",
+    "prisma": "^7.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.7.0",
     "typescript": "^5"

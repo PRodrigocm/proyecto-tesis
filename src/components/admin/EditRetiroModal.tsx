@@ -50,6 +50,13 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
   }, [isOpen])
 
   const loadEstadosRetiro = async () => {
+    // Solo mostrar los 3 estados válidos: Pendiente, Autorizado, Rechazado
+    const estadosValidos = [
+      { idEstadoRetiro: 1, codigo: 'PENDIENTE', nombre: 'Pendiente' },
+      { idEstadoRetiro: 2, codigo: 'AUTORIZADO', nombre: 'Autorizado' },
+      { idEstadoRetiro: 3, codigo: 'RECHAZADO', nombre: 'Rechazado' }
+    ]
+    
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/estados-retiro', {
@@ -60,13 +67,17 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Estados retiro cargados:', data.estados)
-        setEstadosRetiro(data.estados || [])
+        // Filtrar solo los estados válidos
+        const estadosFiltrados = (data.estados || []).filter((e: any) => 
+          ['PENDIENTE', 'AUTORIZADO', 'RECHAZADO'].includes(e.codigo)
+        )
+        setEstadosRetiro(estadosFiltrados.length > 0 ? estadosFiltrados : estadosValidos)
       } else {
-        console.error('Error response:', response.status, response.statusText)
+        setEstadosRetiro(estadosValidos)
       }
     } catch (error) {
       console.error('Error loading estados retiro:', error)
+      setEstadosRetiro(estadosValidos)
     }
   }
 
@@ -101,8 +112,6 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
       case 'PENDIENTE':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       case 'AUTORIZADO':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'COMPLETADO':
         return 'bg-green-100 text-green-800 border-green-200'
       case 'RECHAZADO':
         return 'bg-red-100 text-red-800 border-red-200'
@@ -117,8 +126,6 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
         return '⏳'
       case 'AUTORIZADO':
         return '✅'
-      case 'COMPLETADO':
-        return '🏁'
       case 'RECHAZADO':
         return '❌'
       default:

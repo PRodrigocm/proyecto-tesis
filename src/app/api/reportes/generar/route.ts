@@ -2572,7 +2572,7 @@ async function generateDocentesAsignacionesData(ieId: number) {
       },
       include: {
         usuario: true,
-        aulas: {
+        docenteAulas: {
           include: {
             gradoSeccion: {
               include: {
@@ -2592,8 +2592,8 @@ async function generateDocentesAsignacionesData(ieId: number) {
     const reportData: any[] = []
 
     docentes.forEach((docente, index) => {
-      const asignaciones = docente.aulas.map(aula => 
-        `${aula.gradoSeccion?.grado?.nombre || '?'}° ${aula.gradoSeccion?.seccion?.nombre || '?'}`
+      const asignaciones = docente.docenteAulas.map((da: any) => 
+        `${da.gradoSeccion?.grado?.nombre || '?'}° ${da.gradoSeccion?.seccion?.nombre || '?'}`
       ).join(', ') || 'Sin asignaciones'
 
       reportData.push({
@@ -2603,7 +2603,7 @@ async function generateDocentesAsignacionesData(ieId: number) {
         'Email': docente.usuario.email || 'N/A',
         'Teléfono': docente.usuario.telefono || 'N/A',
         'Aulas Asignadas': asignaciones,
-        'Total Aulas': docente.aulas.length.toString()
+        'Total Aulas': docente.docenteAulas.length.toString()
       })
     })
 

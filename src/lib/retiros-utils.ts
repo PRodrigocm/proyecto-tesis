@@ -57,13 +57,9 @@ export async function puedeGestionarEstudiante(idApoderado: number, idEstudiante
  */
 export async function inicializarEstadosRetiro() {
   const estadosBasicos = [
-    { codigo: 'SOLICITADO', nombre: 'Solicitado', orden: 1 },
-    { codigo: 'EN_REVISION', nombre: 'En Revisión', orden: 2 },
-    { codigo: 'APROBADO', nombre: 'Aprobado', orden: 3 },
-    { codigo: 'RECHAZADO', nombre: 'Rechazado', orden: 4, esFinal: true },
-    { codigo: 'EN_PROCESO', nombre: 'En Proceso', orden: 5 },
-    { codigo: 'COMPLETADO', nombre: 'Completado', orden: 6, esFinal: true },
-    { codigo: 'CANCELADO', nombre: 'Cancelado', orden: 7, esFinal: true }
+    { codigo: 'PENDIENTE', nombre: 'Pendiente', orden: 1 },
+    { codigo: 'AUTORIZADO', nombre: 'Autorizado', orden: 2, esFinal: true },
+    { codigo: 'RECHAZADO', nombre: 'Rechazado', orden: 3, esFinal: true }
   ]
 
   for (const estado of estadosBasicos) {

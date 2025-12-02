@@ -381,16 +381,16 @@ export default function HorariosDocente() {
   return (
     <div className="bg-white rounded-lg shadow-md">
       {/* Header con toggle de vista */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center mb-4">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3 sm:mb-4">
           <div>
-            <h2 className="text-xl font-bold text-black">Mis Horarios de Clase</h2>
-            <p className="text-black">Gestiona tus horarios y ajusta las tolerancias de asistencia</p>
+            <h2 className="text-lg sm:text-xl font-bold text-black">Mis Horarios</h2>
+            <p className="text-xs sm:text-sm text-gray-600">Gestiona horarios y tolerancias</p>
           </div>
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
             <button
               onClick={() => setVistaActual('lista')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors min-h-[40px] ${
                 vistaActual === 'lista' 
                   ? 'bg-white text-blue-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
@@ -400,65 +400,61 @@ export default function HorariosDocente() {
             </button>
             <button
               onClick={() => setVistaActual('calendario')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors min-h-[40px] ${
                 vistaActual === 'calendario' 
                   ? 'bg-white text-blue-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              📅 Calendario
+              📅 <span className="hidden sm:inline">Calendario</span><span className="sm:hidden">Cal.</span>
             </button>
           </div>
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-            <div className="text-sm text-black">Total Horarios</div>
+        <div className="grid grid-cols-4 sm:grid-cols-4 gap-1.5 sm:gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-[10px] sm:text-sm text-black">Total</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.total}</div>
-            <div className="text-sm text-black">Total</div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-gray-600">{stats.grados}</div>
+            <div className="text-[10px] sm:text-sm text-black">Grados</div>
           </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-gray-600">{stats.grados}</div>
-            <div className="text-sm text-black">Grados</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-600">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-purple-600">
               {horarios.length > 0 ? Math.round(horarios.reduce((acc, h) => acc + h.toleranciaMin, 0) / horarios.length) : 0}
             </div>
-            <div className="text-sm text-black">Tolerancia Promedio</div>
+            <div className="text-[10px] sm:text-sm text-black">Tol. Prom.</div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-yellow-600">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-yellow-600">
               {horarios.filter(h => h.toleranciaMin > 15).length}
             </div>
-            <div className="text-sm text-black">Alta Tolerancia</div>
+            <div className="text-[10px] sm:text-sm text-black">Alta Tol.</div>
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
+      <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+          <div className="col-span-2 md:col-span-1">
             <input
               type="text"
-              placeholder="Buscar por materia..."
+              placeholder="Buscar..."
               value={filters.docente}
               onChange={(e) => updateFilters({ docente: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             />
           </div>
           <div>
             <select
               value={filters.grado}
               onChange={(e) => updateFilters({ grado: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             >
-              <option value="">Todos los grados</option>
+              <option value="">Grado</option>
               {grados.map(grado => (
                 <option key={grado} value={grado}>{grado}°</option>
               ))}
@@ -468,9 +464,9 @@ export default function HorariosDocente() {
             <select
               value={filters.seccion}
               onChange={(e) => updateFilters({ seccion: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             >
-              <option value="">Todas las secciones</option>
+              <option value="">Sección</option>
               {secciones.map(seccion => (
                 <option key={seccion} value={seccion}>{seccion}</option>
               ))}
@@ -480,11 +476,11 @@ export default function HorariosDocente() {
             <select
               value={filters.diaSemana}
               onChange={(e) => updateFilters({ diaSemana: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white shadow-sm transition-all duration-200 hover:border-gray-400"
+              className="w-full px-2 sm:px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white text-sm"
             >
-              <option value="">Todos los días</option>
+              <option value="">Día</option>
               {diasSemana.map(dia => (
-                <option key={dia} value={dia}>{dia}</option>
+                <option key={dia} value={dia}>{dia.slice(0, 3)}</option>
               ))}
             </select>
           </div>
@@ -501,69 +497,68 @@ export default function HorariosDocente() {
 
       {/* Vista Lista */}
       {vistaActual === 'lista' && (
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {horarios.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400 text-6xl mb-4">📚</div>
-              <h3 className="text-lg font-medium text-black mb-2">No hay horarios asignados</h3>
-              <p className="text-black">
-                Aún no tienes horarios de clase asignados o no coinciden con los filtros aplicados.
+            <div className="text-center py-6 sm:py-8">
+              <div className="text-gray-400 text-4xl sm:text-6xl mb-3 sm:mb-4">📚</div>
+              <h3 className="text-base sm:text-lg font-medium text-black mb-2">No hay horarios</h3>
+              <p className="text-xs sm:text-sm text-gray-600">
+                No tienes horarios asignados
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
               {horarios.map((horario) => (
                 <div
                   key={horario.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md active:bg-gray-50 transition-all"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    {/* Información principal */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-black text-lg">
-                          {horario.materia}
-                        </h3>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                          {horario.grado}° {horario.seccion}
-                        </span>
-                        <span className={`px-2 py-1 text-sm rounded-full ${getDiaColor(horario.diaSemana)}`}>
-                          {horario.diaSemana}
-                        </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getToleranciaColor(horario.toleranciaMin)}`}>
-                          ⏰ {horario.toleranciaMin} min
-                        </span>
-                      </div>
+                  <div className="flex flex-col gap-3">
+                    {/* Header con badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <h3 className="font-semibold text-black text-sm sm:text-lg">
+                        {horario.materia}
+                      </h3>
+                      <span className="px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] sm:text-sm rounded-full">
+                        {horario.grado}° {horario.seccion}
+                      </span>
+                      <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-sm rounded-full ${getDiaColor(horario.diaSemana)}`}>
+                        {horario.diaSemana.slice(0, 3)}
+                      </span>
+                      <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs rounded-full ${getToleranciaColor(horario.toleranciaMin)}`}>
+                        ⏰ {horario.toleranciaMin}m
+                      </span>
+                    </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-black">Horario:</span>
-                          <p className="text-black">{horario.horaInicio} - {horario.horaFin}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-black">Aula:</span>
-                          <p className="text-black">{horario.aula}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-black">Tipo:</span>
-                          <p className="text-black">{horario.tipoActividad.replace('_', ' ')}</p>
-                        </div>
+                    {/* Info grid */}
+                    <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
+                      <div>
+                        <span className="font-medium text-gray-600 block">Horario</span>
+                        <p className="text-black">{horario.horaInicio} - {horario.horaFin}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600 block">Aula</span>
+                        <p className="text-black">{horario.aula}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600 block">Tipo</span>
+                        <p className="text-black truncate">{horario.tipoActividad.replace('_', ' ')}</p>
                       </div>
                     </div>
 
                     {/* Acciones */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
                         onClick={() => handleEditHorario(horario)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors text-xs sm:text-sm min-h-[40px]"
                       >
-                        🕐 Editar Horarios
+                        🕐 <span className="hidden sm:inline">Editar </span>Horario
                       </button>
                       <button
                         onClick={() => handleEditTolerancia(horario)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-xs sm:text-sm min-h-[40px]"
                       >
-                        ⏰ Ajustar Tolerancia
+                        ⏰ <span className="hidden sm:inline">Ajustar </span>Tolerancia
                       </button>
                     </div>
                   </div>
@@ -576,27 +571,59 @@ export default function HorariosDocente() {
 
       {/* Vista Calendario */}
       {vistaActual === 'calendario' && (
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+        <div className="p-3 sm:p-4 md:p-6">
+          {/* Vista móvil - lista por días */}
+          <div className="sm:hidden space-y-3">
+            {diasSemana.map(dia => {
+              const horariosDelDia = horarios.filter(h => h.diaSemana === dia)
+              if (horariosDelDia.length === 0) return null
+              return (
+                <div key={dia} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className={`p-2 text-center font-medium text-sm ${getDiaColor(dia)}`}>
+                    {dia}
+                  </div>
+                  <div className="p-2 space-y-1.5">
+                    {horariosDelDia
+                      .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+                      .map(horario => (
+                        <div
+                          key={horario.id}
+                          className="p-2 bg-blue-50 border border-blue-200 rounded text-xs cursor-pointer active:bg-blue-100 transition-colors"
+                          onClick={() => handleEditTolerancia(horario)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium text-blue-800">{horario.materia}</span>
+                            <span className="text-blue-600">{horario.grado}°{horario.seccion}</span>
+                          </div>
+                          <div className="text-blue-600">{horario.horaInicio} - {horario.horaFin} • ⏰{horario.toleranciaMin}m</div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {/* Vista desktop - grid de días */}
+          <div className="hidden sm:grid grid-cols-3 lg:grid-cols-6 gap-3">
             {diasSemana.map(dia => (
               <div key={dia} className="border border-gray-200 rounded-lg">
-                <div className={`p-3 text-center font-medium ${getDiaColor(dia)} rounded-t-lg`}>
-                  {dia}
+                <div className={`p-2 sm:p-3 text-center font-medium text-xs sm:text-sm ${getDiaColor(dia)} rounded-t-lg`}>
+                  {dia.slice(0, 3)}
                 </div>
-                <div className="p-3 space-y-2 min-h-[300px]">
+                <div className="p-2 space-y-1.5 min-h-[200px] lg:min-h-[300px]">
                   {horarios
                     .filter(h => h.diaSemana === dia)
                     .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
                     .map(horario => (
                       <div
                         key={horario.id}
-                        className="p-2 bg-blue-50 border border-blue-200 rounded text-xs cursor-pointer hover:bg-blue-100 transition-colors"
+                        className="p-1.5 sm:p-2 bg-blue-50 border border-blue-200 rounded text-[10px] sm:text-xs cursor-pointer hover:bg-blue-100 active:bg-blue-200 transition-colors"
                         onClick={() => handleEditTolerancia(horario)}
                       >
-                        <div className="font-medium text-blue-800">{horario.materia}</div>
+                        <div className="font-medium text-blue-800 truncate">{horario.materia}</div>
                         <div className="text-blue-600">{horario.grado}° {horario.seccion}</div>
-                        <div className="text-blue-600">{horario.horaInicio} - {horario.horaFin}</div>
-                        <div className="text-blue-600">⏰ {horario.toleranciaMin} min</div>
+                        <div className="text-blue-600">{horario.horaInicio}</div>
+                        <div className="text-blue-600">⏰ {horario.toleranciaMin}m</div>
                       </div>
                     ))}
                 </div>

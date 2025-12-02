@@ -30,8 +30,7 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
   const getEstadoStyle = (estado: string) => {
     switch (estado) {
       case 'PENDIENTE': return 'bg-amber-100 text-amber-700'
-      case 'AUTORIZADO': return 'bg-blue-100 text-blue-700'
-      case 'COMPLETADO': return 'bg-emerald-100 text-emerald-700'
+      case 'AUTORIZADO': return 'bg-emerald-100 text-emerald-700'
       case 'RECHAZADO': return 'bg-red-100 text-red-700'
       default: return 'bg-slate-100 text-slate-700'
     }

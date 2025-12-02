@@ -655,18 +655,20 @@ export default function TomarAsistenciaPopup({
           </div>
 
           {/* Lista de Estudiantes - Más compacta */}
-          <div className="w-full md:w-2/5 bg-white rounded-lg shadow-lg p-3 md:p-4 flex flex-col">
-            <div className="mb-3 md:mb-4">
+          <div className="w-full md:w-2/5 bg-white rounded-lg shadow-lg p-2 sm:p-3 md:p-4 flex flex-col">
+            <div className="mb-2 sm:mb-3 md:mb-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900">
-                  👥 Estudiantes ({estudiantes.length})
+                <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                  👥 <span className="hidden sm:inline">Estudiantes</span> ({estudiantes.length})
                 </h2>
-                <div className="text-xs md:text-sm text-gray-600">
-                  ✓ {contadorProcesados}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-green-600 font-medium">✓ {estudiantes.filter(e => e.estado === 'presente' || e.estado === 'tardanza').length}</span>
+                  <span className="text-xs text-gray-400">|</span>
+                  <span className="text-xs text-orange-600 font-medium">⏳ {estudiantes.filter(e => e.estado === 'pendiente' || e.estado === 'sin_registrar').length}</span>
                 </div>
               </div>
               {/* Info de clase - Solo móvil */}
-              <p className="md:hidden text-xs text-gray-600 mt-1">
+              <p className="md:hidden text-[10px] sm:text-xs text-gray-600 mt-1 truncate">
                 {claseInfo ? `${claseInfo.nombre} - ${fechaSeleccionada}` : `${fechaSeleccionada}`}
               </p>
             </div>
@@ -674,51 +676,56 @@ export default function TomarAsistenciaPopup({
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                  <span className="text-gray-600">Cargando estudiantes...</span>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <span className="text-gray-600 text-xs sm:text-sm">Cargando...</span>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto space-y-2">
+              <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2">
                 {estudiantes.map((estudiante) => (
                   <div
                     key={estudiante.id}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    className={`p-2 sm:p-3 rounded-lg border-2 cursor-pointer transition-colors active:scale-[0.98] ${
                       estudiante.estado === 'presente'
                         ? 'bg-green-50 border-green-200'
                         : estudiante.estado === 'tardanza'
                         ? 'bg-yellow-50 border-yellow-200'
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100 active:bg-blue-50'
                     }`}
                     onClick={() => {
-                      if (estudiante.estado === 'pendiente') {
+                      if (estudiante.estado === 'pendiente' || estudiante.estado === 'sin_registrar') {
                         procesarCodigoQR(estudiante.codigo)
                       }
                     }}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {estudiante.nombre} {estudiante.apellido}
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">
+                          {estudiante.apellido}, {estudiante.nombre}
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {estudiante.codigo} | {estudiante.dni}
+                        <div className="text-[10px] sm:text-xs text-gray-600 truncate">
+                          {estudiante.dni}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                      <div className="flex-shrink-0 text-right">
+                        <div className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
                           estudiante.estado === 'presente'
                             ? 'bg-green-100 text-green-800'
                             : estudiante.estado === 'tardanza'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {estudiante.estado === 'presente' ? '✅ Presente' :
-                           estudiante.estado === 'tardanza' ? '⏰ Tardanza' :
-                           '⏳ Pendiente'}
+                          {estudiante.estado === 'presente' ? '✅' :
+                           estudiante.estado === 'tardanza' ? '⏰' :
+                           '⏳'}
+                          <span className="hidden sm:inline ml-1">
+                            {estudiante.estado === 'presente' ? 'Presente' :
+                             estudiante.estado === 'tardanza' ? 'Tardanza' :
+                             'Pendiente'}
+                          </span>
                         </div>
                         {estudiante.horaLlegada && (
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
                             {estudiante.horaLlegada}
                           </div>
                         )}
