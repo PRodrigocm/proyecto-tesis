@@ -62,12 +62,12 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
     if (retiro) {
       setFormData({
         estudianteId: retiro.estudiante.id,
-        motivo: retiro.motivo,
-        horaRetiro: retiro.horaRetiro,
+        motivo: '', // El modelo Retiro no tiene campo motivo
+        horaRetiro: retiro.horaRetiro || '',
         observaciones: retiro.observaciones || '',
         personaRecoge: retiro.personaRecoge || '',
         dniPersonaRecoge: retiro.dniPersonaRecoge || '',
-        fecha: retiro.fecha.split('T')[0] // Extraer solo la fecha
+        fecha: retiro.fecha ? retiro.fecha.split('T')[0] : new Date().toISOString().split('T')[0]
       })
     } else {
       setFormData({
@@ -621,8 +621,8 @@ export default function RetirosDocente() {
                       <p className="text-black">{formatearHora(retiro.horaRetiro)}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-600">Motivo</span>
-                      <p className="text-black truncate">{retiro.motivo}</p>
+                      <span className="font-medium text-gray-600">Observaciones</span>
+                      <p className="text-black truncate">{retiro.observaciones || 'Sin observaciones'}</p>
                     </div>
                   </div>
 

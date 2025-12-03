@@ -1,10 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Configuración para producción
+  // Habilitar output standalone para Docker
   output: 'standalone',
   
-  // Optimizaciones de imágenes
+  // Configuración experimental
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+  
+  // Configuración de imágenes (si usas next/image con dominios externos)
   images: {
     remotePatterns: [
       {
@@ -12,17 +19,6 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
-  },
-  
-  // Variables de entorno públicas
-  env: {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  },
-  
-  // Configuración experimental
-  experimental: {
-    // Optimizar el bundle del servidor
-    serverComponentsExternalPackages: ['bcrypt', 'bcryptjs'],
   },
 };
 

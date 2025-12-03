@@ -86,9 +86,9 @@ const obtenerFechasDelRango = (fechaInicio: string, fechaFin: string, diasLabora
   return fechas
 }
 
-// Función para formatear fecha corta (LUN01, MAR02, etc.)
+// Función para formatear fecha corta (L01, M02, X03, etc.)
 const formatearFechaCorta = (fecha: Date): string => {
-  const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+  const dias = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
   const dia = dias[fecha.getDay()]
   const numero = fecha.getDate().toString().padStart(2, '0')
   return `${dia}${numero}`

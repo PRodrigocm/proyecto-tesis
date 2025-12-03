@@ -1,0 +1,17 @@
+# ============================================
+# Dockerfile para migraciones de Prisma
+# ============================================
+
+FROM node:20-alpine
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+# Copiar archivos necesarios
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma/
+
+# Instalar dependencias
+RUN npm ci
+
+# Comando para ejecutar migraciones y seed
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]

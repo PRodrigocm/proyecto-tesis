@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: proyecto-tesis-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Aplicación Next.js
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proyecto-tesis-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:123456@db:5432/postgres?schema=proyecto-1
+      - JWT_SECRET=${JWT_SECRET:-TU_SECRETO_JWT_SEGURO}
+      - PORT=3000
+      # Email (Gmail SMTP)
+      - GMAIL_USER=${GMAIL_USER:-}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      - EMAIL_USER=${EMAIL_USER:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Servicio para ejecutar migraciones (opcional, ejecutar manualmente)
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: proyecto-tesis-migrate
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@db:5432/postgres?schema=proyecto-1
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    profiles:
+      - migrate
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

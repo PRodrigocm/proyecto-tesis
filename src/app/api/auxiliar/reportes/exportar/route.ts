@@ -188,10 +188,10 @@ async function generatePDF(datos: any): Promise<Buffer> {
       : ''
     doc.text(`${mesNombre} • ${fechasPeriodo.length} días laborables`, 15, 22)
     
-    // Headers: Apellidos y nombre + todas las fechas del mes
+    // Headers: Apellidos y nombre + todas las fechas del mes (L, M, X, J, V, S, D)
     const headers = ['Apellidos y nombre']
     fechasPeriodo.forEach(fecha => {
-      const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+      const dias = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
       const dia = dias[fecha.getDay()]
       const numero = fecha.getDate().toString().padStart(2, '0')
       headers.push(`${dia}${numero}`)
@@ -325,9 +325,9 @@ function obtenerFechasDelRango(fechaInicio: string, fechaFin: string): Date[] {
   return fechas
 }
 
-// Función para formatear fecha corta (LUN01, MAR02, etc.)
+// Función para formatear fecha corta (L01, M02, X03, etc.)
 function formatearFechaCorta(fecha: Date): string {
-  const dias = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
+  const dias = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
   const dia = dias[fecha.getDay()]
   const numero = fecha.getDate().toString().padStart(2, '0')
   return `${dia}${numero}`
