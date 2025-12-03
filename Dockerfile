@@ -1,27 +1,47 @@
 # ============================================
 # Dockerfile para proyecto-tesis (Next.js + Prisma)
+# Con git pull para actualizar el repositorio
 # ============================================
 
-# Stage 1: Dependencies
+# Argumentos de build
+ARG GIT_REPO_URL=https://github.com/PRodrigocm/proyecto-tesis.git
+ARG GIT_BRANCH=main
+
+# Stage 1: Clone/Pull del repositorio
+FROM node:20-alpine AS source
+RUN apk add --no-cache git
+WORKDIR /app
+
+ARG GIT_REPO_URL
+ARG GIT_BRANCH
+
+# Clonar el repositorio (siempre obtiene la última versión)
+RUN git clone --depth 1 --branch ${GIT_BRANCH} ${GIT_REPO_URL} .
+
+# Mostrar el último commit para verificación
+RUN echo "📦 Último commit:" && git log -1 --oneline
+
+# Stage 2: Dependencies
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json package-lock.json* ./
-COPY prisma ./prisma/
+# Copiar archivos de dependencias desde el repo clonado
+COPY --from=source /app/package.json /app/package-lock.json* ./
+COPY --from=source /app/prisma ./prisma/
 
 # Instalar dependencias
 RUN npm ci
 
-# Stage 2: Builder
+# Stage 3: Builder
 FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 # Copiar dependencias del stage anterior
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copiar todo el código fuente desde el repo clonado
+COPY --from=source /app .
 
 # Variables de entorno para build
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -31,7 +51,7 @@ ENV NODE_ENV=production
 RUN npx prisma generate
 RUN npm run build
 
-# Stage 3: Runner (Producción)
+# Stage 4: Runner (Producción)
 FROM node:20-alpine AS runner
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app

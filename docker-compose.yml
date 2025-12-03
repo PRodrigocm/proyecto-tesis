@@ -27,6 +27,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - GIT_REPO_URL=https://github.com/PRodrigocm/proyecto-tesis.git
+        - GIT_BRANCH=main
     container_name: proyecto-tesis-app
     restart: unless-stopped
     ports:
