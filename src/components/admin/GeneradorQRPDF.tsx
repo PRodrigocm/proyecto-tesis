@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
 import jsPDF from 'jspdf'
 
@@ -10,223 +10,215 @@ interface Estudiante {
   codigo: string
   grado?: string
   seccion?: string
+  idGradoSeccion?: number
 }
+
+interface GradoSeccion {
+  idGradoSeccion: number
+  grado: { nombre: string; nivel: { nombre: string } }
+  seccion: { nombre: string }
+}
+
+type ModoGeneracion = 'todos' | 'grado' | 'estudiante'
 
 export default function GeneradorQRPDF() {
   const [loading, setLoading] = useState(false)
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [estudiantesFiltrados, setEstudiantesFiltrados] = useState<Estudiante[]>([])
+  const [gradosSecciones, setGradosSecciones] = useState<GradoSeccion[]>([])
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [modoGeneracion, setModoGeneracion] = useState<ModoGeneracion>('todos')
+  const [gradoSeleccionado, setGradoSeleccionado] = useState<number | null>(null)
+  const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
 
-  // Cargar estudiantes desde la API
+  useEffect(() => {
+    const cargarGrados = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const res = await fetch('/api/grados-secciones?ieId=1', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setGradosSecciones(data.data || [])
+        }
+      } catch (e) { console.error(e) }
+    }
+    cargarGrados()
+  }, [])
+
   const cargarEstudiantes = async () => {
     try {
       setLoading(true)
       setError('')
-
-      // Verificar que estamos en el cliente
-      if (typeof window === 'undefined') {
-        throw new Error('Esta función solo puede ejecutarse en el cliente')
-      }
-
       const token = localStorage.getItem('token')
-      if (!token) {
-        throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.')
-      }
+      if (!token) throw new Error('No hay token')
 
-      console.log('🔐 Token encontrado, cargando estudiantes...')
-
-      const response = await fetch('/api/usuarios/estudiantes', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const res = await fetch('/api/usuarios/estudiantes', {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      console.log('📡 Respuesta de API:', response.status, response.statusText)
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('✅ Datos recibidos:', data)
+      if (res.ok) {
+        const data = await res.json()
         setEstudiantes(data.estudiantes || [])
-        
-        if (!data.estudiantes || data.estudiantes.length === 0) {
-          setError('No se encontraron estudiantes registrados en el sistema')
-        }
+        setEstudiantesFiltrados(data.estudiantes || [])
+        setSuccess(`✅ ${data.estudiantes?.length || 0} estudiantes cargados`)
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
-        console.error('❌ Error de API:', response.status, errorData)
-        
-        if (response.status === 401) {
-          setError('Sesión expirada. Por favor, inicia sesión nuevamente.')
-          // Limpiar token inválido
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-        } else if (response.status === 403) {
-          setError('No tienes permisos para acceder a esta información.')
-        } else {
-          setError(`Error del servidor: ${errorData.error || 'Error desconocido'}`)
-        }
+        setError('Error al cargar estudiantes')
       }
-    } catch (error) {
-      console.error('💥 Error completo:', error)
-      
-      if (error instanceof Error) {
-        if (error.message.includes('token')) {
-          setError('Problema de autenticación. Por favor, inicia sesión nuevamente.')
-        } else if (error.message.includes('cliente')) {
-          setError('Error de inicialización. Recarga la página.')
-        } else {
-          setError(`Error: ${error.message}`)
-        }
-      } else {
-        setError('Error inesperado al cargar estudiantes')
-      }
-      
-      // NO usar datos de ejemplo - solo datos reales de la BD
-      setEstudiantes([])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error')
     } finally {
       setLoading(false)
     }
   }
 
-  // Generar PDF con códigos QR
+  useEffect(() => {
+    let filtrados = [...estudiantes]
+    if (modoGeneracion === 'grado' && gradoSeleccionado) {
+      filtrados = estudiantes.filter(e => e.idGradoSeccion === gradoSeleccionado)
+    } else if (modoGeneracion === 'estudiante' && estudianteSeleccionado) {
+      filtrados = estudiantes.filter(e => e.id === estudianteSeleccionado)
+    }
+    if (busqueda.trim()) {
+      const b = busqueda.toLowerCase()
+      filtrados = filtrados.filter(e => e.nombre.toLowerCase().includes(b) || e.codigo.toLowerCase().includes(b))
+    }
+    setEstudiantesFiltrados(filtrados)
+  }, [modoGeneracion, gradoSeleccionado, estudianteSeleccionado, estudiantes, busqueda])
+
   const generarPDF = async () => {
-    if (estudiantes.length === 0) {
-      setError('No hay estudiantes para generar códigos QR')
+    if (estudiantesFiltrados.length === 0) {
+      setError('No hay estudiantes para generar')
       return
     }
-
     try {
       setLoading(true)
-      setError('')
-
+      
+      // ===== CONFIGURACIÓN A4 VERTICAL =====
+      // A4: 210mm × 297mm orientación vertical
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
       
-      // Configuración para 6 QR por página (3 columnas x 2 filas)
-      // QR más grande para mejor escaneo
-      const qrSize = 60 // Tamaño del QR en mm (6cm - más grande y visible)
-      const cardWidth = 68 // Ancho de cada tarjeta
-      const cardHeight = 130 // Alto de cada tarjeta
-      const margin = 3
-      const cols = 3 // 3 columnas por página
-      const rows = 2 // 2 filas por página (6 tarjetas total)
+      // ===== DIMENSIONES DE CREDENCIAL =====
+      const cardWidth = 105      // 210 / 2 = 105mm exacto
+      const cardHeight = 148.5   // 297 / 2 = 148.5mm exacto
+      const margin = 5           // Margen interno mínimo 5mm
+      const headerHeight = 22    // Barra azul de 22mm
       
-      let currentPage = 1
-      let currentRow = 0
-      let currentCol = 0
+      // ===== CÓDIGO QR - MÁXIMO POSIBLE =====
+      // Ancho disponible: 105mm - (5mm * 2) = 95mm
+      // Usamos 93mm para dejar espacio al marco
+      const qrSize = 93          // QR lo más grande posible
+      // 300 dpi: 93mm = 3.66 pulgadas × 300 = 1098px (alta resolución)
+      const qrPixels = 1098
+      
+      const qrsPerPage = 4
+      
+      // Posiciones 2×2 (sin espacios entre credenciales)
+      const positions = [
+        { col: 0, row: 0 }, // Superior izquierda
+        { col: 1, row: 0 }, // Superior derecha
+        { col: 0, row: 1 }, // Inferior izquierda
+        { col: 1, row: 1 }  // Inferior derecha
+      ]
 
-      // Título de la primera página
-      pdf.setFontSize(16)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('Códigos QR - Estudiantes', pageWidth / 2, 15, { align: 'center' })
-
-      for (let i = 0; i < estudiantes.length; i++) {
-        const estudiante = estudiantes[i]
-
-        // Calcular posición
-        const x = margin + (currentCol * cardWidth)
-        const y = 25 + (currentRow * cardHeight)
-
-        // Generar código QR con configuración óptima
-        const qrDataURL = await QRCode.toDataURL(estudiante.codigo, {
-          width: 800,
-          margin: 2,
-          errorCorrectionLevel: 'H' as const,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        } as any) as unknown as string
-
-        if (!qrDataURL || typeof qrDataURL !== 'string') continue
-
-        // Dibujar borde de la tarjeta
-        pdf.setDrawColor(0, 0, 0)
-        pdf.setLineWidth(0.5)
-        pdf.rect(x, y, cardWidth, cardHeight)
-
-        // Centrar el QR horizontalmente en la tarjeta
-        const qrX = x + (cardWidth - qrSize) / 2
-        const qrY = y + 10
+      for (let i = 0; i < estudiantesFiltrados.length; i++) {
+        const est = estudiantesFiltrados[i]
+        const posIndex = i % qrsPerPage
+        const pos = positions[posIndex]
         
-        // Dibujar borde del QR
-        pdf.setDrawColor(0, 0, 0)
-        pdf.setLineWidth(0.8)
-        pdf.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4)
-        
-        // Agregar código QR centrado
-        pdf.addImage(qrDataURL as string, 'PNG', qrX, qrY, qrSize, qrSize)
-
-        // Posición Y después del QR
-        let textY = qrY + qrSize + 5
-        
-        // Código del estudiante (SIN BORDE - solo texto)
-        pdf.setFontSize(14)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(estudiante.codigo, x + cardWidth / 2, textY + 6, { align: 'center' })
-        
-        textY += 10
-        
-        // Grado y Sección (con borde)
-        if (estudiante.grado && estudiante.seccion) {
-          const gradoBoxHeight = 7
-          pdf.setDrawColor(0, 0, 0)
-          pdf.setLineWidth(0.4)
-          pdf.rect(x + 8, textY, cardWidth - 16, gradoBoxHeight)
-          pdf.setFontSize(8)
-          pdf.setFont('helvetica', 'normal')
-          pdf.text(`${estudiante.grado}° - Sec ${estudiante.seccion}`, x + cardWidth / 2, textY + 5, { align: 'center' })
-          textY += gradoBoxHeight + 2
+        // Nueva página cada 4 estudiantes
+        if (i > 0 && posIndex === 0) {
+          pdf.addPage()
         }
+
+        // Calcular posición exacta de la tarjeta
+        const cardX = pos.col * cardWidth
+        const cardY = pos.row * cardHeight
+
+        // Generar QR a 300 dpi - SIN margen interno (quiet zone en el marco)
+        const qrDataURL = await QRCode.toDataURL(est.codigo, {
+          width: qrPixels,
+          margin: 1, // Mínimo margen, el marco negro actúa como quiet zone
+          errorCorrectionLevel: 'H',
+          color: { dark: '#000000', light: '#FFFFFF' }
+        })
+
+        // ===== FONDO BLANCO DE LA CREDENCIAL =====
+        pdf.setFillColor(255, 255, 255)
+        pdf.rect(cardX, cardY, cardWidth, cardHeight, 'F')
         
-        // Nombre completo (SIN BORDE - solo texto)
+        // ===== LÍNEA DE CORTE (borde gris muy claro) =====
+        pdf.setDrawColor(200, 200, 200)
+        pdf.setLineWidth(0.15)
+        pdf.rect(cardX, cardY, cardWidth, cardHeight)
+
+        // ===== ENCABEZADO AZUL (#2F66F6) - 22mm =====
+        pdf.setFillColor(47, 102, 246) // #2F66F6
+        pdf.rect(cardX, cardY, cardWidth, headerHeight, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('CREDENCIAL DE ESTUDIANTE', cardX + cardWidth / 2, cardY + 14, { align: 'center' })
+
+        // ===== CÓDIGO QR CENTRADO (GIGANTE) =====
+        // Centrar QR horizontalmente
+        const qrX = cardX + (cardWidth - qrSize) / 2
+        // Posicionar justo debajo del header
+        const qrY = cardY + headerHeight + 3
+        
+        // Marco negro del QR
+        pdf.setDrawColor(0, 0, 0)
+        pdf.setLineWidth(1)
+        pdf.rect(qrX - 1.5, qrY - 1.5, qrSize + 3, qrSize + 3)
+        
+        // Imagen QR
+        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize)
+
+        // ===== INFORMACIÓN DEL ESTUDIANTE (compacta) =====
+        let infoY = qrY + qrSize + 5
+        
+        // Código del estudiante (negrita, grande)
+        pdf.setTextColor(0, 0, 0)
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(est.codigo, cardX + cardWidth / 2, infoY, { align: 'center' })
+
+        // Nombre del estudiante (regular)
+        infoY += 5
         pdf.setFontSize(9)
-        pdf.setFont('helvetica', 'bold')
-        
-        // Dividir nombre si es muy largo
-        const nombreCompleto = estudiante.nombre
-        const maxWidth = cardWidth - 8
-        const nombreLineas = pdf.splitTextToSize(nombreCompleto, maxWidth)
-        
-        if (nombreLineas.length === 1) {
-          pdf.text(nombreLineas[0], x + cardWidth / 2, textY + 6, { align: 'center' })
-        } else {
-          pdf.setFontSize(8)
-          pdf.text(nombreLineas[0], x + cardWidth / 2, textY + 3, { align: 'center' })
-          if (nombreLineas[1]) {
-            pdf.text(nombreLineas[1], x + cardWidth / 2, textY + 8, { align: 'center' })
-          }
-        }
+        pdf.setFont('helvetica', 'normal')
+        // Truncar nombre si es muy largo
+        const nombreCorto = est.nombre.length > 30 ? est.nombre.substring(0, 30) + '...' : est.nombre
+        pdf.text(nombreCorto, cardX + cardWidth / 2, infoY, { align: 'center' })
 
-        // Avanzar posición
-        currentCol++
-        if (currentCol >= cols) {
-          currentCol = 0
-          currentRow++
+        // Grado y sección en cápsula azul
+        if (est.grado && est.seccion) {
+          infoY += 6
+          const gradoText = `${est.grado}° - Sección "${est.seccion}"`
+          pdf.setFontSize(8)
+          const capsuleWidth = pdf.getTextWidth(gradoText) + 10
+          const capsuleHeight = 6
+          const capsuleX = cardX + (cardWidth - capsuleWidth) / 2
           
-          if (currentRow >= rows && i < estudiantes.length - 1) {
-            // Nueva página
-            pdf.addPage()
-            currentPage++
-            currentRow = 0
-            
-            // Título de la nueva página
-            pdf.setFontSize(16)
-            pdf.setFont('helvetica', 'bold')
-            pdf.text(`Códigos QR - Estudiantes (Página ${currentPage})`, pageWidth / 2, 15, { align: 'center' })
-          }
+          // Cápsula azul con bordes redondeados
+          pdf.setFillColor(47, 102, 246) // #2F66F6
+          pdf.roundedRect(capsuleX, infoY - 4, capsuleWidth, capsuleHeight, 1.5, 1.5, 'F')
+          
+          // Texto blanco
+          pdf.setTextColor(255, 255, 255)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(gradoText, cardX + cardWidth / 2, infoY, { align: 'center' })
         }
       }
 
-      // Descargar PDF
-      const fecha = new Date().toISOString().split('T')[0]
-      pdf.save(`codigos-qr-estudiantes-${fecha}.pdf`)
-
-    } catch (error) {
-      console.error('Error al generar PDF:', error)
-      setError('Error al generar el PDF')
+      pdf.save(`credenciales-qr-${new Date().toISOString().split('T')[0]}.pdf`)
+      setSuccess(`✅ PDF A4 generado: ${estudiantesFiltrados.length} credencial(es) en ${Math.ceil(estudiantesFiltrados.length / 4)} página(s)`)
+    } catch (e) {
+      console.error('Error:', e)
+      setError('Error al generar PDF')
     } finally {
       setLoading(false)
     }
@@ -234,75 +226,74 @@ export default function GeneradorQRPDF() {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Generador de Credenciales QR</h2>
+      
+      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+      {success && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">{success}</div>}
+
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-black mb-2">Generar PDF de Códigos QR</h2>
-        <p className="text-black">
-          Genera un PDF con todos los códigos QR de los estudiantes para imprimir y distribuir.
-        </p>
+        <button onClick={cargarEstudiantes} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">
+          {loading ? 'Cargando...' : '📥 Cargar Estudiantes'}
+        </button>
+        {estudiantes.length > 0 && <span className="ml-3 text-green-600">✓ {estudiantes.length} estudiantes</span>}
       </div>
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
+      {estudiantes.length > 0 && (
+        <>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {(['todos', 'grado', 'estudiante'] as ModoGeneracion[]).map(modo => (
+              <button key={modo} onClick={() => { setModoGeneracion(modo); setGradoSeleccionado(null); setEstudianteSeleccionado(null) }}
+                className={`p-3 rounded border-2 text-gray-900 font-medium ${modoGeneracion === modo ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}>
+                {modo === 'todos' ? '👥 Todos' : modo === 'grado' ? '📚 Por Grado' : '👤 Individual'}
+              </button>
+            ))}
+          </div>
+
+          {modoGeneracion === 'grado' && (
+            <select value={gradoSeleccionado || ''} onChange={e => setGradoSeleccionado(Number(e.target.value))}
+              className="w-full p-2 border rounded mb-4 text-black">
+              <option value="">Seleccionar grado...</option>
+              {gradosSecciones.map(gs => (
+                <option key={gs.idGradoSeccion} value={gs.idGradoSeccion}>
+                  {gs.grado.nivel.nombre} - {gs.grado.nombre}° {gs.seccion.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {modoGeneracion === 'estudiante' && (
+            <>
+              <input type="text" placeholder="Buscar estudiante..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                className="w-full p-2 border rounded mb-2 text-black" />
+              <select value={estudianteSeleccionado || ''} onChange={e => setEstudianteSeleccionado(e.target.value)}
+                className="w-full p-2 border rounded mb-4 text-black">
+                <option value="">Seleccionar estudiante...</option>
+                {estudiantes.filter(e => !busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())).map(e => (
+                  <option key={e.id} value={e.id}>{e.nombre} - {e.codigo}</option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <div className="p-3 bg-blue-50 rounded mb-4 text-gray-900">
+            <strong className="text-gray-900">A generar:</strong> <span className="text-blue-700 font-semibold">{estudiantesFiltrados.length}</span> código(s) QR
+          </div>
+
+          <button onClick={generarPDF} disabled={loading || estudiantesFiltrados.length === 0}
+            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold">
+            {loading ? '⏳ Generando...' : `📄 Generar PDF (${estudiantesFiltrados.length} QR)`}
+          </button>
+        </>
       )}
 
-      <div className="space-y-4">
-        <div className="flex space-x-4">
-          <button
-            onClick={() => {
-              console.log('🔍 Verificando autenticación...')
-              const token = localStorage.getItem('token')
-              const user = localStorage.getItem('user')
-              console.log('Token:', token ? 'Presente' : 'Ausente')
-              console.log('User:', user ? JSON.parse(user) : 'Ausente')
-              if (!token) {
-                alert('❌ No hay token de autenticación')
-              } else {
-                alert('✅ Token encontrado, procediendo a cargar estudiantes')
-                cargarEstudiantes()
-              }
-            }}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Cargando...' : 'Cargar Estudiantes'}
-          </button>
-
-          {estudiantes.length > 0 && (
-            <button
-              onClick={generarPDF}
-              disabled={loading}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Generando PDF...' : '📄 Generar PDF'}
-            </button>
-          )}
-        </div>
-
-        {estudiantes.length > 0 && (
-          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-black mb-2">
-              ✅ Estudiantes encontrados: {estudiantes.length}
-            </h3>
-            <p className="text-sm text-gray-600">
-              Los códigos QR se generarán para todos los estudiantes activos del sistema.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-black mb-2">📋 Información del PDF:</h4>
-        <ul className="text-sm text-black space-y-1">
-          <li>• <strong>Formato:</strong> A4, 3 columnas x 2 filas por página (6 tarjetas por hoja)</li>
-          <li>• <strong>Diseño:</strong> QR grande arriba, Código destacado (14pt), Grado/Sección y Nombre</li>
-          <li>• <strong>Tamaño QR:</strong> 60mm x 60mm (6cm - detectable hasta 6 metros)</li>
-          <li>• <strong>Código:</strong> 14pt bold - Visible y legible</li>
-          <li>• <strong>Resolución:</strong> 800px con corrección de errores nivel H (máxima calidad)</li>
-          <li>• <strong>Tamaño tarjeta:</strong> 68mm x 130mm</li>
-          <li>• <strong>Tarjetas por hoja:</strong> 6 (optimiza papel y distribución)</li>
-          <li>• <strong>Uso:</strong> Imprimir en A4 de alta calidad, recortar y distribuir</li>
+      <div className="mt-6 p-4 bg-gray-50 rounded text-sm text-gray-700">
+        <strong className="text-gray-900">📄 Especificaciones del PDF:</strong>
+        <ul className="mt-2 space-y-1 list-disc list-inside">
+          <li><strong>Formato:</strong> A4 vertical (210×297mm)</li>
+          <li><strong>Distribución:</strong> 4 credenciales por página (2×2)</li>
+          <li><strong>Credencial:</strong> 105×148.5mm exactos</li>
+          <li><strong>QR:</strong> 93×93mm a 300dpi (1098px), Nivel H</li>
+          <li><strong>Encabezado:</strong> Barra azul #2F66F6, 22mm</li>
         </ul>
       </div>
     </div>

@@ -121,7 +121,13 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
           fechaInicio: eventoData.fechaInicio.toISOString().split('T')[0],
           fechaFin: (eventoData.fechaFin || eventoData.fechaInicio).toISOString().split('T')[0],
           tipoDia,
-          descripcion: descripcionFinal
+          descripcion: descripcionFinal,
+          notificarPadres: eventoData.notificarPadres || false,
+          alcance: eventoData.alcance,
+          idGradoSeccion: eventoData.idGradoSeccion,
+          nivel: eventoData.nivel,
+          gradoInicio: eventoData.gradoInicio,
+          gradoFin: eventoData.gradoFin
         }
 
         console.log('📅 Enviando a /api/calendario:', requestBody)
@@ -145,6 +151,46 @@ export function useAnoLectivo(year: number = new Date().getFullYear()) {
         
         const result = await response.json()
         console.log('✅ Excepción registrada exitosamente:', result)
+        
+        // Si se debe notificar a los padres (para cualquier tipo de evento)
+        if (eventoData.notificarPadres) {
+          console.log('📧 Enviando notificaciones a padres de familia...')
+          
+          // Determinar el mensaje según el tipo
+          let tipoMensaje = 'evento'
+          if (eventoData.tipo === 'FERIADO') tipoMensaje = 'feriado'
+          else if (eventoData.tipo === 'SUSPENSION') tipoMensaje = 'suspensión de clases'
+          else if (eventoData.tipo === 'VACACIONES') tipoMensaje = 'vacaciones'
+          
+          try {
+            const notifResponse = await fetch('/api/notificaciones/evento', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                eventoId: result.data?.idCalendario,
+                titulo: descripcionFinal,
+                mensaje: `Se ha programado ${tipoMensaje}: ${descripcionFinal} para el ${eventoData.fechaInicio.toLocaleDateString('es-PE')}`,
+                alcance: eventoData.tipo === 'EVENTO' ? eventoData.alcance : 'TODOS',
+                idGradoSeccion: eventoData.idGradoSeccion,
+                nivel: eventoData.nivel,
+                gradoInicio: eventoData.gradoInicio,
+                gradoFin: eventoData.gradoFin
+              })
+            })
+            
+            if (notifResponse.ok) {
+              const notifResult = await notifResponse.json()
+              console.log('✅ Notificaciones enviadas:', notifResult.data?.notificacionesEnviadas || 0)
+            } else {
+              console.warn('⚠️ Error al enviar notificaciones:', await notifResponse.text())
+            }
+          } catch (notifError) {
+            console.error('❌ Error al enviar notificaciones:', notifError)
+          }
+        }
       }
 
       // Recargar datos

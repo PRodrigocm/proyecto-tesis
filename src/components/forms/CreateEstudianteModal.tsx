@@ -397,7 +397,7 @@ export default function CreateEstudianteModal({ isOpen, onClose, onSuccess }: Cr
                     <option value="">Seleccionar grado</option>
                     {grados.map((grado) => (
                       <option key={grado.idGrado} value={grado.idGrado}>
-                        {grado.nombre}° - {grado.nivel.nombre}
+                        {grado.nombre} - {grado.nivel.nombre}
                       </option>
                     ))}
                   </select>

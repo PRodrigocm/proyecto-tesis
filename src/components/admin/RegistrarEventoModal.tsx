@@ -77,12 +77,26 @@ export default function RegistrarEventoModal({
       
       if (selectedEvento) {
         // Cargar datos del evento existente
+        // Soportar tanto tipoDia (calendario escolar) como tipoExcepcion (excepciones)
+        const tipoEvento = selectedEvento.tipoDia || selectedEvento.tipoExcepcion
+        let tipoFormulario: 'FERIADO' | 'SUSPENSION' | 'VACACIONES' | 'EVENTO' = 'EVENTO'
+        
+        if (tipoEvento === 'FERIADO') {
+          tipoFormulario = 'FERIADO'
+        } else if (tipoEvento === 'SUSPENSION_CLASES' || tipoEvento === 'SUSPENSION') {
+          tipoFormulario = 'SUSPENSION'
+        } else if (tipoEvento === 'VACACIONES') {
+          tipoFormulario = 'VACACIONES'
+        } else if (tipoEvento === 'EVENTO') {
+          tipoFormulario = 'EVENTO'
+        }
+        
+        console.log('📋 Tipo de evento detectado:', tipoEvento, '-> Formulario:', tipoFormulario)
+        
         setFormData({
-          tipo: selectedEvento.tipoExcepcion === 'FERIADO' ? 'FERIADO' : 
-                selectedEvento.tipoExcepcion === 'SUSPENSION_CLASES' ? 'SUSPENSION' :
-                selectedEvento.tipoExcepcion === 'VACACIONES' ? 'VACACIONES' : 'EVENTO',
-          descripcion: selectedEvento.motivo || '',
-          fechaInicio: new Date(selectedEvento.fecha),
+          tipo: tipoFormulario,
+          descripcion: selectedEvento.descripcion || selectedEvento.motivo || '',
+          fechaInicio: new Date(selectedEvento.fechaInicio || selectedEvento.fecha),
           fechaFin: selectedEvento.fechaFin ? new Date(selectedEvento.fechaFin) : null,
           alcance: 'TODOS',
           nivel: '',
@@ -431,7 +445,7 @@ export default function RegistrarEventoModal({
                   </div>
                 )}
 
-                {/* Checkbox Notificar Padres */}
+                {/* Checkbox Notificar Padres - Solo para EVENTO */}
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -445,6 +459,22 @@ export default function RegistrarEventoModal({
                   </label>
                 </div>
               </>
+            )}
+
+            {/* Checkbox Notificar Padres - Para FERIADO, SUSPENSION, VACACIONES */}
+            {formData.tipo !== 'EVENTO' && (
+              <div className="flex items-center p-3 bg-blue-50 rounded-md">
+                <input
+                  type="checkbox"
+                  id="notificarPadresTodos"
+                  checked={formData.notificarPadres}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notificarPadres: e.target.checked }))}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="notificarPadresTodos" className="ml-2 block text-sm text-gray-900">
+                  📧 Notificar a todos los padres de familia
+                </label>
+              </div>
             )}
 
             {/* Descripción (siempre visible) */}

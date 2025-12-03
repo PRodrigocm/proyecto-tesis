@@ -109,18 +109,37 @@ export default function CodigosQRPage() {
               <ul className="text-sm text-black space-y-1">
                 <li>• Tamaño: A4 (210 x 297 mm)</li>
                 <li>• Orientación: Vertical</li>
-                <li>• 8 tarjetas por página (2x4)</li>
-                <li>• Márgenes optimizados</li>
+                <li>• <strong>1 credencial por página</strong></li>
+                <li>• <strong>QR de 120mm</strong> (óptimo para lectura)</li>
               </ul>
             </div>
             <div className="space-y-2">
-              <h4 className="font-medium text-black">🏷️ Contenido de cada tarjeta:</h4>
+              <h4 className="font-medium text-black">🔧 Especificaciones técnicas:</h4>
               <ul className="text-sm text-black space-y-1">
-                <li>• Código QR (40x40 mm)</li>
-                <li>• Nombre del estudiante</li>
-                <li>• Código único</li>
-                <li>• Grado y sección</li>
+                <li>• <strong>Nivel H (30%)</strong> - Mejor lectura a distancia</li>
+                <li>• <strong>Alto contraste</strong> - Negro intenso sobre blanco</li>
+                <li>• <strong>Quiet zone 4 módulos</strong> - Lectura confiable</li>
+                <li>• <strong>1200px resolución</strong> - Impresión de calidad</li>
               </ul>
+            </div>
+          </div>
+        </div>
+        
+        {/* Modos de generación */}
+        <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-black mb-4">🎯 Modos de Generación:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-black flex items-center gap-2">👥 Todos</h4>
+              <p className="text-sm text-gray-600 mt-1">Genera códigos QR para todos los estudiantes registrados.</p>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-black flex items-center gap-2">📚 Por Grado/Sección</h4>
+              <p className="text-sm text-gray-600 mt-1">Selecciona un aula específica para generar solo sus códigos.</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <h4 className="font-medium text-black flex items-center gap-2">👤 Individual</h4>
+              <p className="text-sm text-gray-600 mt-1">Genera el código QR de un estudiante específico.</p>
             </div>
           </div>
         </div>

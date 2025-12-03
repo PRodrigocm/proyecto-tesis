@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:backend": "tsx watch src/index.ts",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "build:backend": "tsc --project tsconfig.backend.json",
     "start": "next start",
     "start:backend": "node dist/index.js",
@@ -27,8 +27,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@prisma/adapter-pg": "^7.0.1",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.16.1",
     "@types/bcryptjs": "^2.4.6",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
@@ -64,7 +63,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "prisma": "^6.19.0",
+    "prisma": "^7.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.7.0",
     "typescript": "^5"
