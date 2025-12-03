@@ -3,7 +3,7 @@
 # Next.js + Prisma 7 + PostgreSQL
 # ============================================
 
-# Stage 1: Dependencies (solo producción)
+# Stage 1: Dependencies (todas para build)
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
@@ -12,8 +12,8 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Instalar solo dependencias de producción
-RUN npm ci --legacy-peer-deps --omit=dev || npm install --legacy-peer-deps --omit=dev
+# Instalar TODAS las dependencias (incluyendo dev para prisma)
+RUN npm install --legacy-peer-deps
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
