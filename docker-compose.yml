@@ -36,7 +36,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:quimiXkjUZYKmPlDIgembpQFkpjpXxzr@metro.proxy.rlwy.net:12161/railway
+      - DATABASE_URL=postgresql://postgres:123456@db:5432/postgres?schema=proyecto-1
       - JWT_SECRET=${JWT_SECRET:-TU_SECRETO_JWT_SEGURO}
       - PORT=3000
       # Email (Gmail SMTP)
