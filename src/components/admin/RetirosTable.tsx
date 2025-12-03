@@ -79,9 +79,6 @@ export default function RetirosTable({ retiros, onAutorizar, onModificar, onElim
               Hora Retiro
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Motivo
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Estado
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -121,11 +118,8 @@ export default function RetirosTable({ retiros, onAutorizar, onModificar, onElim
                 <div className="text-sm text-gray-900">
                   {new Date(`2000-01-01T${retiro.horaRetiro}`).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                 </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="text-sm text-gray-900">{retiro.motivo}</div>
                 {retiro.observaciones && (
-                  <div className="text-sm text-gray-500">{retiro.observaciones}</div>
+                  <div className="text-xs text-gray-500 mt-1">{retiro.observaciones}</div>
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">

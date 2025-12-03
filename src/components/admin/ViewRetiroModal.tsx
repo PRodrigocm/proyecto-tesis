@@ -57,7 +57,7 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{retiro.horaRetiro}</p>
-                <p className="text-sm text-slate-500">{retiro.motivo}</p>
+                <p className="text-sm text-slate-500">Hora de retiro</p>
               </div>
             </div>
             <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getEstadoStyle(retiro.estado)}`}>

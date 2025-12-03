@@ -103,22 +103,25 @@ export default function DocenteLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar móvil */}
-      <div className={`fixed inset-0 flex z-40 md:hidden ${sidebarOpen ? '' : 'pointer-events-none'}`}>
+      <div className={`fixed inset-0 flex z-40 md:hidden ${sidebarOpen ? '' : 'pointer-events-none hidden'}`}>
         <div className={`fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity ease-linear duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setSidebarOpen(false)} />
         
         <div className={`relative flex-1 flex flex-col max-w-xs w-full bg-white transform transition ease-in-out duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <span className="sr-only">Cerrar sidebar</span>
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" suppressHydrationWarning>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          {/* Botón cerrar - Solo visible cuando sidebar está abierto */}
+          {sidebarOpen && (
+            <div className="absolute top-0 right-0 -mr-12 pt-2">
+              <button
+                type="button"
+                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sr-only">Cerrar sidebar</span>
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" suppressHydrationWarning>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
@@ -205,30 +208,32 @@ export default function DocenteLayout({
 
       {/* Contenido principal */}
       <div className="md:pl-64 flex flex-col flex-1">
-        {/* Header */}
-        <div className="sticky top-0 z-10 md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-gray-50">
-          <button
-            type="button"
-            className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span className="sr-only">Abrir sidebar</span>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" suppressHydrationWarning>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Header desktop */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+        {/* Header unificado - Responsive */}
+        <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
+          <div className="px-3 md:px-6 lg:px-8">
+            <div className="flex justify-between h-14 md:h-16">
+              {/* Lado izquierdo: Hamburguesa (móvil) o Título (desktop) */}
               <div className="flex items-center">
-                <h1 className="text-xl font-semibold text-gray-900">
+                {/* Botón hamburguesa - Solo móvil */}
+                <button
+                  type="button"
+                  className="md:hidden -ml-1 mr-2 h-10 w-10 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <span className="sr-only">Abrir sidebar</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" suppressHydrationWarning>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                
+                {/* Título - Solo desktop */}
+                <h1 className="hidden md:block text-xl font-semibold text-gray-900">
                   Portal Docente
                 </h1>
               </div>
-              <div className="flex items-center space-x-4">
+              
+              {/* Lado derecho: Notificaciones, usuario y logout */}
+              <div className="flex items-center space-x-2 md:space-x-4">
                 {/* Campanita de notificaciones */}
                 {mounted && user && (
                   <NotificationBell 

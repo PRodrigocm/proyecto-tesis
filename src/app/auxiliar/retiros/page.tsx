@@ -202,232 +202,219 @@ export default function RetirosGestion() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-black">Cargando gestión de retiros...</span>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-orange-200 rounded-full animate-spin border-t-orange-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ClockIcon className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando retiros...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:px-8">
-      {/* Header Actions - Responsive */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Gestión de Retiros
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-gray-500 hidden sm:block">
+          <p className="mt-1 text-gray-500">
             Administra los retiros de estudiantes
           </p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={() => loadRetiros()}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 min-h-[44px]"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border-2 border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors min-h-[44px]"
           >
-            <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <span className="hidden sm:inline">Actualizar</span>
+            Actualizar
           </button>
           <Link
             href="/auxiliar/retiros/crear"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 min-h-[44px]"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl transition-all min-h-[44px]"
           >
-            <PlusIcon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nuevo </span>Retiro
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Nuevo Retiro
           </Link>
         </div>
       </div>
-        {/* Stats Cards - Compactas en móvil */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 md:mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-2 sm:p-3 md:p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ClockIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
-                </div>
-                <div className="ml-2 sm:ml-4 w-0 flex-1">
-                  <dl>
-                    <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Pendientes</dt>
-                    <dd className="text-base sm:text-lg font-bold text-yellow-600">{stats.pendientes}</dd>
-                  </dl>
-                </div>
-              </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-100 rounded-lg">
+              <ClockIcon className="h-5 w-5 text-yellow-600" />
             </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-2 sm:p-3 md:p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircleIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                </div>
-                <div className="ml-2 sm:ml-4 w-0 flex-1">
-                  <dl>
-                    <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Autorizados</dt>
-                    <dd className="text-base sm:text-lg font-bold text-green-600">{stats.autorizados}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-2 sm:p-3 md:p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <XCircleIcon className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
-                </div>
-                <div className="ml-2 sm:ml-4 w-0 flex-1">
-                  <dl>
-                    <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Rechazados</dt>
-                    <dd className="text-base sm:text-lg font-bold text-red-600">{stats.rechazados}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-2 sm:p-3 md:p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <FunnelIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-                </div>
-                <div className="ml-2 sm:ml-4 w-0 flex-1">
-                  <dl>
-                    <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total</dt>
-                    <dd className="text-base sm:text-lg font-bold text-blue-600">{stats.total}</dd>
-                  </dl>
-                </div>
-              </div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.pendientes}</p>
+              <p className="text-xs text-gray-500">Pendientes</p>
             </div>
           </div>
         </div>
 
-        {/* Filters - Responsive */}
-        <div className="bg-white shadow rounded-lg mb-4 md:mb-8">
-          <div className="p-3 sm:p-4 md:p-6">
-            <h3 className="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 md:mb-4">Filtros</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Buscar
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    placeholder="Nombre, DNI..."
-                    className="block w-full pl-9 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black text-base sm:text-sm min-h-[44px]"
-                  />
-                  <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 absolute left-3 top-3 sm:top-2.5" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Estado
-                </label>
-                <select
-                  value={selectedEstado}
-                  onChange={(e) => handleEstadoChange(e.target.value)}
-                  className="block w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black text-base sm:text-sm min-h-[44px]"
-                >
-                  <option value="">Todos</option>
-                  <option value="PENDIENTE">Pendiente</option>
-                  <option value="AUTORIZADO">Autorizado</option>
-                  <option value="RECHAZADO">Rechazado</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Fecha
-                </label>
-                <input
-                  type="date"
-                  value={selectedFecha}
-                  onChange={(e) => handleFechaChange(e.target.value)}
-                  className="block w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black text-base sm:text-sm min-h-[44px]"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={() => {
-                    setSearchTerm('')
-                    setSelectedEstado('')
-                    setSelectedFecha('')
-                    setFilteredRetiros(retiros)
-                    calculateStats(retiros)
-                  }}
-                  className="w-full inline-flex justify-center items-center px-3 py-2.5 sm:py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 min-h-[44px]"
-                >
-                  Limpiar
-                </button>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-green-100 rounded-lg">
+              <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-600">{stats.autorizados}</p>
+              <p className="text-xs text-gray-500">Autorizados</p>
             </div>
           </div>
         </div>
 
-        {/* Retiros - Vista de tarjetas en móvil, tabla en desktop */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="p-3 sm:p-4 md:p-6">
-            <h3 className="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 md:mb-4">
-              Retiros ({filteredRetiros.length})
-            </h3>
-            
-            {/* Vista de tarjetas en móvil */}
-            <div className="block md:hidden space-y-3">
-              {filteredRetiros.map((retiro) => (
-                <div key={retiro.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-sm">
-                        {retiro.estudiante.apellido}, {retiro.estudiante.nombre}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {retiro.estudiante.grado}° {retiro.estudiante.seccion}
-                      </p>
-                    </div>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEstadoBadge(retiro.estado)}`}>
-                      {getEstadoIcon(retiro.estado)}
-                      <span className="ml-1">{retiro.estado}</span>
-                    </span>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-red-100 rounded-lg">
+              <XCircleIcon className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-600">{stats.rechazados}</p>
+              <p className="text-xs text-gray-500">Rechazados</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-100 rounded-lg">
+              <FunnelIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+              <p className="text-xs text-gray-500">Total</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Nombre, DNI, motivo..."
+                className="block w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black"
+              />
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+            <select
+              value={selectedEstado}
+              onChange={(e) => handleEstadoChange(e.target.value)}
+              className="block w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black"
+            >
+              <option value="">Todos</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="AUTORIZADO">Autorizado</option>
+              <option value="RECHAZADO">Rechazado</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
+            <input
+              type="date"
+              value={selectedFecha}
+              onChange={(e) => handleFechaChange(e.target.value)}
+              className="block w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black"
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setSelectedEstado('')
+                setSelectedFecha('')
+                setFilteredRetiros(retiros)
+                calculateStats(retiros)
+              }}
+              className="w-full px-4 py-2.5 border-2 border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Retiros */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+          <h3 className="text-lg font-semibold text-white">
+            Retiros ({filteredRetiros.length})
+          </h3>
+        </div>
+        
+        {/* Vista móvil - Tarjetas */}
+        <div className="block md:hidden p-4 space-y-3">
+          {filteredRetiros.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No hay retiros que mostrar
+            </div>
+          ) : (
+            filteredRetiros.map((retiro) => (
+              <div key={retiro.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {retiro.estudiante.apellido}, {retiro.estudiante.nombre}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {retiro.estudiante.grado}° {retiro.estudiante.seccion}
+                    </p>
                   </div>
-                  <div className="text-xs text-gray-600 mb-2">
-                    <span className="font-medium">{retiro.tipoRetiro}</span> - {retiro.fechaRetiro} {retiro.horaRetiro}
-                  </div>
-                  <div className="text-xs text-gray-500 mb-3 line-clamp-2">
-                    {retiro.motivo}
-                  </div>
-                  <div className="flex gap-2 pt-2 border-t">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getEstadoBadge(retiro.estado)}`}>
+                    {getEstadoIcon(retiro.estado)}
+                    <span className="ml-1">{retiro.estado}</span>
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">{retiro.tipoRetiro}</span>
+                  <span className="mx-2">•</span>
+                  {retiro.fechaRetiro} {retiro.horaRetiro}
+                </div>
+                <p className="text-sm text-gray-500 mb-3 line-clamp-2">{retiro.motivo}</p>
+                <div className="flex gap-2 pt-3 border-t border-gray-200">
+                  <Link
+                    href={`/auxiliar/retiros/ver/${retiro.id}`}
+                    className="flex-1 inline-flex items-center justify-center px-3 py-2 border-2 border-gray-200 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    Ver
+                  </Link>
+                  {['PENDIENTE', 'AUTORIZADO'].includes(retiro.estado) && (
                     <Link
-                      href={`/auxiliar/retiros/ver/${retiro.id}`}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 min-h-[40px]"
+                      href={`/auxiliar/retiros/editar/${retiro.id}`}
+                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
                     >
-                      <EyeIcon className="h-4 w-4 mr-1" />
-                      Ver
+                      <PencilIcon className="h-4 w-4 mr-1" />
+                      Editar
                     </Link>
-                    {['PENDIENTE', 'AUTORIZADO'].includes(retiro.estado) && (
-                      <Link
-                        href={`/auxiliar/retiros/editar/${retiro.id}`}
-                        className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 min-h-[40px]"
-                      >
-                        <PencilIcon className="h-4 w-4 mr-1" />
-                        Editar
-                      </Link>
-                    )}
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
+          )}
+        </div>
             
             {/* Tabla en desktop */}
             <div className="hidden md:block overflow-x-auto">
@@ -519,8 +506,7 @@ export default function RetirosGestion() {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
+      </div>
     </div>
   )
 }

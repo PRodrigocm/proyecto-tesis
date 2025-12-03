@@ -74,13 +74,99 @@ export async function POST(request: NextRequest) {
     const ahora = new Date()
     const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
-    // Solo validar y retornar información del estudiante
-    // NO guardar en la base de datos aquí
-    console.log(`✅ Código QR válido - ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`)
+    // Función para formatear hora en zona horaria local (Lima/Peru)
+    const formatearHora = (fecha: Date): string => {
+      return fecha.toLocaleTimeString('es-PE', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Lima'
+      })
+    }
+
+    // Buscar si ya existe AsistenciaIE para hoy
+    const asistenciaExistente = await prisma.asistenciaIE.findFirst({
+      where: {
+        idEstudiante: estudiante.idEstudiante,
+        fecha: fechaHoy
+      }
+    })
+
+    let asistenciaIE
+    let mensaje = ''
+    let duplicado = false
+
+    if (tipoAccion === 'entrada') {
+      if (asistenciaExistente?.horaIngreso) {
+        // Ya tiene entrada registrada
+        duplicado = true
+        mensaje = `⚠️ ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} ya tiene entrada registrada a las ${formatearHora(asistenciaExistente.horaIngreso)}`
+        asistenciaIE = asistenciaExistente
+      } else if (asistenciaExistente) {
+        // Actualizar registro existente con hora de entrada
+        asistenciaIE = await prisma.asistenciaIE.update({
+          where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
+          data: {
+            horaIngreso: ahora,
+            estado: 'INGRESADO',
+            registradoIngresoPor: userId
+          }
+        })
+        mensaje = `✅ Entrada registrada para ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`
+      } else {
+        // Crear nuevo registro de entrada
+        asistenciaIE = await prisma.asistenciaIE.create({
+          data: {
+            idEstudiante: estudiante.idEstudiante,
+            idIe: userInfo.idIe || 1,
+            fecha: fechaHoy,
+            horaIngreso: ahora,
+            estado: 'INGRESADO',
+            registradoIngresoPor: userId
+          }
+        })
+        mensaje = `✅ Entrada registrada para ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`
+      }
+    } else {
+      // Salida
+      if (asistenciaExistente?.horaSalida) {
+        // Ya tiene salida registrada
+        duplicado = true
+        mensaje = `⚠️ ${estudiante.usuario.nombre} ${estudiante.usuario.apellido} ya tiene salida registrada a las ${formatearHora(asistenciaExistente.horaSalida)}`
+        asistenciaIE = asistenciaExistente
+      } else if (asistenciaExistente) {
+        // Actualizar registro existente con hora de salida
+        asistenciaIE = await prisma.asistenciaIE.update({
+          where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
+          data: {
+            horaSalida: ahora,
+            estado: 'RETIRADO',
+            registradoSalidaPor: userId
+          }
+        })
+        mensaje = `✅ Salida registrada para ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`
+      } else {
+        // Crear nuevo registro solo con salida (caso raro pero posible)
+        asistenciaIE = await prisma.asistenciaIE.create({
+          data: {
+            idEstudiante: estudiante.idEstudiante,
+            idIe: userInfo.idIe || 1,
+            fecha: fechaHoy,
+            horaSalida: ahora,
+            estado: 'RETIRADO',
+            registradoSalidaPor: userId
+          }
+        })
+        mensaje = `✅ Salida registrada para ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`
+      }
+    }
+
+    console.log(`${duplicado ? '⚠️' : '✅'} ${mensaje}`)
 
     return NextResponse.json({
       success: true,
-      mensaje: `✅ Código QR válido para ${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
+      duplicado,
+      mensaje,
       estudiante: {
         id: estudiante.idEstudiante,
         nombre: estudiante.usuario.nombre,
@@ -90,7 +176,13 @@ export async function POST(request: NextRequest) {
         seccion: estudiante.gradoSeccion?.seccion?.nombre,
         codigoQR: estudiante.codigoQR,
         accion: tipoAccion,
-        hora: ahora.toTimeString().slice(0, 5)
+        hora: formatearHora(ahora)
+      },
+      asistenciaIE: {
+        id: asistenciaIE.idAsistenciaIE,
+        horaIngreso: asistenciaIE.horaIngreso ? formatearHora(asistenciaIE.horaIngreso) : null,
+        horaSalida: asistenciaIE.horaSalida ? formatearHora(asistenciaIE.horaSalida) : null,
+        estado: asistenciaIE.estado
       },
       timestamp: ahora.toISOString()
     })

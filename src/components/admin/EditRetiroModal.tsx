@@ -10,34 +10,17 @@ interface EditRetiroModalProps {
 
 export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: EditRetiroModalProps) {
   const [formData, setFormData] = useState({
-    horaRetiro: '',
-    motivo: '',
-    observaciones: '',
-    personaRecoge: '',
-    dniPersonaRecoge: '',
-    idEstadoRetiro: ''
+    idEstadoRetiro: '',
+    observaciones: ''
   })
   const [estadosRetiro, setEstadosRetiro] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  const motivosComunes = [
-    'Cita médica',
-    'Emergencia familiar',
-    'Viaje familiar',
-    'Malestar',
-    'Asuntos personales',
-    'Otro'
-  ]
-
   useEffect(() => {
     if (retiro && isOpen) {
       setFormData({
-        horaRetiro: retiro.horaRetiro || '',
-        motivo: retiro.motivo || '',
-        observaciones: retiro.observaciones || '',
-        personaRecoge: retiro.personaRecoge || '',
-        dniPersonaRecoge: retiro.dniPersonaRecoge || '',
-        idEstadoRetiro: retiro.idEstadoRetiro?.toString() || ''
+        idEstadoRetiro: retiro.idEstadoRetiro?.toString() || '',
+        observaciones: retiro.observaciones || ''
       })
     }
   }, [retiro, isOpen])
@@ -180,128 +163,57 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hora de Retiro */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hora de Retiro *
-              </label>
-              <input
-                type="time"
-                name="horaRetiro"
-                value={formData.horaRetiro}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              />
-            </div>
-
-            {/* Motivo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Motivo *
-              </label>
-              <select
-                name="motivo"
-                value={formData.motivo}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              >
-                <option value="">Seleccionar motivo</option>
-                {motivosComunes.map((motivo) => (
-                  <option key={motivo} value={motivo}>{motivo}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Persona que Recoge */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Persona que Recoge
-              </label>
-              <input
-                type="text"
-                name="personaRecoge"
-                value={formData.personaRecoge}
-                onChange={handleInputChange}
-                placeholder="Nombre completo"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-              />
-            </div>
-
-            {/* DNI de la Persona */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                DNI de la Persona
-              </label>
-              <input
-                type="text"
-                name="dniPersonaRecoge"
-                value={formData.dniPersonaRecoge}
-                onChange={handleInputChange}
-                placeholder="12345678"
-                maxLength={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
-              />
-            </div>
-          </div>
-
           {/* Estado del Retiro */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Estado del Retiro *
+              Cambiar Estado del Retiro *
             </label>
-            <select
-              name="idEstadoRetiro"
-              value={formData.idEstadoRetiro}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            >
-              <option value="">Seleccionar estado</option>
+            <div className="grid grid-cols-3 gap-3">
               {estadosRetiro.map((estado) => (
-                <option key={estado.idEstadoRetiro} value={estado.idEstadoRetiro}>
-                  {getEstadoIcon(estado.codigo)} {estado.nombre}
-                </option>
+                <button
+                  key={estado.idEstadoRetiro}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, idEstadoRetiro: estado.idEstadoRetiro.toString() }))}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    formData.idEstadoRetiro === estado.idEstadoRetiro.toString()
+                      ? estado.codigo === 'PENDIENTE'
+                        ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200'
+                        : estado.codigo === 'AUTORIZADO'
+                        ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
+                        : 'border-red-500 bg-red-50 ring-2 ring-red-200'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{getEstadoIcon(estado.codigo)}</div>
+                  <div className={`font-medium ${
+                    formData.idEstadoRetiro === estado.idEstadoRetiro.toString()
+                      ? estado.codigo === 'PENDIENTE'
+                        ? 'text-yellow-700'
+                        : estado.codigo === 'AUTORIZADO'
+                        ? 'text-green-700'
+                        : 'text-red-700'
+                      : 'text-gray-700'
+                  }`}>
+                    {estado.nombre}
+                  </div>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* Observaciones */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Observaciones
+              Observaciones (opcional)
             </label>
             <textarea
               name="observaciones"
               value={formData.observaciones}
               onChange={handleInputChange}
-              rows={4}
-              placeholder="Información adicional sobre el retiro..."
+              rows={3}
+              placeholder="Agregar observación sobre el cambio de estado..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-500"
             />
-          </div>
-
-          {/* Información adicional */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-yellow-800">
-                  Información importante
-                </p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Los cambios realizados se aplicarán inmediatamente. Asegúrate de que la información sea correcta antes de guardar.
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Botones de acción */}
@@ -316,7 +228,7 @@ export default function EditRetiroModal({ isOpen, onClose, retiro, onSave }: Edi
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.idEstadoRetiro}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50"
             >
               {loading ? 'Guardando...' : 'Guardar Cambios'}

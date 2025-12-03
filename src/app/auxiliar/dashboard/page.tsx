@@ -11,7 +11,9 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon,
   CogIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  QrCodeIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline'
 
 interface DashboardStats {
@@ -27,6 +29,7 @@ export default function AuxiliarDashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [userInfo, setUserInfo] = useState<any>(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const [stats, setStats] = useState<DashboardStats>({
     estudiantesPresentes: 0,
     estudiantesAusentes: 0,
@@ -35,6 +38,12 @@ export default function AuxiliarDashboard() {
     toleranciaPromedio: 10,
     alertasTolerancia: 0
   })
+
+  // Actualizar hora cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const checkAuth = () => {
@@ -97,168 +106,204 @@ export default function AuxiliarDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-black">Cargando panel auxiliar...</span>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-orange-200 rounded-full animate-spin border-t-orange-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ClockIcon className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando panel...</p>
         </div>
       </div>
     )
   }
 
+  const quickActions = [
+    {
+      title: 'Escanear QR',
+      description: 'Registrar asistencia',
+      href: '/auxiliar/asistencia',
+      icon: QrCodeIcon,
+      gradient: 'from-green-500 to-emerald-600'
+    },
+    {
+      title: 'Nuevo Retiro',
+      description: 'Registrar salida',
+      href: '/auxiliar/retiros/crear',
+      icon: ArrowRightOnRectangleIcon,
+      gradient: 'from-orange-500 to-amber-600'
+    }
+  ]
+
   const menuItems = [
     {
       title: 'Control de Asistencia',
-      description: 'Registrar entrada y salida de estudiantes',
+      description: 'Registrar entrada y salida de estudiantes mediante QR',
       href: '/auxiliar/asistencia',
       icon: ClockIcon,
-      color: 'bg-blue-500',
-      stats: `${stats.estudiantesPresentes} presentes hoy`
+      gradient: 'from-blue-500 to-indigo-600',
+      stats: stats.estudiantesPresentes,
+      statsLabel: 'presentes hoy'
     },
     {
       title: 'Gestión de Retiros',
-      description: 'Crear, editar y gestionar retiros de estudiantes',
+      description: 'Administrar retiros y salidas anticipadas',
       href: '/auxiliar/retiros',
       icon: ArrowRightOnRectangleIcon,
-      color: 'bg-orange-500',
-      stats: `${stats.retirosHoy} retiros hoy`
+      gradient: 'from-orange-500 to-red-500',
+      stats: stats.retirosHoy,
+      statsLabel: 'retiros hoy'
     },
     {
       title: 'Control de Tolerancia',
-      description: 'Ajustar tiempos de tolerancia por aula',
+      description: 'Configurar tiempos de tolerancia por aula',
       href: '/auxiliar/tolerancia',
       icon: CogIcon,
-      color: 'bg-purple-500',
-      stats: `${stats.toleranciaPromedio} min promedio`
+      gradient: 'from-purple-500 to-pink-600',
+      stats: stats.toleranciaPromedio,
+      statsLabel: 'min promedio'
     },
     {
       title: 'Reportes',
-      description: 'Generar reportes de asistencia y retiros',
+      description: 'Generar y exportar reportes de asistencia',
       href: '/auxiliar/reportes',
       icon: DocumentTextIcon,
-      color: 'bg-indigo-500',
-      stats: 'Reportes disponibles'
+      gradient: 'from-teal-500 to-cyan-600',
+      stats: null,
+      statsLabel: 'PDF, Excel, Word'
     }
   ]
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Header con fecha y hora */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Panel de Control
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Gestión de asistencia escolar
+          </p>
+        </div>
+        <div className="flex items-center gap-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl shadow-lg">
+          <CalendarDaysIcon className="h-5 w-5" />
+          <div className="text-sm">
+            <p className="font-semibold capitalize">
+              {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+            <p className="text-orange-100 text-lg font-mono">
+              {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Acciones rápidas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {quickActions.map((action, index) => (
+          <Link
+            key={index}
+            href={action.href}
+            className={`group relative overflow-hidden bg-gradient-to-br ${action.gradient} p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]`}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <action.icon className="h-7 w-7 text-white" />
+              </div>
+              <div className="text-white flex-1">
+                <h3 className="text-lg font-bold">{action.title}</h3>
+                <p className="text-white/80 text-sm">{action.description}</p>
+              </div>
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <UserGroupIcon className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Estudiantes Presentes
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.estudiantesPresentes}
-                  </dd>
-                </dl>
-              </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-100 rounded-lg">
+              <UserGroupIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.estudiantesPresentes}</p>
+              <p className="text-xs text-gray-500">Presentes</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ArrowRightOnRectangleIcon className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Retiros Hoy
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.retirosHoy}
-                  </dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-orange-100 rounded-lg">
+              <ArrowRightOnRectangleIcon className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.retirosHoy}</p>
+              <p className="text-xs text-gray-500">Retiros hoy</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ClockIcon className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    En IE Ahora
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.estudiantesEnIE}
-                  </dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-green-100 rounded-lg">
+              <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.estudiantesEnIE}</p>
+              <p className="text-xs text-gray-500">En IE ahora</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Alertas Tolerancia
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.alertasTolerancia}
-                  </dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-100 rounded-lg">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.alertasTolerancia}</p>
+              <p className="text-xs text-gray-500">Alertas</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {menuItems.map((item, index) => (
           <Link
             key={index}
             href={item.href}
-            className="group relative bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-orange-500 rounded-lg shadow hover:shadow-md transition-shadow duration-200"
+            className="group bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-orange-200 transition-all duration-300"
           >
-            <div>
-              <span className={`rounded-lg inline-flex p-3 ${item.color} text-white ring-4 ring-white`}>
-                <item.icon className="h-6 w-6" aria-hidden="true" />
+            <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg mb-4`}>
+              <item.icon className="h-6 w-6 text-white" aria-hidden="true" />
+            </div>
+            <h3 className="text-base font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+              {item.title}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+              {item.description}
+            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-orange-600">
+                {item.stats !== null ? `${item.stats} ${item.statsLabel}` : item.statsLabel}
               </span>
-            </div>
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-gray-900 group-hover:text-orange-600">
-                <span className="absolute inset-0" aria-hidden="true" />
-                {item.title}
-              </h3>
-              <p className="mt-2 text-sm text-gray-500">
-                {item.description}
-              </p>
-              <p className="mt-2 text-xs font-medium text-orange-600">
-                {item.stats}
-              </p>
-            </div>
-            <span
-              className="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400"
-              aria-hidden="true"
-            >
-              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="m11.293 17.293 1.414 1.414L19.414 12l-6.707-6.707-1.414 1.414L15.586 11H5v2h10.586l-4.293 4.293z" />
+              <svg className="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </span>
+            </div>
           </Link>
         ))}
       </div>

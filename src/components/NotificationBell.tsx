@@ -194,24 +194,39 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
         )}
       </button>
 
-      {/* Dropdown de notificaciones */}
+      {/* Overlay para móvil */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Dropdown de notificaciones - Responsive */}
+      {isOpen && (
+        <div className="fixed md:absolute inset-x-3 md:inset-x-auto md:right-0 top-14 md:top-auto md:mt-2 w-auto md:w-96 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 z-50 max-h-[80vh] md:max-h-[600px] overflow-hidden">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200">
+          <div className="px-4 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900">
-                Notificaciones
-                {hasUnread && (
-                  <span className="ml-2 text-xs text-gray-500">
-                    ({unreadCount} sin leer)
-                  </span>
-                )}
-              </h3>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <BellSolidIcon className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Notificaciones
+                  </h3>
+                  {hasUnread && (
+                    <span className="text-xs text-gray-500">
+                      {unreadCount} sin leer
+                    </span>
+                  )}
+                </div>
+              </div>
               {hasUnread && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
                 >
                   Marcar todas como leídas
                 </button>
@@ -220,78 +235,89 @@ export default function NotificationBell({ userRole, userId }: NotificationBellP
           </div>
 
           {/* Lista de notificaciones */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[60vh] md:max-h-96 overflow-y-auto">
             {loading ? (
-              <div className="px-4 py-8 text-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-sm text-gray-500 mt-2">Cargando...</p>
+              <div className="px-4 py-12 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-3">Cargando notificaciones...</p>
               </div>
             ) : notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <BellIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No hay notificaciones</p>
+              <div className="px-4 py-12 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <BellIcon className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">No hay notificaciones</p>
+                <p className="text-xs text-gray-500 mt-1">Te avisaremos cuando haya algo nuevo</p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
-                    !notification.isRead ? 'bg-blue-50' : ''
-                  }`}
-                  onClick={() => {
-                    if (!notification.isRead) {
-                      markAsRead(notification.id)
-                    }
-                    if (notification.actionUrl) {
-                      window.location.href = notification.actionUrl
-                    }
-                  }}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${getNotificationColor(notification.type)}`}>
-                      <span className="text-sm">
-                        {getNotificationIcon(notification.type)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                          {notification.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatTime(notification.createdAt)}
-                        </p>
+              <div className="divide-y divide-gray-100">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      !notification.isRead ? 'bg-blue-50/50' : ''
+                    }`}
+                    onClick={() => {
+                      if (!notification.isRead) {
+                        markAsRead(notification.id)
+                      }
+                      if (notification.actionUrl) {
+                        window.location.href = notification.actionUrl
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${getNotificationColor(notification.type)}`}>
+                        <span className="text-base">
+                          {getNotificationIcon(notification.type)}
+                        </span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {notification.message}
-                      </p>
-                      {notification.relatedTo && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {notification.relatedTo}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm font-semibold leading-tight ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                            {notification.title}
+                          </p>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {!notification.isRead && (
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                            )}
+                            <p className="text-xs text-gray-400 whitespace-nowrap">
+                              {formatTime(notification.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                          {notification.message}
                         </p>
-                      )}
-                      {!notification.isRead && (
-                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                      )}
+                        {notification.relatedTo && (
+                          <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                            {notification.relatedTo}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/80">
               <button
                 onClick={() => {
                   setIsOpen(false)
                   // Navegar a página de todas las notificaciones
                   window.location.href = '/notifications'
                 }}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-2 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-1"
               >
-                Ver todas las notificaciones →
+                Ver todas las notificaciones
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
           )}

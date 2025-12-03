@@ -335,132 +335,146 @@ export default function AsistenciaControl() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <CameraIcon className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando asistencia...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:px-8">
-      {/* Stats Cards - Compactas en móvil */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-4 md:mb-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-2 sm:p-3 md:p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-              </div>
-              <div className="ml-2 sm:ml-4 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Presentes</dt>
-                  <dd className="text-base sm:text-lg font-bold text-green-600">{stats.presentes}</dd>
-                </dl>
-              </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Control de Asistencia</h1>
+          <p className="mt-1 text-gray-500">Registro de entrada y salida de estudiantes</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={selectedFecha}
+            onChange={(e) => handleFechaChange(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-black"
+          />
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-green-100 rounded-lg">
+              <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-600">{stats.presentes}</p>
+              <p className="text-xs text-gray-500">Presentes</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-2 sm:p-3 md:p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ClockIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
-              </div>
-              <div className="ml-2 sm:ml-4 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Tardanzas</dt>
-                  <dd className="text-base sm:text-lg font-bold text-yellow-600">{stats.tardanzas}</dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-100 rounded-lg">
+              <ClockIcon className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.tardanzas}</p>
+              <p className="text-xs text-gray-500">Tardanzas</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-2 sm:p-3 md:p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <XCircleIcon className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
-              </div>
-              <div className="ml-2 sm:ml-4 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Ausentes</dt>
-                  <dd className="text-base sm:text-lg font-bold text-red-600">{stats.ausentes}</dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-red-100 rounded-lg">
+              <XCircleIcon className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-600">{stats.ausentes}</p>
+              <p className="text-xs text-gray-500">Ausentes</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-2 sm:p-3 md:p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <div className="ml-2 sm:ml-4 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Retirados</dt>
-                  <dd className="text-base sm:text-lg font-bold text-orange-600">{stats.retirados}</dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-orange-100 rounded-lg">
+              <svg className="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-orange-600">{stats.retirados}</p>
+              <p className="text-xs text-gray-500">Retirados</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg col-span-2 sm:col-span-1">
-          <div className="p-2 sm:p-3 md:p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <UserGroupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-              </div>
-              <div className="ml-2 sm:ml-4 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total</dt>
-                  <dd className="text-base sm:text-lg font-bold text-blue-600">{stats.total}</dd>
-                </dl>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow col-span-2 sm:col-span-1">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-100 rounded-lg">
+              <UserGroupIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+              <p className="text-xs text-gray-500">Total</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Botones Principales - Grandes y táctiles para móvil */}
-      <div className="bg-white shadow rounded-lg mb-4 md:mb-8">
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-            {/* Botón Cámara QR - Principal y grande */}
-            <button
-              onClick={() => setShowQRModal(true)}
-              className="flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 active:bg-green-100 transition-colors group min-h-[120px] sm:min-h-[160px]"
-            >
-              <CameraIcon className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-gray-400 group-hover:text-green-500 mb-2 sm:mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 group-hover:text-green-600 mb-1 sm:mb-2">
-                Abrir Cámara QR
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 text-center hidden sm:block">
-                Escanea códigos QR para registrar entrada y salida
-              </p>
-            </button>
-
-            {/* Botón Búsqueda Avanzada */}
-            <button
-              onClick={openSearchModal}
-              className="flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 active:bg-purple-100 transition-colors group min-h-[120px] sm:min-h-[160px]"
-            >
-              <FunnelIcon className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-gray-400 group-hover:text-purple-500 mb-2 sm:mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 group-hover:text-purple-600 mb-1 sm:mb-2">
-                Buscar Asistencia
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 text-center hidden sm:block">
-                Busca y filtra estudiantes por diferentes criterios
-              </p>
-            </button>
+      {/* Acciones Principales */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => setShowQRModal(true)}
+          className="group relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+              <CameraIcon className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-white text-left flex-1">
+              <h3 className="text-xl font-bold">Escanear QR</h3>
+              <p className="text-white/80 text-sm">Registrar entrada/salida</p>
+            </div>
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
           </div>
-        </div>
+        </button>
+
+        <button
+          onClick={openSearchModal}
+          className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="relative flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+              <FunnelIcon className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-white text-left flex-1">
+              <h3 className="text-xl font-bold">Buscar Asistencia</h3>
+              <p className="text-white/80 text-sm">Filtrar por criterios</p>
+            </div>
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Filters - Colapsables en móvil */}
@@ -469,7 +483,7 @@ export default function AsistenciaControl() {
           <div className="flex justify-between items-center mb-3 md:mb-4">
             <h3 className="text-base sm:text-lg leading-6 font-medium text-gray-900">Filtros</h3>
             <button
-              onClick={() => loadEstudiantes()}
+              onClick={() => loadEstudiantes(selectedFecha)}
               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 min-h-[44px]"
             >
               <svg className="h-4 w-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -699,7 +713,11 @@ export default function AsistenciaControl() {
       {/* Modales */}
       <QRScannerModal
         isOpen={showQRModal}
-        onClose={() => setShowQRModal(false)}
+        onClose={() => {
+          setShowQRModal(false)
+          // Recargar datos de la tabla al cerrar el modal
+          loadEstudiantes(selectedFecha)
+        }}
         accionSeleccionada={accionSeleccionada}
         setAccionSeleccionada={setAccionSeleccionada}
         qrCode={qrCode}

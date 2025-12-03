@@ -145,17 +145,25 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // Ahora buscar asistencias y retiros por separado para cada estudiante
+    // Función para formatear hora en zona horaria local (Lima/Peru)
+    const formatearHora = (fecha: Date | null): string => {
+      if (!fecha) return ''
+      return fecha.toLocaleTimeString('es-PE', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Lima'
+      })
+    }
+
+    // Ahora buscar asistencias IE (entrada/salida) y retiros por separado para cada estudiante
     const estudiantesConEstado = await Promise.all(
       estudiantes.map(async (estudiante) => {
-        // Buscar asistencia del día
-        const asistencia = await prisma.asistencia.findFirst({
+        // Buscar AsistenciaIE del día (entrada/salida de la institución - registrado por auxiliar)
+        const asistenciaIE = await prisma.asistenciaIE.findFirst({
           where: {
             idEstudiante: estudiante.idEstudiante,
             fecha: fechaBusqueda
-          },
-          include: {
-            estadoAsistencia: true
           },
           orderBy: {
             createdAt: 'desc'
@@ -187,16 +195,37 @@ export async function GET(request: NextRequest) {
         }
 
         let estadoFinal = 'AUSENTE'
-        let horaEntrada = null
-        let horaSalida = null
+        let horaEntrada: string | null = null
+        let horaSalida: string | null = null
 
-        // Determinar estado
-        if (retiro) {
+        // Determinar estado basado en AsistenciaIE (entrada/salida de portería)
+        if (asistenciaIE) {
+          // Si tiene hora de ingreso
+          if (asistenciaIE.horaIngreso) {
+            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+            estadoFinal = 'PRESENTE'
+          }
+          
+          // Si tiene hora de salida
+          if (asistenciaIE.horaSalida) {
+            horaSalida = formatearHora(asistenciaIE.horaSalida)
+            estadoFinal = 'RETIRADO'
+          }
+          
+          // Usar estado de la BD si existe
+          if (asistenciaIE.estado) {
+            if (asistenciaIE.estado === 'TARDANZA') {
+              estadoFinal = 'TARDANZA'
+            } else if (asistenciaIE.estado === 'RETIRADO' || asistenciaIE.estado === 'EVASION') {
+              estadoFinal = 'RETIRADO'
+            }
+          }
+        }
+
+        // Si hay retiro, sobrescribir
+        if (retiro && retiro.hora) {
           estadoFinal = 'RETIRADO'
-          horaSalida = retiro.hora?.toTimeString().slice(0, 5) || ''
-        } else if (asistencia) {
-          // Determinar estado basado en asistencia
-          estadoFinal = asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE'
+          horaSalida = formatearHora(retiro.hora)
         }
 
         return {
@@ -212,8 +241,8 @@ export async function GET(request: NextRequest) {
           horaEntrada,
           horaSalida,
           horarioClase: horarioClase ? {
-            horaInicio: horarioClase.horaInicio?.toTimeString().slice(0, 5) || '',
-            horaFin: horarioClase.horaFin?.toTimeString().slice(0, 5) || '',
+            horaInicio: formatearHora(horarioClase.horaInicio),
+            horaFin: formatearHora(horarioClase.horaFin),
             materia: horarioClase.materia || 'Clases generales'
           } : null
         }

@@ -24,6 +24,8 @@ interface Estudiante {
   estado?: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA'
   duplicado?: boolean
   mensajeDuplicado?: string
+  horaEntrada?: string
+  horaSalida?: string
 }
 
 interface CameraDevice {
@@ -78,13 +80,17 @@ export default function QRScannerModal({
   // Cargar estudiantes para mostrar información
   useEffect(() => {
     if (isOpen) {
-      // Solo cargar estudiantes si la lista está vacía
-      if (estudiantes.length === 0) {
-        loadEstudiantes()
-      }
+      loadEstudiantes()
       detectarCamaras()
     }
   }, [isOpen])
+
+  // Recargar estudiantes cuando cambie la acción (entrada/salida)
+  useEffect(() => {
+    if (isOpen) {
+      loadEstudiantes()
+    }
+  }, [accionSeleccionada])
 
   // Limpieza automática de cooldowns antiguos cada 30 segundos
   useEffect(() => {
@@ -248,6 +254,10 @@ export default function QRScannerModal({
       if (response.ok) {
         const data = await response.json()
         
+        // Obtener hora del servidor o usar hora local formateada
+        const horaRegistro = data.estudiante?.hora || data.asistenciaIE?.horaIngreso || data.asistenciaIE?.horaSalida || 
+          new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false })
+        
         // Verificar si es un duplicado - mostrar notificación temporal
         if (data.duplicado) {
           console.log('⚠️ Asistencia duplicada:', data.mensaje)
@@ -261,7 +271,7 @@ export default function QRScannerModal({
             grado: data.estudiante.grado,
             seccion: data.estudiante.seccion,
             accion: accionSeleccionada,
-            hora: new Date().toLocaleTimeString(),
+            hora: horaRegistro,
             duplicado: true,
             mensajeDuplicado: data.mensaje
           })
@@ -295,7 +305,7 @@ export default function QRScannerModal({
           grado: data.estudiante.grado,
           seccion: data.estudiante.seccion,
           accion: accionSeleccionada,
-          hora: new Date().toLocaleTimeString()
+          hora: horaRegistro
         })
         
         // Mostrar confirmación exitosa
@@ -310,7 +320,7 @@ export default function QRScannerModal({
           grado: data.estudiante.grado,
           seccion: data.estudiante.seccion,
           accion: accionSeleccionada,
-          hora: new Date().toLocaleTimeString()
+          hora: horaRegistro
         }
         setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
         
@@ -535,7 +545,7 @@ export default function QRScannerModal({
             <div className="lg:col-span-2">
               {modoEscaneo === 'camara' ? (
                 <div>
-                  <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">Escanear Código QR</h3>
+                  <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-2 md:mb-4">Escanear Código QR</h3>
                   
                   {/* Selector de cámara */}
                   {camaras.length > 0 && (
@@ -559,6 +569,12 @@ export default function QRScannerModal({
 
                   {/* Área de escaneo - Tamaño fijo */}
                   <div className="relative">
+                    {/* Contenedor del scanner QR - REQUERIDO por Html5Qrcode */}
+                    <div 
+                      id="qr-reader-auxiliar" 
+                      className="w-full aspect-square max-w-md mx-auto bg-black rounded-lg overflow-hidden"
+                    />
+                    
                     {/* Overlay con información del estudiante - Confirmación exitosa */}
                     {mostrarConfirmacion && estudianteEscaneado && (
                       <div className={`absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 border-3 min-w-[300px] ${
@@ -661,29 +677,157 @@ export default function QRScannerModal({
                   </div>
                 </div>
               ) : (
-                <div>
-                  <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">Código Manual</h3>
-                  <div className="flex gap-2">
+                <div className="flex flex-col h-full">
+                  <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-2 md:mb-4">Búsqueda Rápida</h3>
+                  
+                  {/* Input de búsqueda con Enter */}
+                  <div className="mb-3">
                     <input
                       type="text"
                       value={qrCode}
                       onChange={(e) => setQrCode(e.target.value)}
-                      placeholder="Ingresar código QR"
-                      className="flex-1 px-3 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black min-h-[48px]"
-                      onKeyPress={(e) => e.key === 'Enter' && handleQRScan()}
+                      onKeyDown={(e) => {
+                        const estudiantesFiltrados = estudiantes.filter(est => {
+                          // Filtrar según la acción seleccionada
+                          if (accionSeleccionada === 'entrada') {
+                            if (est.horaEntrada) return false
+                          } else {
+                            if (!est.horaEntrada) return false
+                            if (est.horaSalida) return false
+                          }
+                          
+                          // Excluir recién escaneados en esta sesión
+                          const yaEscaneadoMismaAccion = estudiantesEscaneados.find(
+                            e => (e.dni === est.dni || e.codigo === est.codigo) && e.accion === accionSeleccionada
+                          )
+                          if (yaEscaneadoMismaAccion) return false
+                          
+                          if (!qrCode.trim()) return true
+                          const busqueda = qrCode.toLowerCase()
+                          const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase()
+                          const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase()
+                          return nombreCompleto.includes(busqueda) || 
+                                 apellidoNombre.includes(busqueda) ||
+                                 est.dni?.toLowerCase().includes(busqueda) ||
+                                 est.codigo?.toLowerCase().includes(busqueda)
+                        })
+                        
+                        // Enter = registrar el primero de la lista
+                        if (e.key === 'Enter' && estudiantesFiltrados.length > 0 && !procesandoEscaneo) {
+                          e.preventDefault()
+                          const primerEstudiante = estudiantesFiltrados[0]
+                          procesarCodigoQR(primerEstudiante.codigo || primerEstudiante.dni)
+                          setQrCode('')
+                        }
+                      }}
+                      placeholder={`🔍 Buscar estudiante para ${accionSeleccionada}...`}
+                      className="w-full p-4 border-2 border-blue-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-600 text-lg text-black font-medium shadow-sm"
+                      autoFocus={modoEscaneo === 'manual'}
                     />
-                    <button
-                      onClick={handleQRScan}
-                      disabled={!qrCode.trim()}
-                      className={`inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white min-h-[48px] min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed ${
-                        accionSeleccionada === 'entrada' 
-                          ? 'bg-green-600 hover:bg-green-700 active:bg-green-800'
-                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                      }`}
-                    >
-                      <QrCodeIcon className="h-5 w-5 mr-1" />
-                      {accionSeleccionada === 'entrada' ? 'Entrada' : 'Salida'}
-                    </button>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Escribe y presiona <kbd className="bg-gray-200 px-1.5 py-0.5 rounded font-mono">Enter</kbd> para registrar {accionSeleccionada}
+                    </p>
+                  </div>
+                  
+                  {/* Lista filtrada de estudiantes */}
+                  <div className="flex-1 overflow-y-auto rounded-lg bg-gray-50 border max-h-80">
+                    {(() => {
+                      const estudiantesFiltrados = estudiantes.filter(est => {
+                        // Filtrar según la acción seleccionada
+                        if (accionSeleccionada === 'entrada') {
+                          // Para ENTRADA: mostrar solo los que NO tienen horaEntrada
+                          if (est.horaEntrada) return false
+                        } else {
+                          // Para SALIDA: mostrar solo los que tienen entrada PERO no tienen salida
+                          if (!est.horaEntrada) return false // Debe tener entrada primero
+                          if (est.horaSalida) return false // Ya tiene salida
+                        }
+                        
+                        // También excluir los recién escaneados en esta sesión (para la misma acción)
+                        const yaEscaneadoMismaAccion = estudiantesEscaneados.find(
+                          e => (e.dni === est.dni || e.codigo === est.codigo) && e.accion === accionSeleccionada
+                        )
+                        if (yaEscaneadoMismaAccion) return false
+                        
+                        // Filtro de búsqueda por texto
+                        if (!qrCode.trim()) return true
+                        const busqueda = qrCode.toLowerCase()
+                        const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase()
+                        const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase()
+                        return nombreCompleto.includes(busqueda) || 
+                               apellidoNombre.includes(busqueda) ||
+                               est.dni?.toLowerCase().includes(busqueda) ||
+                               est.codigo?.toLowerCase().includes(busqueda)
+                      })
+                      
+                      if (estudiantes.length === 0) {
+                        return (
+                          <div className="p-4 text-center text-gray-500">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                            Cargando estudiantes...
+                          </div>
+                        )
+                      }
+                      
+                      if (estudiantesFiltrados.length === 0 && qrCode.trim()) {
+                        return <div className="p-4 text-center text-gray-500">No se encontraron resultados</div>
+                      }
+                      
+                      if (estudiantesFiltrados.length === 0) {
+                        return (
+                          <div className="p-4 text-center text-green-600 font-medium">
+                            ✅ {accionSeleccionada === 'entrada' ? 'Todas las entradas registradas' : 'Todas las salidas registradas'}
+                          </div>
+                        )
+                      }
+                      
+                      return estudiantesFiltrados.slice(0, 20).map((estudiante, index) => (
+                        <button
+                          key={estudiante.id || index}
+                          onClick={() => {
+                            procesarCodigoQR(estudiante.codigo || estudiante.dni)
+                            setQrCode('')
+                          }}
+                          disabled={procesandoEscaneo}
+                          className={`w-full p-3 text-left border-b hover:bg-blue-100 transition-colors disabled:opacity-50 flex justify-between items-center ${
+                            index === 0 && qrCode.trim() ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                          }`}
+                        >
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {estudiante.apellido}, {estudiante.nombre}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              DNI: {estudiante.dni} • {estudiante.grado}° {estudiante.seccion}
+                              {accionSeleccionada === 'salida' && estudiante.horaEntrada && (
+                                <span className="ml-2 text-green-600">• Entrada: {estudiante.horaEntrada}</span>
+                              )}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            accionSeleccionada === 'entrada' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {accionSeleccionada === 'entrada' ? '→ Entrada' : '← Salida'}
+                          </span>
+                        </button>
+                      ))
+                    })()}
+                  </div>
+                  
+                  {/* Contador */}
+                  <div className="mt-2 text-center text-sm text-gray-500">
+                    {(() => {
+                      const pendientes = estudiantes.filter(est => {
+                        if (accionSeleccionada === 'entrada') {
+                          return !est.horaEntrada
+                        } else {
+                          return est.horaEntrada && !est.horaSalida
+                        }
+                      }).length
+                      return `${pendientes} estudiantes pendientes de ${accionSeleccionada}`
+                    })()}
                   </div>
                 </div>
               )}
@@ -691,7 +835,7 @@ export default function QRScannerModal({
 
             {/* Lista de estudiantes - Abajo en móvil, al lado en desktop */}
             <div className="lg:col-span-1 mt-4 lg:mt-0">
-              <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4">
+              <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-2 md:mb-4">
                 Registrados Hoy ({estudiantesEscaneados.length})
               </h3>
               

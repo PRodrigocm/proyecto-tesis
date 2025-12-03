@@ -395,6 +395,17 @@ export async function GET(request: NextRequest) {
           throw error
         }
         break
+      case 'retiros-tardios':
+        console.log('📊 Generando reporte de retiros tardíos...')
+        reportTitle = 'Reporte de Retiros Tardíos'
+        try {
+          reportData = await generateRetirosTardiosData(ieId, fechaInicio, fechaFin, gradoId || undefined, seccionId || undefined)
+          console.log('📊 Datos de retiros tardíos generados:', reportData.length, 'registros')
+        } catch (error) {
+          console.error('❌ Error generando reporte de retiros tardíos:', error)
+          throw error
+        }
+        break
       default:
         return NextResponse.json(
           { error: 'Tipo de reporte no válido' },
@@ -796,6 +807,78 @@ async function generateRetirosApoderadoData(ieId: number, fechaInicio: Date, fec
     'Total Retiros': count,
     Período: `${fechaInicio.toLocaleDateString('es-ES')} - ${fechaFin.toLocaleDateString('es-ES')}`
   }))
+}
+
+// Función para generar datos de retiros tardíos (fuera de horario normal)
+async function generateRetirosTardiosData(ieId: number, fechaInicio: Date, fechaFin: Date, gradoId?: string, seccionId?: string) {
+  console.log('📊 Generando reporte de retiros tardíos...')
+  
+  try {
+    // Obtener retiros del período
+    const retiros = await prisma.retiro.findMany({
+      where: {
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin
+        },
+        idIe: ieId
+      },
+      include: {
+        estudiante: {
+          include: {
+            usuario: true,
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { fecha: 'desc' },
+        { hora: 'desc' }
+      ]
+    })
+
+    // Filtrar retiros tardíos (después de las 14:00 por ejemplo)
+    const horaTardio = 14 // 2:00 PM
+    const retirosTardios = retiros.filter(retiro => {
+      const horaRetiro = retiro.hora.getHours()
+      return horaRetiro >= horaTardio
+    })
+
+    // Aplicar filtros de grado/sección si existen
+    let retirosFiltrados = retirosTardios
+    if (gradoId || seccionId) {
+      retirosFiltrados = retirosTardios.filter(retiro => {
+        if (gradoId && retiro.estudiante.gradoSeccion?.idGrado !== parseInt(gradoId)) return false
+        if (seccionId && retiro.estudiante.gradoSeccion?.idSeccion !== parseInt(seccionId)) return false
+        return true
+      })
+    }
+
+    return retirosFiltrados.map(retiro => ({
+      Fecha: retiro.fecha.toLocaleDateString('es-ES'),
+      Estudiante: `${retiro.estudiante.usuario.nombre} ${retiro.estudiante.usuario.apellido}`,
+      Grado: retiro.estudiante.gradoSeccion?.grado?.nombre || 'N/A',
+      Sección: retiro.estudiante.gradoSeccion?.seccion?.nombre || 'N/A',
+      'Hora Retiro': retiro.hora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' }),
+      Observaciones: retiro.observaciones || 'Sin observaciones'
+    }))
+
+  } catch (error) {
+    console.error('❌ Error generando reporte de retiros tardíos:', error)
+    return [{
+      Fecha: 'Error',
+      Estudiante: 'No se pudo generar el reporte',
+      Grado: '-',
+      Sección: '-',
+      'Hora Retiro': '-',
+      Observaciones: 'Error en la consulta'
+    }]
+  }
 }
 
 // Función para generar reporte general completo
@@ -1294,7 +1377,49 @@ function generateExcelReport(data: any[], title: string, colegioInfo?: any, usua
       return buffer
     }
 
-    // Separar datos por secciones para crear hojas estructuradas
+    // DETECTAR FORMATO DE DATOS: Tabla directa vs Secciones
+    const primerItem = data[0]
+    const esFormatoTabla = primerItem && ('N°' in primerItem || 'Apellidos y Nombres' in primerItem || 'DNI' in primerItem)
+    
+    if (esFormatoTabla) {
+      // FORMATO TABLA DIRECTA (nuevo formato de reportes)
+      console.log('📊 Detectado formato de tabla directa')
+      
+      // Obtener headers de las keys del primer objeto
+      const headers = Object.keys(primerItem)
+      
+      // Crear datos de la hoja
+      const sheetData: any[][] = [
+        [title.toUpperCase()],
+        [''],
+        headers // Headers de la tabla
+      ]
+      
+      // Agregar filas de datos
+      data.forEach(item => {
+        const fila = headers.map(header => item[header] || '')
+        sheetData.push(fila)
+      })
+      
+      // Crear hoja
+      const ws = XLSX.utils.aoa_to_sheet(sheetData)
+      
+      // Configurar anchos de columna
+      ws['!cols'] = headers.map(header => {
+        if (header === 'N°') return { width: 5 }
+        if (header === 'Apellidos y Nombres') return { width: 35 }
+        if (header === 'DNI') return { width: 12 }
+        if (header === '% Asistencia') return { width: 12 }
+        return { width: 10 }
+      })
+      
+      XLSX.utils.book_append_sheet(wb, ws, 'Reporte')
+      
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+      return buffer
+    }
+
+    // FORMATO ANTIGUO: Separar datos por secciones para crear hojas estructuradas
     const secciones = new Map<string, any[]>()
     
     data.forEach(item => {
@@ -1567,7 +1692,90 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       return Buffer.from(doc.output('arraybuffer'))
     }
     
-    // Separar datos por secciones
+    // DETECTAR FORMATO DE DATOS: Tabla directa vs Secciones
+    const primerItem = data[0]
+    const esFormatoTabla = primerItem && ('N°' in primerItem || 'Apellidos y Nombres' in primerItem || 'DNI' in primerItem)
+    
+    if (esFormatoTabla) {
+      // FORMATO TABLA DIRECTA (nuevo formato de reportes)
+      console.log('📄 PDF: Detectado formato de tabla directa')
+      
+      // Obtener headers de las keys del primer objeto
+      const headers = Object.keys(primerItem)
+      
+      // Preparar datos para la tabla
+      const tableData = data.map(item => headers.map(header => item[header] || ''))
+      
+      // Configuración de la tabla
+      const tableConfig = {
+        startY: 20,
+        head: [headers],
+        body: tableData,
+        margin: { left: 10, right: 10 },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+          halign: 'left' as const,
+          valign: 'middle' as const,
+          overflow: 'linebreak' as const
+        },
+        headStyles: {
+          fillColor: [46, 125, 50] as [number, number, number],
+          textColor: 255,
+          fontSize: 9,
+          fontStyle: 'bold' as const,
+          halign: 'center' as const
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245] as [number, number, number]
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' as const }, // N°
+          1: { cellWidth: 55 }, // Apellidos y Nombres
+          2: { cellWidth: 22, halign: 'center' as const }, // DNI
+          3: { cellWidth: 18, halign: 'center' as const }, // Presentes
+          4: { cellWidth: 18, halign: 'center' as const }, // Tardanzas
+          5: { cellWidth: 18, halign: 'center' as const }, // Faltas
+          6: { cellWidth: 20, halign: 'center' as const }, // Justificadas
+          7: { cellWidth: 22, halign: 'center' as const }  // % Asistencia
+        },
+        theme: 'striped' as const,
+        showHead: 'everyPage' as const,
+        didParseCell: function(data: any) {
+          // Resaltar filas de aula
+          if (data.section === 'body' && data.row.raw[1]?.includes('AULA:')) {
+            data.cell.styles.fillColor = [200, 230, 201]
+            data.cell.styles.fontStyle = 'bold'
+          }
+          // Resaltar fila de resumen
+          if (data.section === 'body' && data.row.raw[1]?.includes('RESUMEN')) {
+            data.cell.styles.fillColor = [255, 243, 224]
+            data.cell.styles.fontStyle = 'bold'
+          }
+        }
+      }
+      
+      // Verificar si autoTable está disponible
+      if (typeof (doc as any).autoTable === 'function') {
+        (doc as any).autoTable(tableConfig)
+      } else {
+        // Fallback: generar tabla como texto simple
+        generateTableFallback(doc, tableData, headers, 20)
+      }
+      
+      // Agregar leyenda al final
+      const finalY = (doc as any).lastAutoTable?.finalY || 250
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Leyenda: P=Presente, T=Tardanza, F=Falta, J=Justificada', 10, finalY + 10)
+      doc.setTextColor(0, 0, 0)
+      
+      console.log('✅ PDF con formato tabla generado')
+      return Buffer.from(doc.output('arraybuffer'))
+    }
+    
+    // FORMATO ANTIGUO: Separar datos por secciones
     const secciones = new Map<string, any[]>()
     data.forEach(item => {
       const seccion = item.Sección || item.Categoría || 'GENERAL'
@@ -1959,241 +2167,561 @@ function generateSimplePDFReport(data: any[], title: string, colegioInfo?: any, 
 // Función para generar reporte semanal completo
 async function generateReporteSemanalCompleto(ieId: number, fechaInicio: Date, fechaFin: Date, gradoId?: number, seccionId?: number) {
   try {
-    console.log('📅 Generando reporte semanal completo...')
+    console.log('📅 Generando reporte semanal completo con datos reales...')
     
-    // Calcular número de semana
-    const inicioAno = new Date(fechaInicio.getFullYear(), 0, 1)
-    const diasTranscurridos = Math.floor((fechaInicio.getTime() - inicioAno.getTime()) / (24 * 60 * 60 * 1000))
-    const numeroSemana = Math.ceil((diasTranscurridos + inicioAno.getDay() + 1) / 7)
+    // Construir filtro para estudiantes
+    const whereClause: any = {
+      usuario: {
+        idIe: ieId,
+        estado: 'ACTIVO'
+      }
+    }
     
-    // Obtener información base
-    const colegioInfo = await getColegioInfo(ieId)
-    const gradoSeccionInfo = await getGradoSeccionInfo(gradoId, seccionId)
-    
-    // Calcular días hábiles (lunes a viernes)
-    const diasHabiles = calcularDiasHabiles(fechaInicio, fechaFin)
-    
-    // Obtener estudiantes para estadísticas
+    if (gradoId || seccionId) {
+      whereClause.gradoSeccion = {}
+      if (gradoId) whereClause.gradoSeccion.idGrado = gradoId
+      if (seccionId) whereClause.gradoSeccion.idSeccion = seccionId
+    }
+
+    // Obtener estudiantes con sus asistencias del período
     const estudiantes = await prisma.estudiante.findMany({
-      where: {
-        usuario: { idIe: ieId, estado: 'ACTIVO' },
-        ...(gradoId && { gradoSeccion: { idGrado: gradoId } }),
-        ...(seccionId && { gradoSeccion: { idSeccion: seccionId } })
-      },
+      where: whereClause,
       include: {
         usuario: true,
-        gradoSeccion: { include: { grado: true, seccion: true } },
+        gradoSeccion: {
+          include: {
+            grado: true,
+            seccion: true
+          }
+        },
         asistencias: {
-          where: { fecha: { gte: fechaInicio, lte: fechaFin } }
+          where: {
+            fecha: {
+              gte: fechaInicio,
+              lte: fechaFin
+            }
+          },
+          include: {
+            estadoAsistencia: true
+          },
+          orderBy: {
+            fecha: 'asc'
+          }
         }
-      }
+      },
+      orderBy: [
+        { gradoSeccion: { grado: { nombre: 'asc' } } },
+        { gradoSeccion: { seccion: { nombre: 'asc' } } },
+        { usuario: { apellido: 'asc' } }
+      ]
     })
-    
-    // Obtener retiros de la semana (simplificado para evitar errores de modelo)
-    const retiros: any[] = []
-    
-    // Calcular estadísticas
-    const totalEstudiantes = estudiantes.length
-    const totalAsistencias = estudiantes.reduce((sum, est) => sum + est.asistencias.length, 0)
-    const promedioAsistencia = totalEstudiantes > 0 ? ((totalAsistencias / (totalEstudiantes * diasHabiles)) * 100).toFixed(1) : '0'
-    
-    // Construir reporte semanal
-    const reporte = [
-      // ENCABEZADO
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Institución',
-        Valor: colegioInfo.nombre,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Código IE',
-        Valor: colegioInfo.codigoQR,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Modalidad',
-        Valor: colegioInfo.modalidad,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Nivel / Grado / Sección',
-        Valor: gradoSeccionInfo,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Período',
-        Valor: `Semana ${numeroSemana} - del ${fechaInicio.toLocaleDateString('es-ES')} al ${fechaFin.toLocaleDateString('es-ES')}`,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Generado el',
-        Valor: new Date().toLocaleDateString('es-ES'),
-        Observaciones: ''
-      },
-      
-      // RESUMEN SEMANAL
-      {
-        Sección: 'RESUMEN SEMANAL',
-        Campo: 'Total días hábiles',
-        Valor: diasHabiles.toString(),
-        Observaciones: 'Lunes a viernes'
-      },
-      {
-        Sección: 'RESUMEN SEMANAL',
-        Campo: 'Asistencia promedio semanal',
-        Valor: `${promedioAsistencia}%`,
-        Observaciones: `${totalAsistencias} asistencias de ${totalEstudiantes * diasHabiles} posibles`
-      },
-      {
-        Sección: 'RESUMEN SEMANAL',
-        Campo: 'Retiros realizados',
-        Valor: retiros.length.toString(),
-        Observaciones: `Motivos: ${[...new Set(retiros.map(r => r.motivo))].join(', ')}`
-      },
-      
-      // ASISTENCIAS POR ESTUDIANTE
-      ...estudiantes.map(estudiante => {
-        const diasAsistidos = estudiante.asistencias.length
-        const diasFaltados = diasHabiles - diasAsistidos
-        const porcentajeAsistencia = diasHabiles > 0 ? ((diasAsistidos / diasHabiles) * 100).toFixed(1) : '0'
-        
-        return {
-          Sección: 'ASISTENCIAS POR ESTUDIANTE',
-          Campo: `${estudiante.gradoSeccion?.grado.nombre}° ${estudiante.gradoSeccion?.seccion.nombre}`,
-          Valor: `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`,
-          Observaciones: `Código: ${estudiante.codigoQR} | DNI: ${estudiante.usuario.dni} | Asistió: ${diasAsistidos} | Faltó: ${diasFaltados} | ${porcentajeAsistencia}%`
-        }
-      }),
-      
-      // RETIROS DE LA SEMANA (simplificado)
-      {
-        Sección: 'RETIROS DE LA SEMANA',
-        Campo: 'Sin retiros registrados',
-        Valor: '0',
-        Observaciones: 'No hay retiros en el período seleccionado'
+
+    console.log(`📊 Encontrados ${estudiantes.length} estudiantes para reporte semanal`)
+
+    // Generar fechas del período (solo días laborables)
+    const fechasPeriodo: Date[] = []
+    for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+      const diaSemana = d.getDay()
+      if (diaSemana >= 1 && diaSemana <= 5) { // Lunes a Viernes
+        fechasPeriodo.push(new Date(d))
       }
-    ]
-    
-    console.log('✅ Reporte semanal generado:', reporte.length, 'registros')
-    return reporte
+    }
+
+    // Construir datos del reporte con estructura de tabla
+    const reportData: any[] = []
+
+    // Agrupar por grado-sección
+    const gruposPorAula = estudiantes.reduce((acc: any, est) => {
+      const aulaKey = est.gradoSeccion 
+        ? `${est.gradoSeccion.grado.nombre}° ${est.gradoSeccion.seccion.nombre}`
+        : 'Sin Aula'
+      if (!acc[aulaKey]) {
+        acc[aulaKey] = []
+      }
+      acc[aulaKey].push(est)
+      return acc
+    }, {})
+
+    // Para cada aula, crear filas de datos
+    Object.entries(gruposPorAula).forEach(([aulaKey, estudiantesAula]: [string, any]) => {
+      // Header del aula
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': `📚 AULA: ${aulaKey}`,
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': `${estudiantesAula.length} estudiantes`
+      })
+
+      // Estudiantes del aula
+      estudiantesAula.forEach((estudiante: any, index: number) => {
+        // Calcular estadísticas de asistencia
+        const asistencias = estudiante.asistencias || []
+        let presentes = 0
+        let tardanzas = 0
+        let faltas = 0
+        let justificadas = 0
+
+        asistencias.forEach((asist: any) => {
+          const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+          if (estado === 'PRESENTE' || estado === 'P') presentes++
+          else if (estado === 'TARDANZA' || estado === 'T') tardanzas++
+          else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') faltas++
+          else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') justificadas++
+        })
+
+        const totalRegistros = presentes + tardanzas + faltas + justificadas
+        const porcentajeAsistencia = totalRegistros > 0 
+          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          : '0.0'
+
+        reportData.push({
+          'N°': (index + 1).toString(),
+          'Apellidos y Nombres': `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
+          'DNI': estudiante.usuario.dni || 'N/A',
+          'Presentes': presentes.toString(),
+          'Tardanzas': tardanzas.toString(),
+          'Faltas': faltas.toString(),
+          'Justificadas': justificadas.toString(),
+          '% Asistencia': `${porcentajeAsistencia}%`
+        })
+      })
+
+      // Línea separadora entre aulas
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': '─'.repeat(40),
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': ''
+      })
+    })
+
+    // Agregar resumen general al final
+    const totalEstudiantes = estudiantes.length
+    let totalPresentes = 0
+    let totalTardanzas = 0
+    let totalFaltas = 0
+    let totalJustificadas = 0
+
+    estudiantes.forEach((est: any) => {
+      (est.asistencias || []).forEach((asist: any) => {
+        const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+        if (estado === 'PRESENTE' || estado === 'P') totalPresentes++
+        else if (estado === 'TARDANZA' || estado === 'T') totalTardanzas++
+        else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') totalFaltas++
+        else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') totalJustificadas++
+      })
+    })
+
+    const totalGeneral = totalPresentes + totalTardanzas + totalFaltas + totalJustificadas
+    const porcentajeGeneral = totalGeneral > 0 
+      ? (((totalPresentes + totalTardanzas) / totalGeneral) * 100).toFixed(1)
+      : '0.0'
+
+    reportData.push({
+      'N°': '',
+      'Apellidos y Nombres': '📊 RESUMEN SEMANAL',
+      'DNI': `${totalEstudiantes} est.`,
+      'Presentes': totalPresentes.toString(),
+      'Tardanzas': totalTardanzas.toString(),
+      'Faltas': totalFaltas.toString(),
+      'Justificadas': totalJustificadas.toString(),
+      '% Asistencia': `${porcentajeGeneral}%`
+    })
+
+    console.log(`✅ Reporte semanal generado con ${reportData.length} filas`)
+    return reportData
     
   } catch (error) {
     console.error('❌ Error generando reporte semanal:', error)
-    return [{ Sección: 'ERROR', Campo: 'Error', Valor: 'No se pudo generar el reporte semanal', Observaciones: 'Contacte al administrador' }]
+    return [{
+      'N°': 'Error',
+      'Apellidos y Nombres': 'No se pudo generar el reporte',
+      'DNI': '-',
+      'Presentes': '0',
+      'Tardanzas': '0',
+      'Faltas': '0',
+      'Justificadas': '0',
+      '% Asistencia': '0%'
+    }]
   }
 }
 
-// Función para generar reporte mensual completo
+// Función para generar reporte mensual completo con estructura similar a docente
 async function generateReporteMensualCompleto(ieId: number, fechaInicio: Date, fechaFin: Date, gradoId?: number, seccionId?: number) {
   try {
-    console.log('📅 Generando reporte mensual completo...')
+    console.log('📅 Generando reporte mensual completo con datos reales...')
     
-    const colegioInfo = await getColegioInfo(ieId)
-    const gradoSeccionInfo = await getGradoSeccionInfo(gradoId, seccionId)
-    const nombreMes = fechaInicio.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-    const diasHabiles = calcularDiasHabiles(fechaInicio, fechaFin)
+    // Construir filtro para estudiantes
+    const whereClause: any = {
+      usuario: {
+        idIe: ieId,
+        estado: 'ACTIVO'
+      }
+    }
     
-    // Obtener asistencias del mes agrupadas por sección
-    const asistenciasPorSeccion = await prisma.gradoSeccion.findMany({
-      where: {
-        grado: { ...(gradoId && { idGrado: gradoId }) },
-        seccion: { ...(seccionId && { idSeccion: seccionId }) }
-      },
+    if (gradoId || seccionId) {
+      whereClause.gradoSeccion = {}
+      if (gradoId) whereClause.gradoSeccion.idGrado = gradoId
+      if (seccionId) whereClause.gradoSeccion.idSeccion = seccionId
+    }
+
+    // Obtener estudiantes con sus asistencias del período
+    const estudiantes = await prisma.estudiante.findMany({
+      where: whereClause,
       include: {
-        grado: true,
-        seccion: true,
-        estudiantes: {
-          where: { usuario: { idIe: ieId, estado: 'ACTIVO' } },
+        usuario: true,
+        gradoSeccion: {
           include: {
-            usuario: true,
-            asistencias: {
-              where: { fecha: { gte: fechaInicio, lte: fechaFin } }
+            grado: true,
+            seccion: true
+          }
+        },
+        asistencias: {
+          where: {
+            fecha: {
+              gte: fechaInicio,
+              lte: fechaFin
             }
+          },
+          include: {
+            estadoAsistencia: true
+          },
+          orderBy: {
+            fecha: 'asc'
           }
         }
-      }
+      },
+      orderBy: [
+        { gradoSeccion: { grado: { nombre: 'asc' } } },
+        { gradoSeccion: { seccion: { nombre: 'asc' } } },
+        { usuario: { apellido: 'asc' } }
+      ]
     })
-    
-    // Construir reporte mensual
-    const reporte = [
-      // ENCABEZADO
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Institución',
-        Valor: colegioInfo.nombre,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Período',
-        Valor: `Mes: ${nombreMes}`,
-        Observaciones: `Del ${fechaInicio.toLocaleDateString('es-ES')} al ${fechaFin.toLocaleDateString('es-ES')}`
-      },
-      
-      // ASISTENCIA POR SECCIÓN
-      ...asistenciasPorSeccion.map(gs => {
-        const totalEstudiantesSeccion = gs.estudiantes.length
-        const totalAsistenciasSeccion = gs.estudiantes.reduce((sum, est) => sum + est.asistencias.length, 0)
-        const promedioSeccion = totalEstudiantesSeccion > 0 ? 
-          ((totalAsistenciasSeccion / (totalEstudiantesSeccion * diasHabiles)) * 100).toFixed(1) : '0'
-        
-        return {
-          Sección: 'ASISTENCIA POR SECCIÓN',
-          Campo: `${gs.grado.nombre}° ${gs.seccion.nombre}`,
-          Valor: `${totalEstudiantesSeccion} estudiantes`,
-          Observaciones: `${promedioSeccion}% asistencia promedio | ${totalAsistenciasSeccion} asistencias registradas`
-        }
+
+    console.log(`📊 Encontrados ${estudiantes.length} estudiantes`)
+
+    // Generar fechas del período (solo días laborables)
+    const fechasPeriodo: string[] = []
+    for (let d = new Date(fechaInicio); d <= fechaFin; d.setDate(d.getDate() + 1)) {
+      const diaSemana = d.getDay()
+      if (diaSemana >= 1 && diaSemana <= 5) { // Lunes a Viernes
+        fechasPeriodo.push(d.toISOString().split('T')[0])
+      }
+    }
+
+    // Construir datos del reporte con estructura de tabla
+    const reportData: any[] = []
+
+    // Agrupar por grado-sección
+    const gruposPorAula = estudiantes.reduce((acc: any, est) => {
+      const aulaKey = est.gradoSeccion 
+        ? `${est.gradoSeccion.grado.nombre}° ${est.gradoSeccion.seccion.nombre}`
+        : 'Sin Aula'
+      if (!acc[aulaKey]) {
+        acc[aulaKey] = []
+      }
+      acc[aulaKey].push(est)
+      return acc
+    }, {})
+
+    // Para cada aula, crear filas de datos
+    Object.entries(gruposPorAula).forEach(([aulaKey, estudiantesAula]: [string, any]) => {
+      // Header del aula
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': `📚 AULA: ${aulaKey}`,
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': `${estudiantesAula.length} estudiantes`
       })
-    ]
-    
-    return reporte
+
+      // Estudiantes del aula
+      estudiantesAula.forEach((estudiante: any, index: number) => {
+        // Calcular estadísticas de asistencia
+        const asistencias = estudiante.asistencias || []
+        let presentes = 0
+        let tardanzas = 0
+        let faltas = 0
+        let justificadas = 0
+
+        asistencias.forEach((asist: any) => {
+          const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+          if (estado === 'PRESENTE' || estado === 'P') presentes++
+          else if (estado === 'TARDANZA' || estado === 'T') tardanzas++
+          else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') faltas++
+          else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') justificadas++
+        })
+
+        const totalRegistros = presentes + tardanzas + faltas + justificadas
+        const porcentajeAsistencia = totalRegistros > 0 
+          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          : '0.0'
+
+        reportData.push({
+          'N°': (index + 1).toString(),
+          'Apellidos y Nombres': `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
+          'DNI': estudiante.usuario.dni || 'N/A',
+          'Presentes': presentes.toString(),
+          'Tardanzas': tardanzas.toString(),
+          'Faltas': faltas.toString(),
+          'Justificadas': justificadas.toString(),
+          '% Asistencia': `${porcentajeAsistencia}%`
+        })
+      })
+
+      // Línea separadora entre aulas
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': '─'.repeat(40),
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': ''
+      })
+    })
+
+    // Agregar resumen general al final
+    const totalEstudiantes = estudiantes.length
+    let totalPresentes = 0
+    let totalTardanzas = 0
+    let totalFaltas = 0
+    let totalJustificadas = 0
+
+    estudiantes.forEach((est: any) => {
+      (est.asistencias || []).forEach((asist: any) => {
+        const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+        if (estado === 'PRESENTE' || estado === 'P') totalPresentes++
+        else if (estado === 'TARDANZA' || estado === 'T') totalTardanzas++
+        else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') totalFaltas++
+        else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') totalJustificadas++
+      })
+    })
+
+    const totalGeneral = totalPresentes + totalTardanzas + totalFaltas + totalJustificadas
+    const porcentajeGeneral = totalGeneral > 0 
+      ? (((totalPresentes + totalTardanzas) / totalGeneral) * 100).toFixed(1)
+      : '0.0'
+
+    reportData.push({
+      'N°': '',
+      'Apellidos y Nombres': '📊 RESUMEN GENERAL',
+      'DNI': `${totalEstudiantes} est.`,
+      'Presentes': totalPresentes.toString(),
+      'Tardanzas': totalTardanzas.toString(),
+      'Faltas': totalFaltas.toString(),
+      'Justificadas': totalJustificadas.toString(),
+      '% Asistencia': `${porcentajeGeneral}%`
+    })
+
+    console.log(`✅ Reporte mensual generado con ${reportData.length} filas`)
+    return reportData
+
   } catch (error) {
     console.error('❌ Error generando reporte mensual:', error)
-    return [{ Sección: 'ERROR', Campo: 'Error', Valor: 'No se pudo generar el reporte mensual', Observaciones: 'Contacte al administrador' }]
+    return [{
+      'N°': 'Error',
+      'Apellidos y Nombres': 'No se pudo generar el reporte',
+      'DNI': '-',
+      'Presentes': '0',
+      'Tardanzas': '0',
+      'Faltas': '0',
+      'Justificadas': '0',
+      '% Asistencia': '0%'
+    }]
   }
 }
 
-// Función para generar reporte anual completo
+// Función para generar reporte anual completo con estructura similar a docente
 async function generateReporteAnualCompleto(ieId: number, fechaInicio: Date, fechaFin: Date, gradoId?: number, seccionId?: number) {
   try {
-    console.log('📅 Generando reporte anual completo...')
+    console.log('📅 Generando reporte anual completo con datos reales...')
     
-    const colegioInfo = await getColegioInfo(ieId)
-    const anoLectivo = `${fechaInicio.getFullYear()}`
-    const diasLectivos = calcularDiasHabiles(fechaInicio, fechaFin)
-    
-    // Construir reporte anual básico
-    const reporte = [
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Institución',
-        Valor: colegioInfo.nombre,
-        Observaciones: ''
-      },
-      {
-        Sección: 'ENCABEZADO',
-        Campo: 'Año lectivo',
-        Valor: anoLectivo,
-        Observaciones: `Del ${fechaInicio.toLocaleDateString('es-ES')} al ${fechaFin.toLocaleDateString('es-ES')}`
-      },
-      {
-        Sección: 'RESUMEN ANUAL',
-        Campo: 'Total de días lectivos',
-        Valor: diasLectivos.toString(),
-        Observaciones: 'Días hábiles del año escolar'
+    // Construir filtro para estudiantes
+    const whereClause: any = {
+      usuario: {
+        idIe: ieId,
+        estado: 'ACTIVO'
       }
-    ]
+    }
     
-    return reporte
+    if (gradoId || seccionId) {
+      whereClause.gradoSeccion = {}
+      if (gradoId) whereClause.gradoSeccion.idGrado = gradoId
+      if (seccionId) whereClause.gradoSeccion.idSeccion = seccionId
+    }
+
+    // Obtener estudiantes con sus asistencias del período
+    const estudiantes = await prisma.estudiante.findMany({
+      where: whereClause,
+      include: {
+        usuario: true,
+        gradoSeccion: {
+          include: {
+            grado: true,
+            seccion: true
+          }
+        },
+        asistencias: {
+          where: {
+            fecha: {
+              gte: fechaInicio,
+              lte: fechaFin
+            }
+          },
+          include: {
+            estadoAsistencia: true
+          },
+          orderBy: {
+            fecha: 'asc'
+          }
+        }
+      },
+      orderBy: [
+        { gradoSeccion: { grado: { nombre: 'asc' } } },
+        { gradoSeccion: { seccion: { nombre: 'asc' } } },
+        { usuario: { apellido: 'asc' } }
+      ]
+    })
+
+    console.log(`📊 Encontrados ${estudiantes.length} estudiantes para reporte anual`)
+
+    // Construir datos del reporte con estructura de tabla
+    const reportData: any[] = []
+
+    // Agrupar por grado-sección
+    const gruposPorAula = estudiantes.reduce((acc: any, est) => {
+      const aulaKey = est.gradoSeccion 
+        ? `${est.gradoSeccion.grado.nombre}° ${est.gradoSeccion.seccion.nombre}`
+        : 'Sin Aula'
+      if (!acc[aulaKey]) {
+        acc[aulaKey] = []
+      }
+      acc[aulaKey].push(est)
+      return acc
+    }, {})
+
+    // Para cada aula, crear filas de datos
+    Object.entries(gruposPorAula).forEach(([aulaKey, estudiantesAula]: [string, any]) => {
+      // Header del aula
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': `📚 AULA: ${aulaKey}`,
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': `${estudiantesAula.length} estudiantes`
+      })
+
+      // Estudiantes del aula
+      estudiantesAula.forEach((estudiante: any, index: number) => {
+        // Calcular estadísticas de asistencia
+        const asistencias = estudiante.asistencias || []
+        let presentes = 0
+        let tardanzas = 0
+        let faltas = 0
+        let justificadas = 0
+
+        asistencias.forEach((asist: any) => {
+          const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+          if (estado === 'PRESENTE' || estado === 'P') presentes++
+          else if (estado === 'TARDANZA' || estado === 'T') tardanzas++
+          else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') faltas++
+          else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') justificadas++
+        })
+
+        const totalRegistros = presentes + tardanzas + faltas + justificadas
+        const porcentajeAsistencia = totalRegistros > 0 
+          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          : '0.0'
+
+        reportData.push({
+          'N°': (index + 1).toString(),
+          'Apellidos y Nombres': `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
+          'DNI': estudiante.usuario.dni || 'N/A',
+          'Presentes': presentes.toString(),
+          'Tardanzas': tardanzas.toString(),
+          'Faltas': faltas.toString(),
+          'Justificadas': justificadas.toString(),
+          '% Asistencia': `${porcentajeAsistencia}%`
+        })
+      })
+
+      // Línea separadora entre aulas
+      reportData.push({
+        'N°': '',
+        'Apellidos y Nombres': '─'.repeat(40),
+        'DNI': '',
+        'Presentes': '',
+        'Tardanzas': '',
+        'Faltas': '',
+        'Justificadas': '',
+        '% Asistencia': ''
+      })
+    })
+
+    // Agregar resumen general al final
+    const totalEstudiantes = estudiantes.length
+    let totalPresentes = 0
+    let totalTardanzas = 0
+    let totalFaltas = 0
+    let totalJustificadas = 0
+
+    estudiantes.forEach((est: any) => {
+      (est.asistencias || []).forEach((asist: any) => {
+        const estado = asist.estadoAsistencia?.codigo?.toUpperCase() || asist.estado?.toUpperCase() || ''
+        if (estado === 'PRESENTE' || estado === 'P') totalPresentes++
+        else if (estado === 'TARDANZA' || estado === 'T') totalTardanzas++
+        else if (estado === 'AUSENTE' || estado === 'FALTA' || estado === 'F' || estado === 'INASISTENCIA') totalFaltas++
+        else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' || estado === 'J') totalJustificadas++
+      })
+    })
+
+    const totalGeneral = totalPresentes + totalTardanzas + totalFaltas + totalJustificadas
+    const porcentajeGeneral = totalGeneral > 0 
+      ? (((totalPresentes + totalTardanzas) / totalGeneral) * 100).toFixed(1)
+      : '0.0'
+
+    reportData.push({
+      'N°': '',
+      'Apellidos y Nombres': '📊 RESUMEN ANUAL',
+      'DNI': `${totalEstudiantes} est.`,
+      'Presentes': totalPresentes.toString(),
+      'Tardanzas': totalTardanzas.toString(),
+      'Faltas': totalFaltas.toString(),
+      'Justificadas': totalJustificadas.toString(),
+      '% Asistencia': `${porcentajeGeneral}%`
+    })
+
+    console.log(`✅ Reporte anual generado con ${reportData.length} filas`)
+    return reportData
+
   } catch (error) {
     console.error('❌ Error generando reporte anual:', error)
-    return [{ Sección: 'ERROR', Campo: 'Error', Valor: 'No se pudo generar el reporte anual', Observaciones: 'Contacte al administrador' }]
+    return [{
+      'N°': 'Error',
+      'Apellidos y Nombres': 'No se pudo generar el reporte',
+      'DNI': '-',
+      'Presentes': '0',
+      'Tardanzas': '0',
+      'Faltas': '0',
+      'Justificadas': '0',
+      '% Asistencia': '0%'
+    }]
   }
 }
 
@@ -2342,7 +2870,84 @@ async function generateWordReport(data: any[], title: string, colegioInfo?: any,
       )
     }
     
-    // Agrupar datos por sección
+    // DETECTAR FORMATO DE DATOS: Tabla directa vs Secciones
+    const primerItem = data[0]
+    const esFormatoTabla = primerItem && ('N°' in primerItem || 'Apellidos y Nombres' in primerItem || 'DNI' in primerItem)
+    
+    if (esFormatoTabla && data.length > 0) {
+      // FORMATO TABLA DIRECTA (nuevo formato de reportes)
+      console.log('📄 Word: Detectado formato de tabla directa')
+      
+      // Obtener headers de las keys del primer objeto
+      const headers = Object.keys(primerItem)
+      
+      // Crear tabla con los datos
+      const tableRows = [
+        // Header row
+        new TableRow({
+          children: headers.map(header => 
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: header, bold: true, size: 18 })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: '2E7D32' }
+            })
+          ),
+          tableHeader: true
+        }),
+        // Data rows
+        ...data.map(item => 
+          new TableRow({
+            children: headers.map(header => 
+              new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ 
+                    text: String(item[header] || ''), 
+                    size: 16,
+                    bold: item['Apellidos y Nombres']?.includes('AULA:') || item['Apellidos y Nombres']?.includes('RESUMEN')
+                  })]
+                })]
+              })
+            )
+          })
+        )
+      ]
+      
+      const dataTable = new Table({
+        rows: tableRows,
+        width: { size: 100, type: WidthType.PERCENTAGE }
+      })
+      
+      // Crear documento
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            ...portadaElements,
+            new Paragraph({
+              children: [new TextRun({ text: 'DATOS DEL REPORTE', bold: true, size: 28 })],
+              spacing: { before: 400, after: 200 }
+            }),
+            dataTable,
+            new Paragraph({
+              children: [new TextRun({ 
+                text: 'Leyenda: P=Presente, T=Tardanza, F=Falta, J=Justificada', 
+                size: 16, 
+                italics: true 
+              })],
+              spacing: { before: 200 }
+            })
+          ]
+        }]
+      })
+      
+      const buffer = await Packer.toBuffer(doc)
+      console.log('✅ Word con formato tabla generado')
+      return Buffer.from(buffer)
+    }
+    
+    // FORMATO ANTIGUO: Agrupar datos por sección
     const secciones = new Map<string, any[]>()
     data.forEach(item => {
       const seccion = item.Sección || item.Categoría || 'GENERAL'

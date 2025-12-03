@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
       estudianteId,
       fecha,
       estado,
-      observaciones
+      observaciones,
+      horaLlegada
     } = body
 
     const fechaAsistencia = new Date(fecha)
@@ -161,11 +162,21 @@ export async function POST(request: NextRequest) {
       // Guardar estado anterior para la notificación
       const estadoAnterior = existingAsistencia.estado || 'Sin estado'
       
+      // Preparar hora de ingreso si se proporciona
+      let horaIngresoDate: Date | undefined = undefined
+      if (horaLlegada) {
+        // horaLlegada viene en formato "HH:mm", convertir a DateTime
+        const [horas, minutos] = horaLlegada.split(':').map(Number)
+        horaIngresoDate = new Date(fechaAsistencia)
+        horaIngresoDate.setHours(horas, minutos, 0, 0)
+      }
+
       // Actualizar asistencia existente
       const updatedAsistencia = await prisma.asistenciaIE.update({
         where: { idAsistenciaIE: existingAsistencia.idAsistenciaIE },
         data: {
-          estado: estado
+          estado: estado,
+          ...(horaIngresoDate && { horaIngreso: horaIngresoDate })
         }
       })
 
@@ -226,6 +237,14 @@ export async function POST(request: NextRequest) {
         notificacionEnviada: estadoAnterior !== estado
       })
     } else {
+      // Preparar hora de ingreso si se proporciona (para nueva asistencia)
+      let horaIngresoNueva: Date | undefined = undefined
+      if (horaLlegada) {
+        const [horas, minutos] = horaLlegada.split(':').map(Number)
+        horaIngresoNueva = new Date(fechaAsistencia)
+        horaIngresoNueva.setHours(horas, minutos, 0, 0)
+      }
+
       // Crear nueva asistencia
       const nuevaAsistencia = await prisma.asistenciaIE.create({
         data: {
@@ -233,7 +252,8 @@ export async function POST(request: NextRequest) {
           idIe: ieId,
           fecha: fechaAsistencia,
           estado: estado || 'PRESENTE',
-          registradoIngresoPor: userId
+          registradoIngresoPor: userId,
+          ...(horaIngresoNueva && { horaIngreso: horaIngresoNueva })
         }
       })
 

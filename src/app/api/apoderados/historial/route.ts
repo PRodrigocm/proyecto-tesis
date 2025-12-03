@@ -71,7 +71,12 @@ export async function GET(request: NextRequest) {
         },
         estadoRetiro: true,
         tipoRetiro: true,
-        usuarioVerificador: true
+        usuarioVerificador: true,
+        docenteReportador: {
+          include: {
+            usuario: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -96,6 +101,9 @@ export async function GET(request: NextRequest) {
       fechaAprobacion: retiro.updatedAt?.toISOString(),
       aprobadoPor: retiro.usuarioVerificador ? 
         `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}` : 
+        undefined,
+      creadoPor: retiro.docenteReportador ? 
+        `${retiro.docenteReportador.usuario.nombre} ${retiro.docenteReportador.usuario.apellido}` : 
         undefined
     }))
 

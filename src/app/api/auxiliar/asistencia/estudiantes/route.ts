@@ -36,10 +36,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Usuario sin IE asignada' }, { status: 400 })
     }
 
-    // Obtener fecha actual (sin hora para comparación)
-    const hoy = new Date()
-    const fechaBusqueda = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
-    const fechaHoy = fechaBusqueda.toISOString().split('T')[0]
+    // Obtener parámetro de fecha de la URL o usar fecha actual
+    const { searchParams } = new URL(request.url)
+    const fechaParam = searchParams.get('fecha')
+    
+    let fechaBusqueda: Date
+    let fechaHoy: string
+    
+    if (fechaParam) {
+      // Usar la fecha proporcionada
+      fechaBusqueda = new Date(fechaParam + 'T00:00:00')
+      fechaHoy = fechaParam
+    } else {
+      // Usar fecha actual
+      const hoy = new Date()
+      fechaBusqueda = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+      fechaHoy = fechaBusqueda.toISOString().split('T')[0]
+    }
 
     console.log('📅 Obteniendo estudiantes para fecha:', fechaHoy)
     console.log('🔍 Fecha de búsqueda:', fechaBusqueda)
@@ -93,6 +106,17 @@ export async function GET(request: NextRequest) {
           }
         })
 
+        // Función para formatear hora en zona horaria local (Lima/Peru)
+        const formatearHora = (fecha: Date | null): string => {
+          if (!fecha) return ''
+          return fecha.toLocaleTimeString('es-PE', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Lima'
+          })
+        }
+
         if (asistenciaIE) {
           console.log(`📋 Asistencia encontrada para ${estudiante.usuario.nombre}:`, {
             fecha: asistenciaIE.fecha,
@@ -110,13 +134,13 @@ export async function GET(request: NextRequest) {
         if (asistenciaIE) {
           if (asistenciaIE.horaSalida) {
             estado = 'RETIRADO'
-            horaSalida = asistenciaIE.horaSalida.toTimeString().slice(0, 5)
+            horaSalida = formatearHora(asistenciaIE.horaSalida)
           } else if (asistenciaIE.horaIngreso) {
             estado = 'PRESENTE'
           }
           
           if (asistenciaIE.horaIngreso) {
-            horaEntrada = asistenciaIE.horaIngreso.toTimeString().slice(0, 5)
+            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
           }
         }
 

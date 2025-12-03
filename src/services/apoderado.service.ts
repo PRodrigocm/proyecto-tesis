@@ -77,6 +77,7 @@ export interface HistorialItem {
   fechaCreacion: string
   fechaAprobacion?: string
   aprobadoPor?: string
+  creadoPor?: string
 }
 
 export interface AsistenciaIE {

@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer'
 
+interface EmailAttachment {
+  filename: string
+  content: Buffer
+  contentType?: string
+}
+
 /**
  * Enviar email usando Gmail SMTP
  */
@@ -47,6 +53,57 @@ export async function enviarEmail(
     return true
   } catch (error: any) {
     console.error('❌ Error enviando email via Gmail:', error.message || error)
+    return false
+  }
+}
+
+/**
+ * Enviar email con adjuntos usando Gmail SMTP
+ */
+export async function enviarEmailConAdjuntos(
+  destinatario: string,
+  asunto: string,
+  contenidoHTML: string,
+  adjuntos: EmailAttachment[]
+): Promise<boolean> {
+  try {
+    console.log('🔍 Verificando credenciales de Gmail SMTP:')
+    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
+    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
+    
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error('❌ Credenciales de Gmail no configuradas en .env')
+      return false
+    }
+
+    console.log(`📧 Enviando a: ${destinatario}`)
+    console.log(`📎 Adjuntos: ${adjuntos.length} archivos`)
+    
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    })
+
+    const mailOptions = {
+      from: `"Sistema de Asistencia Escolar" <${process.env.GMAIL_USER}>`,
+      to: destinatario,
+      subject: asunto,
+      html: contenidoHTML,
+      attachments: adjuntos.map(adj => ({
+        filename: adj.filename,
+        content: adj.content,
+        contentType: adj.contentType
+      }))
+    }
+
+    const info = await transporter.sendMail(mailOptions)
+    console.log('✅ Email con adjuntos enviado:', info.messageId)
+    return true
+  } catch (error: any) {
+    console.error('❌ Error enviando email con adjuntos:', error.message || error)
     return false
   }
 }

@@ -419,39 +419,48 @@ export default function ReportesAuxiliar() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-orange-200 rounded-full animate-spin border-t-orange-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <DocumentTextIcon className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando reportes...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Reportes de Asistencia</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Genere reportes detallados de asistencia con diferentes filtros y formatos
-            </p>
-          </div>
-          {/* Info de envío automático */}
-          <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2">
-            <p className="text-xs text-orange-700 font-medium">📧 Envío automático mensual</p>
-            <p className="text-xs text-orange-600">PDF, Excel y Word</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reportes de Asistencia</h1>
+          <p className="mt-1 text-gray-500">
+            Genere reportes detallados con diferentes filtros y formatos
+          </p>
+        </div>
+        <div className="flex items-center gap-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl shadow-lg">
+          <DocumentTextIcon className="h-5 w-5" />
+          <div className="text-sm">
+            <p className="font-semibold">Envío automático</p>
+            <p className="text-orange-100">PDF, Excel, Word</p>
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white shadow rounded-lg mb-8">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            <FunnelIcon className="h-5 w-5 inline mr-2" />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <FunnelIcon className="h-5 w-5" />
             Configuración del Reporte
           </h3>
-          
+        </div>
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Tipo de Reporte */}
             <div>
@@ -460,11 +469,11 @@ export default function ReportesAuxiliar() {
               </label>
               <div className="space-y-2">
                 {[
-                  { value: 'semanal', label: 'Semanal', icon: CalendarIcon },
-                  { value: 'mensual', label: 'Mensual', icon: CalendarIcon },
-                  { value: 'anual', label: 'Anual', icon: CalendarIcon }
+                  { value: 'semanal', label: 'Semanal' },
+                  { value: 'mensual', label: 'Mensual' },
+                  { value: 'anual', label: 'Anual' }
                 ].map((tipo) => (
-                  <label key={tipo.value} className="flex items-center">
+                  <label key={tipo.value} className="flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="tipoReporte"
@@ -477,172 +486,171 @@ export default function ReportesAuxiliar() {
                   </label>
                 ))}
               </div>
-            </div>
-
-            {/* Rango de Fechas */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fecha de Inicio
-              </label>
-              <input
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
-              />
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">
-                Fecha de Fin
-              </label>
-              <input
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
-              />
-            </div>
-
-            {/* Filtros por Grado y Sección */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Grado
-              </label>
-              <select
-                value={gradoSeleccionado}
-                onChange={(e) => setGradoSeleccionado(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
-                disabled={loadingGrados}
-              >
-                <option value="">
-                  {loadingGrados ? 'Cargando grados...' : 'Todos los grados'}
-                </option>
-                {grados.map((grado, index) => (
-                  <option key={`grado-${grado.nombre}-${index}`} value={grado.nombre}>
-                    {grado.nombre}°
-                  </option>
-                ))}
-              </select>
-              
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">
-                Sección
-              </label>
-              <select
-                value={seccionSeleccionada}
-                onChange={(e) => setSeccionSeleccionada(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
-                disabled={loadingSecciones}
-              >
-                <option value="">
-                  {loadingSecciones ? 'Cargando secciones...' : 'Todas las secciones'}
-                </option>
-                {secciones.map((seccion, index) => (
-                  <option key={`seccion-${seccion.nombre}-${index}`} value={seccion.nombre}>
-                    {seccion.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          {/* Botón Generar */}
-          <div className="mt-6">
-            <button
-              onClick={generateReport}
-              disabled={generating || !fechaInicio || !fechaFin}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          {/* Rango de Fechas */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Fecha de Inicio
+            </label>
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
+            />
+            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">
+              Fecha de Fin
+            </label>
+            <input
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
+            />
+          </div>
+
+          {/* Filtros por Grado y Sección */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Grado
+            </label>
+            <select
+              value={gradoSeleccionado}
+              onChange={(e) => setGradoSeleccionado(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
+              disabled={loadingGrados}
             >
-              {generating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <ChartBarIcon className="h-4 w-4 mr-2" />
-                  Generar Reporte
-                </>
-              )}
-            </button>
+              <option value="">
+                {loadingGrados ? 'Cargando grados...' : 'Todos los grados'}
+              </option>
+              {grados.map((grado, index) => (
+                <option key={`grado-${grado.nombre}-${index}`} value={grado.nombre}>
+                  {grado.nombre}°
+                </option>
+              ))}
+            </select>
+            
+            <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">
+              Sección
+            </label>
+            <select
+              value={seccionSeleccionada}
+              onChange={(e) => setSeccionSeleccionada(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black"
+              disabled={loadingSecciones}
+            >
+              <option value="">
+                {loadingSecciones ? 'Cargando secciones...' : 'Todas las secciones'}
+              </option>
+              {secciones.map((seccion, index) => (
+                <option key={`seccion-${seccion.nombre}-${index}`} value={seccion.nombre}>
+                  {seccion.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Botón Generar */}
+        <div className="mt-6">
+          <button
+            onClick={generateReport}
+            disabled={generating || !fechaInicio || !fechaFin}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Generando...
+              </>
+            ) : (
+              <>
+                <ChartBarIcon className="h-4 w-4 mr-2" />
+                Generar Reporte
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* Estadísticas del Reporte */}
+    {reportData.length > 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <UserGroupIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total Estudiantes</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.totalEstudiantes}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ChartBarIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Promedio Asistencia</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.promedioAsistencia.toFixed(1)}%</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AcademicCapIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Baja Asistencia</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.estudiantesConBajaAsistencia}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ClockIcon className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Días Analizados</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.diasAnalizados}</dd>
+                </dl>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    )}
 
-      {/* Estadísticas del Reporte */}
-      {reportData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <UserGroupIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Estudiantes</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.totalEstudiantes}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ChartBarIcon className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Promedio Asistencia</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.promedioAsistencia.toFixed(1)}%</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <AcademicCapIcon className="h-6 w-6 text-red-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Baja Asistencia</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.estudiantesConBajaAsistencia}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ClockIcon className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Días Analizados</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.diasAnalizados}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Botones de Descarga */}
-      {reportData.length > 0 && (
-        <div className="bg-white shadow rounded-lg mb-8">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              <ArrowDownTrayIcon className="h-5 w-5 inline mr-2" />
-              Descargar Reporte
-            </h3>
+    {/* Botones de Descarga */}
+    {reportData.length > 0 && (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <ArrowDownTrayIcon className="h-5 w-5 text-orange-600" />
+          Descargar Reporte
+        </h3>
             <div className="flex flex-wrap gap-4">
               <button
                 onClick={() => downloadReport('pdf')}
@@ -672,9 +680,8 @@ export default function ReportesAuxiliar() {
                 📦 Exportar Todos
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </div>
+    )}
 
       {/* Resultados del Reporte */}
       {reportData.length > 0 && (

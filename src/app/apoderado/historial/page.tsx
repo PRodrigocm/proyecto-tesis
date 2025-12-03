@@ -310,6 +310,11 @@ export default function HistorialApoderado() {
                         <span>
                           <strong>Solicitud creada:</strong> {new Date(item.fechaCreacion).toLocaleDateString('es-ES')}
                         </span>
+                        {item.creadoPor && (
+                          <span className="text-blue-600">
+                            <strong>Creado por:</strong> {item.creadoPor}
+                          </span>
+                        )}
                         {item.fechaAprobacion && (
                           <span>
                             <strong>Procesada:</strong> {new Date(item.fechaAprobacion).toLocaleDateString('es-ES')}
@@ -317,7 +322,7 @@ export default function HistorialApoderado() {
                         )}
                         {item.aprobadoPor && (
                           <span>
-                            <strong>Por:</strong> {item.aprobadoPor}
+                            <strong>Aprobado por:</strong> {item.aprobadoPor}
                           </span>
                         )}
                       </div>

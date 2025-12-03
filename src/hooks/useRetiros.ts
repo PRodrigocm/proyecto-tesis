@@ -4,7 +4,6 @@ export interface Retiro {
   id: string
   fecha: string
   horaRetiro: string
-  motivo: string
   observaciones?: string
   personaRecoge?: string
   dniPersonaRecoge?: string
@@ -98,8 +97,7 @@ export const useRetiros = () => {
     const matchesSearch = !filters.searchTerm || 
       retiro.estudiante.nombre.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       retiro.estudiante.apellido.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      retiro.estudiante.dni.includes(filters.searchTerm) ||
-      retiro.motivo.toLowerCase().includes(filters.searchTerm.toLowerCase())
+      retiro.estudiante.dni.includes(filters.searchTerm)
 
     return matchesGrado && matchesEstado && matchesSearch
   })
@@ -108,7 +106,6 @@ export const useRetiros = () => {
 
   const solicitarRetiro = async (data: {
     estudianteId: string
-    motivo: string
     horaRetiro: string
     observaciones?: string
     personaRecoge?: string
