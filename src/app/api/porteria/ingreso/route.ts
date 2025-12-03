@@ -139,7 +139,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error al registrar ingreso:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+    return NextResponse.json({ 
+      error: 'Error interno del servidor',
+      details: errorMessage 
+    }, { status: 500 })
   }
 }
 

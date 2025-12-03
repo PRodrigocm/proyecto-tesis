@@ -56,18 +56,30 @@ export async function GET(request: NextRequest) {
 
     console.log('📅 Obteniendo estudiantes para fecha:', fechaHoy)
     console.log('🔍 Fecha de búsqueda:', fechaBusqueda)
+    console.log('🏫 IE del auxiliar:', ieId)
 
     // Obtener todos los estudiantes activos de la IE
+    // Buscar por idIe del estudiante O por idIe del usuario
     const estudiantes = await prisma.estudiante.findMany({
       where: {
-        usuario: {
-          idIe: ieId,
-          estado: 'ACTIVO'
-        }
+        AND: [
+          {
+            usuario: {
+              estado: 'ACTIVO'
+            }
+          },
+          {
+            OR: [
+              { idIe: ieId },
+              { usuario: { idIe: ieId } }
+            ]
+          }
+        ]
       },
       select: {
         idEstudiante: true,
         idGradoSeccion: true,
+        idIe: true,
         codigoQR: true,
         usuario: true,
         gradoSeccion: {
@@ -87,6 +99,11 @@ export async function GET(request: NextRequest) {
         { usuario: { apellido: 'asc' } },
         { usuario: { nombre: 'asc' } }
       ]
+    })
+
+    console.log(`📊 Estudiantes encontrados en BD: ${estudiantes.length}`)
+    estudiantes.forEach(e => {
+      console.log(`  - ${e.usuario.nombre} ${e.usuario.apellido} (idIe usuario: ${e.usuario.idIe})`)
     })
 
     // Buscar asistencias IE (entrada/salida) para cada estudiante
@@ -126,7 +143,7 @@ export async function GET(request: NextRequest) {
           })
         }
 
-        let estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' = 'AUSENTE'
+        let estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' = 'AUSENTE'
         let horaEntrada: string | undefined
         let horaSalida: string | undefined
 
@@ -135,14 +152,22 @@ export async function GET(request: NextRequest) {
           if (asistenciaIE.horaSalida) {
             estado = 'RETIRADO'
             horaSalida = formatearHora(asistenciaIE.horaSalida)
-          } else if (asistenciaIE.horaIngreso) {
-            estado = 'PRESENTE'
           }
           
           if (asistenciaIE.horaIngreso) {
             horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+            // Si tiene hora de ingreso pero no salida, está presente
+            if (!asistenciaIE.horaSalida) {
+              // Verificar si el estado guardado es TARDANZA
+              if (asistenciaIE.estado === 'TARDANZA') {
+                estado = 'TARDANZA'
+              } else {
+                estado = 'PRESENTE'
+              }
+            }
           }
         }
+        // Si no tiene AsistenciaIE, el estado es AUSENTE (sin registro de entrada)
 
         return {
           id: estudiante.idEstudiante.toString(),

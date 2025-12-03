@@ -187,11 +187,26 @@ export async function POST(request: NextRequest) {
       timestamp: ahora.toISOString()
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error al validar código QR:', error)
+    
+    // Manejar diferentes tipos de errores
+    let errorMessage = 'Error desconocido'
+    let errorCode = 'UNKNOWN_ERROR'
+    
+    if (error instanceof Error) {
+      errorMessage = error.message
+      errorCode = error.name
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    } else if (error && typeof error === 'object') {
+      errorMessage = JSON.stringify(error)
+    }
+    
     return NextResponse.json({
       error: 'Error interno del servidor',
-      details: error instanceof Error ? error.message : 'Error desconocido'
+      details: errorMessage,
+      code: errorCode
     }, { status: 500 })
   }
 }

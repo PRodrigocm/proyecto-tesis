@@ -10,21 +10,33 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
  */
 export async function GET(request: NextRequest) {
   try {
+    // Intentar obtener token del header o de query params
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Token de autorización requerido' }, { status: 401 })
+    const url = new URL(request.url)
+    const tokenParam = url.searchParams.get('token')
+    
+    let token: string | null = null
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (tokenParam) {
+      token = tokenParam
     }
-
-    const token = authHeader.substring(7)
-    let decoded: any
-
-    try {
-      decoded = jwt.verify(token, JWT_SECRET)
-    } catch {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    
+    let ieId = 1
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any
+        ieId = decoded.ieId || 1
+      } catch {
+        // Token inválido, usar valores por defecto
+        console.log('⚠️ Token inválido en /api/configuracion/horarios, usando IE por defecto')
+      }
+    } else {
+      // Sin token, usar valores por defecto (para compatibilidad)
+      console.log('⚠️ Sin token en /api/configuracion/horarios, usando IE por defecto')
     }
-
-    const ieId = decoded.ieId || 1
 
     // Buscar configuración en la base de datos
     let configuracion = await prisma.configuracionIE.findUnique({

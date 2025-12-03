@@ -29,9 +29,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 1. OBTENER EL ID DEL DOCENTE DESDE EL USUARIO
+    // 1. OBTENER EL ID DEL DOCENTE Y SU IE DESDE EL USUARIO
     const docente = await prisma.docente.findFirst({
-      where: { idUsuario: userInfo.userId }
+      where: { idUsuario: userInfo.userId },
+      include: {
+        usuario: true
+      }
     })
 
     if (!docente) {
@@ -41,7 +44,8 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log('👨‍🏫 Docente encontrado:', docente.idDocente)
+    const docenteIeId = docente.usuario?.idIe
+    console.log('👨‍🏫 Docente encontrado:', docente.idDocente, 'IE:', docenteIeId)
 
     // 2. VERIFICAR QUE LA CLASE PERTENECE AL DOCENTE
     const docenteAula = await prisma.docenteAula.findFirst({
@@ -74,7 +78,14 @@ export async function POST(request: NextRequest) {
       where: {
         AND: [
           { idGradoSeccion: docenteAula.idGradoSeccion }, // Solo estudiantes de esta clase
-          { codigoQR: codigoLimpio }
+          { codigoQR: codigoLimpio },
+          // Validar que el estudiante pertenece a la misma IE del docente
+          {
+            OR: [
+              { idIe: docenteIeId },
+              { usuario: { idIe: docenteIeId } }
+            ]
+          }
         ]
       },
       include: {
@@ -89,23 +100,66 @@ export async function POST(request: NextRequest) {
     })
 
     if (!estudiante) {
+      // Verificar si el código existe pero es de otra IE
+      const estudianteOtraIE = await prisma.estudiante.findFirst({
+        where: { codigoQR: codigoLimpio },
+        include: { usuario: true }
+      })
+      
+      if (estudianteOtraIE) {
+        const esOtraIE = estudianteOtraIE.idIe !== docenteIeId && estudianteOtraIE.usuario?.idIe !== docenteIeId
+        const esOtraClase = estudianteOtraIE.idGradoSeccion !== docenteAula.idGradoSeccion
+        
+        if (esOtraIE) {
+          return NextResponse.json({ 
+            error: 'Estudiante de otra institución',
+            details: `El estudiante ${estudianteOtraIE.usuario?.nombre} ${estudianteOtraIE.usuario?.apellido} no pertenece a esta institución educativa`
+          }, { status: 403 })
+        }
+        
+        if (esOtraClase) {
+          return NextResponse.json({ 
+            error: 'Estudiante de otra clase',
+            details: `El estudiante ${estudianteOtraIE.usuario?.nombre} ${estudianteOtraIE.usuario?.apellido} no pertenece a esta clase`
+          }, { status: 403 })
+        }
+      }
+      
       return NextResponse.json({ 
         error: 'Estudiante no encontrado',
-        details: `No se encontró estudiante con código ${codigoLimpio} en esta clase`
+        details: `No se encontró estudiante con código ${codigoLimpio}`
       }, { status: 404 })
     }
 
     console.log('👤 Estudiante encontrado:', `${estudiante.usuario.nombre} ${estudiante.usuario.apellido}`)
 
-    // 4. OBTENER HORARIO DE CLASE ACTUAL
+    // 4. OBTENER HORARIO DE CLASE PARA LA FECHA SELECCIONADA
     const ahora = new Date()
-    const diaSemana = ahora.getDay() === 0 ? 7 : ahora.getDay()
-    const horaActual = ahora.toTimeString().slice(0, 5)
+    
+    // Parsear fecha correctamente para evitar problemas de zona horaria
+    // fechaSeleccionada viene como "2025-12-03"
+    const [year, month, day] = fechaSeleccionada.split('-').map(Number)
+    const fechaAsistencia = new Date(year, month - 1, day) // month es 0-indexed
+    
+    // Usar el día de la semana de la FECHA SELECCIONADA
+    // JavaScript: 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
+    // BD: 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+    const diaSemanaJS = fechaAsistencia.getDay()
+    const diaSemanaDB = diaSemanaJS === 0 ? 7 : diaSemanaJS
+    
+    console.log('📆 Buscando horario para:', {
+      fechaSeleccionada,
+      fechaParsed: fechaAsistencia.toISOString(),
+      diaSemanaJS,
+      diaSemanaDB,
+      diaNombre: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSemanaJS],
+      idGradoSeccion: docenteAula.idGradoSeccion
+    })
     
     const horarioClase = await prisma.horarioClase.findFirst({
       where: {
         idGradoSeccion: docenteAula.idGradoSeccion,
-        diaSemana: diaSemana,
+        diaSemana: diaSemanaDB,
         activo: true
       }
     })
@@ -113,14 +167,22 @@ export async function POST(request: NextRequest) {
     if (!horarioClase) {
       return NextResponse.json({ 
         error: 'No hay horario de clase activo',
-        details: 'No se encontró un horario de clase para el día actual'
+        details: `No se encontró un horario de clase para el día ${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][fechaAsistencia.getDay()]}`
       }, { status: 404 })
     }
 
-    console.log('📅 Horario de clase encontrado:', horarioClase.materia)
+    // Log del horario encontrado
+    const horaInicioLog = new Date(horarioClase.horaInicio)
+    const horaFinLog = new Date(horarioClase.horaFin)
+    console.log('📅 Horario de clase encontrado:', {
+      materia: horarioClase.materia,
+      diaSemana: horarioClase.diaSemana,
+      horaInicio: `${horaInicioLog.getUTCHours()}:${horaInicioLog.getUTCMinutes().toString().padStart(2, '0')}`,
+      horaFin: `${horaFinLog.getUTCHours()}:${horaFinLog.getUTCMinutes().toString().padStart(2, '0')}`,
+      toleranciaMin: horarioClase.toleranciaMin
+    })
 
     // 5. VERIFICAR SI YA TIENE ASISTENCIA EN ESTA CLASE HOY
-    const fechaAsistencia = new Date(fechaSeleccionada)
     const asistenciaExistente = await prisma.asistencia.findFirst({
       where: {
         idEstudiante: estudiante.idEstudiante,
@@ -154,15 +216,46 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. DETERMINAR ESTADO SEGÚN LA HORA Y TOLERANCIA
-    const horaInicioClase = new Date(fechaAsistencia)
-    const [horas, minutos] = horarioClase.horaInicio.toTimeString().slice(0, 5).split(':')
-    horaInicioClase.setHours(parseInt(horas), parseInt(minutos), 0, 0)
+    // Extraer hora y minutos del horario de clase (tipo Time en PostgreSQL)
+    // PostgreSQL Time se almacena como DateTime con fecha 1970-01-01
+    // La hora se guarda TAL CUAL el usuario la configuró (ej: 14:48 = 2:48 PM)
+    // Prisma lo devuelve en UTC, así que usamos getUTCHours/getUTCMinutes
+    const horaInicioDate = new Date(horarioClase.horaInicio)
+    const horasInicio = horaInicioDate.getUTCHours()
+    const minutosInicio = horaInicioDate.getUTCMinutes()
+    
+    // Obtener hora actual del servidor (que está en hora de Perú)
+    const horasActuales = ahora.getHours()
+    const minutosActualesHora = ahora.getMinutes()
     
     const toleranciaMin = horarioClase.toleranciaMin || 10
-    const horaLimiteTolerancia = new Date(horaInicioClase.getTime() + (toleranciaMin * 60 * 1000))
+    
+    // Comparar usando minutos del día
+    const minutosActuales = horasActuales * 60 + minutosActualesHora
+    const minutosInicioClase = horasInicio * 60 + minutosInicio
+    const minutosLimite = minutosInicioClase + toleranciaMin
+    
+    const esTardanza = minutosActuales > minutosLimite
+    
+    // Log para debug
+    console.log('🔍 Debug horario:', {
+      horaInicioRaw: horarioClase.horaInicio,
+      horaInicioUTC: `${horasInicio}:${minutosInicio.toString().padStart(2, '0')}`,
+      toleranciaMin
+    })
+    
+    console.log('⏰ Cálculo de tolerancia:', {
+      horaInicioClase: `${horasInicio}:${minutosInicio.toString().padStart(2, '0')}`,
+      horaLimiteTolerancia: `${Math.floor(minutosLimite / 60)}:${(minutosLimite % 60).toString().padStart(2, '0')}`,
+      horaActual: `${horasActuales}:${minutosActualesHora.toString().padStart(2, '0')}`,
+      minutosActuales,
+      minutosInicioClase,
+      minutosLimite,
+      esTardanza: esTardanza ? 'SÍ (llegó después del límite)' : 'NO (llegó a tiempo)'
+    })
     
     let estadoCodigo = 'PRESENTE'
-    if (ahora > horaLimiteTolerancia) {
+    if (esTardanza) {
       estadoCodigo = 'TARDANZA'
     }
 
@@ -307,9 +400,12 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Obtener el ID del docente desde el usuario
+    // Obtener el ID del docente y su IE desde el usuario
     const docente = await prisma.docente.findFirst({
-      where: { idUsuario: userInfo.userId }
+      where: { idUsuario: userInfo.userId },
+      include: {
+        usuario: true
+      }
     })
 
     if (!docente) {
@@ -317,6 +413,9 @@ export async function GET(request: NextRequest) {
         error: 'Usuario no es docente' 
       }, { status: 403 })
     }
+
+    // Obtener el idIe del docente
+    const docenteIeId = docente.usuario?.idIe
 
     // Verificar que la clase pertenece al docente
     const docenteAula = await prisma.docenteAula.findFirst({
@@ -351,10 +450,17 @@ export async function GET(request: NextRequest) {
     
     const estudiantes = await prisma.estudiante.findMany({
       where: {
-        idGradoSeccion: docenteAula.idGradoSeccion,
-        usuario: {
-          estado: 'ACTIVO'
-        }
+        AND: [
+          { idGradoSeccion: docenteAula.idGradoSeccion },
+          { usuario: { estado: 'ACTIVO' } },
+          // Filtrar por IE del docente - estudiantes deben pertenecer a la misma IE
+          {
+            OR: [
+              { idIe: docenteIeId },
+              { usuario: { idIe: docenteIeId } }
+            ]
+          }
+        ]
       },
       include: {
         usuario: true,
@@ -390,6 +496,8 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    console.log(`📊 Estudiantes encontrados: ${estudiantes.length} (IE: ${docenteIeId}, GradoSeccion: ${docenteAula.idGradoSeccion})`)
+
     // Transformar datos
     const estudiantesTransformados = estudiantes.map(estudiante => {
       const asistenciaDelDia = estudiante.asistencias[0]
@@ -400,16 +508,8 @@ export async function GET(request: NextRequest) {
       let estadoFrontend = 'sin_registrar'
       let horaLlegada = null
       
-      // PRIMERO: Si tiene retiro COMPLETADO ese día, mostrar como RETIRADO
-      if (retiroDelDia && retiroDelDia.estadoRetiro?.codigo === 'COMPLETADO') {
-        estadoFrontend = 'retirado'
-        horaLlegada = retiroDelDia.hora?.toLocaleTimeString('es-ES', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }) || null
-      }
-      // Verificar asistencia en aula (Asistencia)
-      else if (asistenciaDelDia?.estadoAsistencia?.codigo) {
+      // PRIMERO: Verificar asistencia en aula (Asistencia) - esto tiene prioridad
+      if (asistenciaDelDia?.estadoAsistencia?.codigo) {
         const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toUpperCase()
         switch (codigoEstado) {
           case 'PRESENTE':
@@ -438,32 +538,9 @@ export async function GET(request: NextRequest) {
             minute: '2-digit' 
           }) : null
       }
-      // Si no hay asistencia en aula, verificar asistencia IE (institucional)
-      else if (asistenciaIEDelDia) {
-        const estadoIE = asistenciaIEDelDia.estado?.toUpperCase()
-        switch (estadoIE) {
-          case 'PRESENTE':
-            estadoFrontend = 'presente'
-            break
-          case 'TARDANZA':
-            estadoFrontend = 'tardanza'
-            break
-          case 'AUSENTE':
-          case 'FALTA':
-            estadoFrontend = 'inasistencia'
-            break
-          case 'RETIRADO':
-            estadoFrontend = 'retirado'
-            break
-          default:
-            estadoFrontend = 'sin_registrar'
-        }
-        horaLlegada = asistenciaIEDelDia?.horaIngreso ? 
-          new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }) : null
-      }
+      // Si no hay asistencia en aula, el estado es "sin_registrar"
+      // NO mostramos hora de ingreso IE porque confunde - esa es hora de entrada a la IE, no al aula
+      // El docente debe tomar asistencia para que aparezca la hora
       
       return {
         id: estudiante.idEstudiante,

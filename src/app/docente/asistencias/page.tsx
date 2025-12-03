@@ -132,6 +132,39 @@ export default function DocenteAsistencias() {
     }
   }, [claseSeleccionada, fechaSeleccionada, token])
 
+  // Escuchar eventos de actualización de asistencia desde la pestaña de tomar asistencia
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Verificar origen
+      if (event.origin !== window.location.origin) return
+      
+      if (event.data?.type === 'ASISTENCIA_UPDATED') {
+        console.log('📨 Mensaje recibido de pestaña de asistencia:', event.data)
+        // Recargar estudiantes automáticamente
+        if (token && claseSeleccionada) {
+          loadEstudiantes()
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    
+    // También escuchar cuando la ventana recupera el foco (usuario vuelve de la pestaña)
+    const handleFocus = () => {
+      console.log('🔄 Ventana recuperó el foco, recargando estudiantes...')
+      if (token && claseSeleccionada) {
+        loadEstudiantes()
+      }
+    }
+    
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('message', handleMessage)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [token, claseSeleccionada, fechaSeleccionada])
+
   // Cargar estudiantes cuando cambie la clase o fecha
   useEffect(() => {
     if (claseSeleccionada && fechaSeleccionada && token) {

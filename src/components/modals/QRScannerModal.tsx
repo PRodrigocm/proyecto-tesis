@@ -342,8 +342,14 @@ export default function QRScannerModal({
           if (responseText) {
             try {
               const error = JSON.parse(responseText)
-              errorMsg = error.error || error.mensaje || error.details || 'Error al procesar código QR'
-              console.error('❌ Error de API:', error)
+              // Manejar objeto vacío
+              if (Object.keys(error).length === 0) {
+                errorMsg = `Error del servidor (${response.status}): Respuesta vacía del API`
+                console.error('❌ Error de API: Objeto vacío recibido')
+              } else {
+                errorMsg = error.error || error.mensaje || error.details || error.message || 'Error al procesar código QR'
+                console.error('❌ Error de API:', JSON.stringify(error))
+              }
             } catch (parseError) {
               console.error('❌ Respuesta no es JSON válido:', responseText)
               errorMsg = `Error del servidor (${response.status}): ${responseText.substring(0, 100)}`

@@ -150,6 +150,32 @@ export async function POST(request: NextRequest) {
     const fechaAsistencia = new Date(fecha)
     fechaAsistencia.setHours(0, 0, 0, 0)
 
+    // Si el estado es "sin_registrar", eliminar el registro de asistencia
+    if (estado === 'sin_registrar') {
+      const existingToDelete = await prisma.asistenciaIE.findFirst({
+        where: {
+          idEstudiante: parseInt(estudianteId),
+          fecha: fechaAsistencia
+        }
+      })
+
+      if (existingToDelete) {
+        await prisma.asistenciaIE.delete({
+          where: { idAsistenciaIE: existingToDelete.idAsistenciaIE }
+        })
+        console.log(`🗑️ Asistencia eliminada para estudiante ${estudianteId} en fecha ${fecha}`)
+        return NextResponse.json({
+          message: 'Asistencia eliminada (sin registrar)',
+          deleted: true
+        })
+      } else {
+        return NextResponse.json({
+          message: 'No había asistencia registrada para eliminar',
+          deleted: false
+        })
+      }
+    }
+
     // Verificar si ya existe asistencia para este estudiante en esta fecha
     const existingAsistencia = await prisma.asistenciaIE.findFirst({
       where: {

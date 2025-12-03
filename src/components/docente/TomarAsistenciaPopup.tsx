@@ -417,8 +417,8 @@ export default function TomarAsistenciaPopup({
         <div className="flex-1 flex flex-col md:flex-row md:gap-4 pt-2 px-2 pb-2 md:p-4 md:px-6 overflow-y-auto md:overflow-hidden">
           {/* Panel de Escaneo - Más grande */}
           <div className="w-full md:w-3/5 bg-white rounded-lg shadow-lg p-3 md:p-4 mb-4 md:mb-0 flex flex-col">
-            {/* Controles móvil - Visibles arriba */}
-            <div className="md:hidden mb-2 sticky top-0 bg-white z-20 pb-2 -mx-3 px-3 pt-2 border-b border-gray-200">
+            {/* Controles de modo - Visibles en todos los dispositivos */}
+            <div className="mb-2 sticky top-0 bg-white z-20 pb-2 -mx-3 px-3 pt-2 border-b border-gray-200">
               <div className="flex gap-2">
                 <button
                   onClick={() => setModoEscaneo('camara')}
@@ -426,7 +426,7 @@ export default function TomarAsistenciaPopup({
                     modoEscaneo === 'camara' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
                   }`}
                 >
-                  📷 QR
+                  📷 Escanear QR
                 </button>
                 <button
                   onClick={() => setModoEscaneo('manual')}
@@ -434,7 +434,7 @@ export default function TomarAsistenciaPopup({
                     modoEscaneo === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
                   }`}
                 >
-                  ⌨️ Manual
+                  ⌨️ Digitación Manual
                 </button>
                 <button
                   onClick={() => {
@@ -444,6 +444,7 @@ export default function TomarAsistenciaPopup({
                     setContadorProcesados(0)
                   }}
                   className="px-3 py-2 rounded-lg font-medium text-sm bg-orange-600 text-white shadow-sm"
+                  title="Limpiar caché de escaneos"
                 >
                   🧹 {contadorProcesados}
                 </button>
@@ -451,7 +452,7 @@ export default function TomarAsistenciaPopup({
             </div>
 
             <h2 className="hidden md:block text-xl font-bold text-gray-900 mb-4">
-              {modoEscaneo === 'camara' ? '📷 Escáner QR' : '⌨️ Código Manual'}
+              {modoEscaneo === 'camara' ? '📷 Escáner QR' : '⌨️ Digitación Manual'}
             </h2>
             
             {modoEscaneo === 'camara' ? (

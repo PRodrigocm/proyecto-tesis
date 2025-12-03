@@ -10,7 +10,7 @@ interface Estudiante {
   codigo: string
   grado?: string
   seccion?: string
-  idGradoSeccion?: number
+  idGradoSeccion?: number | null
 }
 
 interface GradoSeccion {
@@ -62,6 +62,11 @@ export default function GeneradorQRPDF() {
 
       if (res.ok) {
         const data = await res.json()
+        console.log('Estudiantes cargados:', data.estudiantes)
+        // Log de idGradoSeccion para debug
+        data.estudiantes?.forEach((e: Estudiante) => {
+          console.log(`${e.nombre}: idGradoSeccion=${e.idGradoSeccion}`)
+        })
         setEstudiantes(data.estudiantes || [])
         setEstudiantesFiltrados(data.estudiantes || [])
         setSuccess(`✅ ${data.estudiantes?.length || 0} estudiantes cargados`)
@@ -77,15 +82,22 @@ export default function GeneradorQRPDF() {
 
   useEffect(() => {
     let filtrados = [...estudiantes]
+    
     if (modoGeneracion === 'grado' && gradoSeleccionado) {
       filtrados = estudiantes.filter(e => e.idGradoSeccion === gradoSeleccionado)
+      console.log(`Filtro por grado ${gradoSeleccionado}: ${filtrados.length} estudiantes`)
     } else if (modoGeneracion === 'estudiante' && estudianteSeleccionado) {
       filtrados = estudiantes.filter(e => e.id === estudianteSeleccionado)
+      console.log(`Filtro individual ${estudianteSeleccionado}: ${filtrados.length} estudiantes`)
+    } else if (modoGeneracion === 'todos') {
+      console.log(`Modo todos: ${filtrados.length} estudiantes`)
     }
+    
     if (busqueda.trim()) {
       const b = busqueda.toLowerCase()
       filtrados = filtrados.filter(e => e.nombre.toLowerCase().includes(b) || e.codigo.toLowerCase().includes(b))
     }
+    
     setEstudiantesFiltrados(filtrados)
   }, [modoGeneracion, gradoSeleccionado, estudianteSeleccionado, estudiantes, busqueda])
 

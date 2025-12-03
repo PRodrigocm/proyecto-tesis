@@ -127,13 +127,6 @@ export default function AuxiliarDashboard() {
       href: '/auxiliar/asistencia',
       icon: QrCodeIcon,
       gradient: 'from-green-500 to-emerald-600'
-    },
-    {
-      title: 'Nuevo Retiro',
-      description: 'Registrar salida',
-      href: '/auxiliar/retiros/crear',
-      icon: ArrowRightOnRectangleIcon,
-      gradient: 'from-orange-500 to-amber-600'
     }
   ]
 
@@ -201,8 +194,8 @@ export default function AuxiliarDashboard() {
         </div>
       </div>
 
-      {/* Acciones rápidas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Acción rápida principal */}
+      <div className="grid grid-cols-1 gap-4">
         {quickActions.map((action, index) => (
           <Link
             key={index}

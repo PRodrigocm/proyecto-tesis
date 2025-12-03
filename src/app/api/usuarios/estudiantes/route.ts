@@ -26,19 +26,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
     }
 
-    console.log('🔍 Cargando estudiantes para códigos QR...')
+    const ieId = decoded.ieId || 1
+    console.log(`🔍 Cargando estudiantes para códigos QR de IE: ${ieId}`)
 
     // Obtener estudiantes de la institución del usuario
+    // Filtrar por idIe del estudiante O idIe del usuario
     const estudiantes = await prisma.estudiante.findMany({
       where: {
-        usuario: {
-          idIe: decoded.idIe,
-          estado: 'ACTIVO'
-        }
+        AND: [
+          { usuario: { estado: 'ACTIVO' } },
+          {
+            OR: [
+              { idIe: ieId },
+              { usuario: { idIe: ieId } }
+            ]
+          }
+        ]
       },
       select: {
         idEstudiante: true,
         codigoQR: true,
+        idGradoSeccion: true,
         usuario: {
           select: {
             nombre: true,
@@ -48,7 +56,8 @@ export async function GET(request: NextRequest) {
           }
         },
         gradoSeccion: {
-          include: {
+          select: {
+            idGradoSeccion: true,
             grado: {
               select: {
                 nombre: true
@@ -108,6 +117,7 @@ export async function GET(request: NextRequest) {
         codigo: codigoFinal, // Usar código QR de BD o DNI como fallback
         grado: estudiante.gradoSeccion?.grado?.nombre || '',
         seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+        idGradoSeccion: estudiante.gradoSeccion?.idGradoSeccion || null,
         dni: estudiante.usuario.dni,
         estado: estudiante.usuario.estado
       }
