@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Control de asistencia",
-  description: "Creado por Rodrigo Alonso Chavez Montecillo",
+  description: "Creado por Rodrigo Alonso Chavez Montecillo 2025",
 };
 
 export default function RootLayout({
