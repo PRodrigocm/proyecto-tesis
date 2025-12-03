@@ -1,6 +1,6 @@
 # ============================================
 # Dockerfile PRODUCCIÓN - proyecto-tesis
-# Next.js + Prisma 7 + PostgreSQL
+# Next.js + Prisma 6 + PostgreSQL
 # ============================================
 
 # Stage 1: Dependencies (todas para build)
@@ -10,7 +10,6 @@ WORKDIR /app
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-COPY prisma.config.ts ./
 
 # Instalar TODAS las dependencias (incluyendo dev para prisma)
 RUN npm install --legacy-peer-deps
@@ -51,7 +50,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
