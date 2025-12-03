@@ -14,9 +14,9 @@ DROP INDEX "proyecto-1"."estudiante_codigo_key";
 DROP INDEX "proyecto-1"."estudiante_qr_key";
 
 -- AlterTable
-ALTER TABLE "estudiante" DROP COLUMN "codigo",
+ALTER TABLE "proyecto-1"."estudiante" DROP COLUMN "codigo",
 DROP COLUMN "qr",
 ADD COLUMN     "codigo_qr" VARCHAR(32) NOT NULL;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "estudiante_codigo_qr_key" ON "estudiante"("codigo_qr");
+CREATE UNIQUE INDEX "estudiante_codigo_qr_key" ON "proyecto-1"."estudiante"("codigo_qr");

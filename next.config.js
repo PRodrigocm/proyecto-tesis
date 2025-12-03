@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Habilitar output standalone para Docker
+  output: 'standalone',
+  
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -9,6 +12,17 @@ const nextConfig = {
       ]
     }
   },
+  
+  // Configuración de imágenes
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
+  
   async headers() {
     return [
       {

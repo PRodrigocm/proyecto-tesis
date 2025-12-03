@@ -18,21 +18,21 @@
 */
 -- AlterEnum
 BEGIN;
-CREATE TYPE "tipo_actividad_new" AS ENUM ('CLASE_REGULAR', 'REFORZAMIENTO', 'RECUPERACION', 'EVALUACION');
+CREATE TYPE "proyecto-1"."tipo_actividad_new" AS ENUM ('CLASE_REGULAR', 'REFORZAMIENTO', 'RECUPERACION', 'EVALUACION');
 ALTER TABLE "proyecto-1"."horarios_clase" ALTER COLUMN "tipo_actividad" DROP DEFAULT;
-ALTER TABLE "horarios_clase" ALTER COLUMN "tipo_actividad" TYPE "tipo_actividad_new" USING ("tipo_actividad"::text::"tipo_actividad_new");
-ALTER TYPE "tipo_actividad" RENAME TO "tipo_actividad_old";
-ALTER TYPE "tipo_actividad_new" RENAME TO "tipo_actividad";
+ALTER TABLE "proyecto-1"."horarios_clase" ALTER COLUMN "tipo_actividad" TYPE "proyecto-1"."tipo_actividad_new" USING ("tipo_actividad"::text::"proyecto-1"."tipo_actividad_new");
+ALTER TYPE "proyecto-1"."tipo_actividad" RENAME TO "tipo_actividad_old";
+ALTER TYPE "proyecto-1"."tipo_actividad_new" RENAME TO "tipo_actividad";
 DROP TYPE "proyecto-1"."tipo_actividad_old";
-ALTER TABLE "horarios_clase" ALTER COLUMN "tipo_actividad" SET DEFAULT 'CLASE_REGULAR';
+ALTER TABLE "proyecto-1"."horarios_clase" ALTER COLUMN "tipo_actividad" SET DEFAULT 'CLASE_REGULAR';
 COMMIT;
 
 -- AlterEnum
 BEGIN;
-CREATE TYPE "tipo_horario_new" AS ENUM ('CLASE', 'AMBOS');
-ALTER TABLE "excepciones_horario" ALTER COLUMN "tipo_horario" TYPE "tipo_horario_new" USING ("tipo_horario"::text::"tipo_horario_new");
-ALTER TYPE "tipo_horario" RENAME TO "tipo_horario_old";
-ALTER TYPE "tipo_horario_new" RENAME TO "tipo_horario";
+CREATE TYPE "proyecto-1"."tipo_horario_new" AS ENUM ('CLASE', 'AMBOS');
+ALTER TABLE "proyecto-1"."excepciones_horario" ALTER COLUMN "tipo_horario" TYPE "proyecto-1"."tipo_horario_new" USING ("tipo_horario"::text::"proyecto-1"."tipo_horario_new");
+ALTER TYPE "proyecto-1"."tipo_horario" RENAME TO "tipo_horario_old";
+ALTER TYPE "proyecto-1"."tipo_horario_new" RENAME TO "tipo_horario";
 DROP TYPE "proyecto-1"."tipo_horario_old";
 COMMIT;
 
@@ -70,7 +70,7 @@ DROP INDEX "proyecto-1"."asistencias_id_inscripcion_taller_idx";
 DROP INDEX "proyecto-1"."excepciones_horario_id_horario_taller_fecha_key";
 
 -- AlterTable
-ALTER TABLE "asistencias" DROP COLUMN "fuente",
+ALTER TABLE "proyecto-1"."asistencias" DROP COLUMN "fuente",
 DROP COLUMN "hora_entrada",
 DROP COLUMN "hora_salida",
 DROP COLUMN "id_ie",
@@ -80,7 +80,7 @@ ADD COLUMN     "hora_registro" TIMESTAMPTZ(6),
 ADD COLUMN     "id_horario_clase" INTEGER;
 
 -- AlterTable
-ALTER TABLE "excepciones_horario" DROP COLUMN "id_horario_taller";
+ALTER TABLE "proyecto-1"."excepciones_horario" DROP COLUMN "id_horario_taller";
 
 -- DropTable
 DROP TABLE "proyecto-1"."horarios_taller";
@@ -92,7 +92,7 @@ DROP TABLE "proyecto-1"."inscripcion_taller";
 DROP TABLE "proyecto-1"."talleres";
 
 -- CreateTable
-CREATE TABLE "asistencia_ie" (
+CREATE TABLE "proyecto-1"."asistencia_ie" (
     "id_asistencia_ie" SERIAL NOT NULL,
     "id_estudiante" INTEGER NOT NULL,
     "id_ie" INTEGER NOT NULL,
@@ -109,28 +109,28 @@ CREATE TABLE "asistencia_ie" (
 );
 
 -- CreateIndex
-CREATE INDEX "asistencia_ie_id_ie_fecha_idx" ON "asistencia_ie"("id_ie", "fecha");
+CREATE INDEX "asistencia_ie_id_ie_fecha_idx" ON "proyecto-1"."asistencia_ie"("id_ie", "fecha");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "asistencia_ie_id_estudiante_fecha_key" ON "asistencia_ie"("id_estudiante", "fecha");
+CREATE UNIQUE INDEX "asistencia_ie_id_estudiante_fecha_key" ON "proyecto-1"."asistencia_ie"("id_estudiante", "fecha");
 
 -- CreateIndex
-CREATE INDEX "asistencias_id_horario_clase_fecha_idx" ON "asistencias"("id_horario_clase", "fecha");
+CREATE INDEX "asistencias_id_horario_clase_fecha_idx" ON "proyecto-1"."asistencias"("id_horario_clase", "fecha");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "asistencias_id_estudiante_id_horario_clase_fecha_key" ON "asistencias"("id_estudiante", "id_horario_clase", "fecha");
+CREATE UNIQUE INDEX "asistencias_id_estudiante_id_horario_clase_fecha_key" ON "proyecto-1"."asistencias"("id_estudiante", "id_horario_clase", "fecha");
 
 -- AddForeignKey
-ALTER TABLE "asistencias" ADD CONSTRAINT "asistencias_id_horario_clase_fkey" FOREIGN KEY ("id_horario_clase") REFERENCES "horarios_clase"("id_horario_clase") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "proyecto-1"."asistencias" ADD CONSTRAINT "asistencias_id_horario_clase_fkey" FOREIGN KEY ("id_horario_clase") REFERENCES "proyecto-1"."horarios_clase"("id_horario_clase") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asistencia_ie" ADD CONSTRAINT "asistencia_ie_id_estudiante_fkey" FOREIGN KEY ("id_estudiante") REFERENCES "estudiante"("id_estudiante") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "proyecto-1"."asistencia_ie" ADD CONSTRAINT "asistencia_ie_id_estudiante_fkey" FOREIGN KEY ("id_estudiante") REFERENCES "proyecto-1"."estudiante"("id_estudiante") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asistencia_ie" ADD CONSTRAINT "asistencia_ie_id_ie_fkey" FOREIGN KEY ("id_ie") REFERENCES "ie"("id_ie") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "proyecto-1"."asistencia_ie" ADD CONSTRAINT "asistencia_ie_id_ie_fkey" FOREIGN KEY ("id_ie") REFERENCES "proyecto-1"."ie"("id_ie") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asistencia_ie" ADD CONSTRAINT "asistencia_ie_registrado_ingreso_por_fkey" FOREIGN KEY ("registrado_ingreso_por") REFERENCES "usuarios"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "proyecto-1"."asistencia_ie" ADD CONSTRAINT "asistencia_ie_registrado_ingreso_por_fkey" FOREIGN KEY ("registrado_ingreso_por") REFERENCES "proyecto-1"."usuarios"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asistencia_ie" ADD CONSTRAINT "asistencia_ie_registrado_salida_por_fkey" FOREIGN KEY ("registrado_salida_por") REFERENCES "usuarios"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "proyecto-1"."asistencia_ie" ADD CONSTRAINT "asistencia_ie_registrado_salida_por_fkey" FOREIGN KEY ("registrado_salida_por") REFERENCES "proyecto-1"."usuarios"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
