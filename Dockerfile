@@ -30,8 +30,8 @@ WORKDIR /app
 COPY --from=source /app/package.json /app/package-lock.json* ./
 COPY --from=source /app/prisma ./prisma/
 
-# Instalar dependencias
-RUN npm ci
+# Instalar dependencias (npm install para sincronizar lock file)
+RUN npm install --legacy-peer-deps
 
 # Stage 3: Builder
 FROM node:20-alpine AS builder
