@@ -87,7 +87,7 @@ export default function AuxiliarLayout({
       ),
     },
     {
-      name: 'Gestión de Retiros',
+      name: 'Ver Retiros',
       href: '/auxiliar/retiros',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning>
