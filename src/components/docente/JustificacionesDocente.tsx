@@ -18,6 +18,7 @@ export default function JustificacionesDocente() {
   const [busqueda, setBusqueda] = useState('')
   const [justificacionSeleccionada, setJustificacionSeleccionada] = useState<Justificacion | null>(null)
   const [mostrarModal, setMostrarModal] = useState(false)
+  const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false)
   const [accionModal, setAccionModal] = useState<'APROBAR' | 'RECHAZAR'>('APROBAR')
   const [observacionesRevision, setObservacionesRevision] = useState('')
   const [procesando, setProcesando] = useState(false)
@@ -36,6 +37,41 @@ export default function JustificacionesDocente() {
     
     return nombreCompleto.includes(termino) || dni.includes(termino) || motivo.includes(termino)
   })
+
+  // Ver detalle de justificación
+  const handleVerDetalle = (justificacion: Justificacion) => {
+    setJustificacionSeleccionada(justificacion)
+    setMostrarModalDetalle(true)
+  }
+
+  // Descargar documento
+  const handleDescargarDocumento = async (idDocumento: number, nombreArchivo: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/justificaciones/documentos/${idDocumento}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = nombreArchivo
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        alert('Error al descargar el documento')
+      }
+    } catch (error) {
+      console.error('Error descargando documento:', error)
+      alert('Error al descargar el documento')
+    }
+  }
 
   // Manejar revisión de justificación
   const handleRevisar = (justificacion: Justificacion, accion: 'APROBAR' | 'RECHAZAR') => {
@@ -242,13 +278,17 @@ export default function JustificacionesDocente() {
                     <p className="text-gray-900 text-xs sm:text-sm line-clamp-2">{justificacion.motivo}</p>
                   </div>
 
-                  {/* Documentos */}
+                  {/* Documentos - Clickeables para descargar */}
                   {justificacion.documentos.length > 0 && (
                     <div className="flex flex-wrap gap-1 sm:gap-2">
                       {justificacion.documentos.map((doc) => (
-                        <span key={doc.idDocumento} className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 text-[10px] sm:text-xs rounded-lg border border-blue-200">
-                          📎 <span className="hidden sm:inline ml-1">{doc.nombreArchivo}</span>
-                        </span>
+                        <button
+                          key={doc.idDocumento}
+                          onClick={() => handleDescargarDocumento(doc.idDocumento, doc.nombreArchivo)}
+                          className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 text-[10px] sm:text-xs rounded-lg border border-blue-200 hover:bg-blue-100 active:bg-blue-200 transition-colors cursor-pointer"
+                        >
+                          📎 <span className="ml-1">{doc.nombreArchivo}</span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -256,27 +296,38 @@ export default function JustificacionesDocente() {
                   {/* Info de revisión */}
                   {justificacion.usuarioRevisor && (
                     <div className="p-2 bg-gray-100 rounded-lg text-[10px] sm:text-xs text-gray-600">
-                      <span className="font-medium">✓ {justificacion.usuarioRevisor.nombre}</span>
+                      <span className="font-medium">✓ {justificacion.usuarioRevisor.nombre} {justificacion.usuarioRevisor.apellido}</span>
+                      {justificacion.observacionesRevision && (
+                        <p className="mt-1 text-gray-500 italic">"{justificacion.observacionesRevision}"</p>
+                      )}
                     </div>
                   )}
 
                   {/* Acciones */}
-                  {justificacion.estadoJustificacion.codigo === 'PENDIENTE' && (
-                    <div className="flex gap-2 pt-2 border-t border-gray-100">
-                      <button
-                        onClick={() => handleRevisar(justificacion, 'APROBAR')}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 active:from-green-700 active:to-emerald-800 transition-all shadow-md font-medium text-xs sm:text-sm min-h-[40px]"
-                      >
-                        ✅ <span className="hidden sm:inline">Aprobar</span>
-                      </button>
-                      <button
-                        onClick={() => handleRevisar(justificacion, 'RECHAZAR')}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg hover:from-red-600 hover:to-rose-700 active:from-red-700 active:to-rose-800 transition-all shadow-md font-medium text-xs sm:text-sm min-h-[40px]"
-                      >
-                        ❌ <span className="hidden sm:inline">Rechazar</span>
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => handleVerDetalle(justificacion)}
+                      className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 active:from-blue-700 active:to-indigo-800 transition-all shadow-md font-medium text-xs sm:text-sm min-h-[40px]"
+                    >
+                      👁️ <span className="hidden sm:inline">Ver Detalle</span>
+                    </button>
+                    {justificacion.estadoJustificacion.codigo === 'PENDIENTE' && (
+                      <>
+                        <button
+                          onClick={() => handleRevisar(justificacion, 'APROBAR')}
+                          className="flex-1 px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 active:from-green-700 active:to-emerald-800 transition-all shadow-md font-medium text-xs sm:text-sm min-h-[40px]"
+                        >
+                          ✅ <span className="hidden sm:inline">Aprobar</span>
+                        </button>
+                        <button
+                          onClick={() => handleRevisar(justificacion, 'RECHAZAR')}
+                          className="flex-1 px-3 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg hover:from-red-600 hover:to-rose-700 active:from-red-700 active:to-rose-800 transition-all shadow-md font-medium text-xs sm:text-sm min-h-[40px]"
+                        >
+                          ❌ <span className="hidden sm:inline">Rechazar</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -362,6 +413,125 @@ export default function JustificacionesDocente() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de detalle */}
+      {mostrarModalDetalle && justificacionSeleccionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header del modal */}
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                📋 Detalle de Justificación
+              </h3>
+            </div>
+            
+            <div className="p-5 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Info del estudiante */}
+              <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {justificacionSeleccionada.estudiante.usuario.nombre[0]}{justificacionSeleccionada.estudiante.usuario.apellido[0]}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">
+                    {justificacionSeleccionada.estudiante.usuario.nombre} {justificacionSeleccionada.estudiante.usuario.apellido}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    DNI: {justificacionSeleccionada.estudiante.usuario.dni}
+                    {justificacionSeleccionada.estudiante.gradoSeccion && (
+                      <span className="ml-2">• {justificacionSeleccionada.estudiante.gradoSeccion.grado.nombre}° {justificacionSeleccionada.estudiante.gradoSeccion.seccion.nombre}</span>
+                    )}
+                  </p>
+                </div>
+                <span className={`ml-auto px-3 py-1 text-xs font-bold rounded-full ${
+                  justificacionSeleccionada.estadoJustificacion.codigo === 'PENDIENTE' 
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : justificacionSeleccionada.estadoJustificacion.codigo === 'APROBADA'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {justificacionSeleccionada.estadoJustificacion.nombre}
+                </span>
+              </div>
+
+              {/* Información de la justificación */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <span className="text-xs text-blue-600 font-medium">Tipo</span>
+                  <p className="text-gray-900 font-medium">{justificacionSeleccionada.tipoJustificacion.nombre}</p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                  <span className="text-xs text-purple-600 font-medium">Fechas</span>
+                  <p className="text-gray-900 font-medium">{formatearRangoFechas(justificacionSeleccionada.fechaInicio, justificacionSeleccionada.fechaFin)}</p>
+                </div>
+              </div>
+
+              {/* Motivo */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-xl border">
+                <span className="text-xs text-gray-600 font-medium">Motivo</span>
+                <p className="text-gray-900 mt-1">{justificacionSeleccionada.motivo}</p>
+              </div>
+
+              {/* Observaciones */}
+              {justificacionSeleccionada.observaciones && (
+                <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <span className="text-xs text-amber-600 font-medium">Observaciones del apoderado</span>
+                  <p className="text-gray-900 mt-1">{justificacionSeleccionada.observaciones}</p>
+                </div>
+              )}
+
+              {/* Documentos adjuntos */}
+              {justificacionSeleccionada.documentos.length > 0 && (
+                <div className="mb-4">
+                  <span className="text-xs text-gray-600 font-medium block mb-2">Documentos adjuntos</span>
+                  <div className="space-y-2">
+                    {justificacionSeleccionada.documentos.map((doc) => (
+                      <button
+                        key={doc.idDocumento}
+                        onClick={() => handleDescargarDocumento(doc.idDocumento, doc.nombreArchivo)}
+                        className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-xl border border-blue-200 transition-colors text-left"
+                      >
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                          📄
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{doc.nombreArchivo}</p>
+                          <p className="text-xs text-gray-500">Click para descargar</p>
+                        </div>
+                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info de revisión */}
+              {justificacionSeleccionada.usuarioRevisor && (
+                <div className="p-3 bg-gray-100 rounded-xl">
+                  <span className="text-xs text-gray-600 font-medium">Revisado por</span>
+                  <p className="text-gray-900 font-medium mt-1">
+                    {justificacionSeleccionada.usuarioRevisor.nombre} {justificacionSeleccionada.usuarioRevisor.apellido}
+                  </p>
+                  {justificacionSeleccionada.observacionesRevision && (
+                    <p className="text-gray-600 mt-1 italic">"{justificacionSeleccionada.observacionesRevision}"</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => setMostrarModalDetalle(false)}
+                className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 font-medium transition-all"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

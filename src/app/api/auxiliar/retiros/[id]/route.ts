@@ -71,33 +71,45 @@ export async function GET(
       return NextResponse.json({ error: 'Sin permisos para ver este retiro' }, { status: 403 })
     }
 
+    // Formatear hora correctamente
+    let horaFormateada = ''
+    if (retiro.hora) {
+      const horaDate = new Date(retiro.hora)
+      horaFormateada = `${horaDate.getUTCHours().toString().padStart(2, '0')}:${horaDate.getUTCMinutes().toString().padStart(2, '0')}`
+    }
+    
+    // Mapear estado a código
+    const estadoNombre = retiro.estadoRetiro?.nombre?.toUpperCase() || 'PENDIENTE'
+    let estadoCodigo: 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO' | 'COMPLETADO' = 'PENDIENTE'
+    if (estadoNombre.includes('AUTORIZADO') || estadoNombre.includes('APROBADO')) {
+      estadoCodigo = 'AUTORIZADO'
+    } else if (estadoNombre.includes('RECHAZADO') || estadoNombre.includes('DENEGADO')) {
+      estadoCodigo = 'RECHAZADO'
+    } else if (estadoNombre.includes('COMPLETADO') || estadoNombre.includes('FINALIZADO')) {
+      estadoCodigo = 'COMPLETADO'
+    }
+
     const retiroTransformado = {
       id: retiro.idRetiro.toString(),
       estudiante: {
-        id: retiro.estudiante.idEstudiante,
         nombre: retiro.estudiante.usuario.nombre || '',
         apellido: retiro.estudiante.usuario.apellido || '',
-        dni: retiro.estudiante.usuario.dni,
+        dni: retiro.estudiante.usuario.dni || '',
         grado: retiro.estudiante.gradoSeccion?.grado?.nombre || '',
         seccion: retiro.estudiante.gradoSeccion?.seccion?.nombre || ''
       },
-      tipoRetiro: {
-        id: retiro.tipoRetiro?.idTipoRetiro,
-        nombre: retiro.tipoRetiro?.nombre || 'Sin especificar'
-      },
-      fecha: retiro.fecha.toISOString().split('T')[0],
-      hora: retiro.hora.toTimeString().slice(0, 5),
+      tipoRetiro: retiro.tipoRetiro?.nombre || 'Sin especificar',
+      fechaRetiro: retiro.fecha.toISOString().split('T')[0],
+      horaRetiro: horaFormateada,
+      motivo: retiro.tipoRetiro?.nombre || 'Sin especificar',
+      estado: estadoCodigo,
       observaciones: retiro.observaciones || '',
-      estado: retiro.estadoRetiro?.nombre || 'Pendiente',
-      apoderadoQueRetira: retiro.apoderadoRetira ? {
-        id: retiro.apoderadoRetira.idApoderado,
-        nombre: `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
-      } : null,
-      verificadoPor: retiro.usuarioVerificador ? {
-        id: retiro.usuarioVerificador.idUsuario,
-        nombre: `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}`
-      } : null,
-      fechaCreacion: retiro.createdAt?.toISOString()
+      apoderadoQueRetira: retiro.apoderadoRetira 
+        ? `${retiro.apoderadoRetira.usuario.nombre || ''} ${retiro.apoderadoRetira.usuario.apellido || ''}`.trim()
+        : undefined,
+      verificadoPor: retiro.usuarioVerificador
+        ? `${retiro.usuarioVerificador.nombre || ''} ${retiro.usuarioVerificador.apellido || ''}`.trim()
+        : undefined
     }
 
     return NextResponse.json({

@@ -246,6 +246,37 @@ export const justificacionesService = {
       const error = await response.json()
       throw new Error(error.message || 'Error al crear justificación')
     }
+  },
+
+  async getRechazadas(estudianteId?: string): Promise<any[]> {
+    const url = estudianteId 
+      ? `${API_BASE}/justificaciones/rechazadas?estudianteId=${estudianteId}`
+      : `${API_BASE}/justificaciones/rechazadas`
+    
+    const response = await fetch(url, {
+      headers: getHeaders()
+    })
+    if (!response.ok) {
+      console.error('Error al cargar justificaciones rechazadas')
+      return []
+    }
+    const data = await response.json()
+    return data.justificaciones || []
+  },
+
+  async reenviar(justificacionId: string, formData: FormData): Promise<void> {
+    const token = getToken()
+    const response = await fetch(`${API_BASE}/justificaciones/${justificacionId}/reenviar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Error al reenviar justificación')
+    }
   }
 }
 

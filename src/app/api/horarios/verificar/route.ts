@@ -82,20 +82,37 @@ export async function GET(request: NextRequest) {
 
     const hayClase = horarioClase !== null
 
+    // Formatear horario para mostrar
+    let horarioStr = 'No programado'
+    if (horarioClase) {
+      const horaInicioDate = new Date(horarioClase.horaInicio)
+      const horaFinDate = new Date(horarioClase.horaFin)
+      const formatHora = (d: Date) => {
+        const h = d.getUTCHours()
+        const m = d.getUTCMinutes()
+        const periodo = h >= 12 ? 'pm' : 'am'
+        const hora12 = h > 12 ? h - 12 : (h === 0 ? 12 : h)
+        return `${hora12}:${String(m).padStart(2, '0')} ${periodo}`
+      }
+      horarioStr = `${formatHora(horaInicioDate)} - ${formatHora(horaFinDate)}`
+    }
+
     console.log('✅ Verificación de horario:', { 
       diaSemana, 
       hayClase, 
-      horario: horarioClase ? `${horarioClase.horaInicio} - ${horarioClase.horaFin}` : 'No programado'
+      horario: horarioStr,
+      idHorarioClase: horarioClase?.idHorarioClase
     })
 
     return NextResponse.json({
       success: true,
       hayClase,
       diaSemana,
-      horario: horarioClase ? {
-        horaInicio: horarioClase.horaInicio,
-        horaFin: horarioClase.horaFin
-      } : null
+      idHorarioClase: horarioClase?.idHorarioClase || null,
+      idGradoSeccion: docenteAula.idGradoSeccion,
+      horaInicio: horarioClase?.horaInicio || null,
+      horaFin: horarioClase?.horaFin || null,
+      horario: horarioStr
     })
 
   } catch (error) {

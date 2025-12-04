@@ -43,6 +43,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar que el usuario esté activo
+    if (user.estado !== 'ACTIVO') {
+      console.log(`🚫 Admin login rechazado - Usuario inactivo: ${user.email} (estado: ${user.estado})`)
+      return NextResponse.json(
+        { error: 'Tu cuenta está desactivada. Contacta al administrador.' },
+        { status: 403 }
+      )
+    }
+
     // Verificar contraseña
     const isValidPassword = await bcrypt.compare(password, user.passwordHash || '')
     if (!isValidPassword) {

@@ -35,6 +35,8 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
     observaciones: '',
     personaRecoge: '',
     dniPersonaRecoge: '',
+    apoderadoQueRetira: '', // ID del apoderado que retira
+    medioContacto: '',
     fecha: new Date().toISOString().split('T')[0] // Fecha actual por defecto
   })
   const [loading, setLoading] = useState(false)
@@ -51,7 +53,8 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
       personaRecoge: estudiante?.apoderadoTitular 
         ? `${estudiante.apoderadoTitular.nombre} ${estudiante.apoderadoTitular.apellido}`
         : '',
-      dniPersonaRecoge: estudiante?.apoderadoTitular?.dni || ''
+      dniPersonaRecoge: estudiante?.apoderadoTitular?.dni || '',
+      apoderadoQueRetira: estudiante?.apoderadoTitular?.id || '' // Guardar ID del apoderado
     }))
     
     // Resetear la visibilidad de la información del apoderado
@@ -67,6 +70,8 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
         observaciones: retiro.observaciones || '',
         personaRecoge: retiro.personaRecoge || '',
         dniPersonaRecoge: retiro.dniPersonaRecoge || '',
+        apoderadoQueRetira: '', // Se obtiene del estudiante
+        medioContacto: '',
         fecha: retiro.fecha ? retiro.fecha.split('T')[0] : new Date().toISOString().split('T')[0]
       })
     } else {
@@ -77,6 +82,8 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
         observaciones: '',
         personaRecoge: '',
         dniPersonaRecoge: '',
+        apoderadoQueRetira: '',
+        medioContacto: '',
         fecha: new Date().toISOString().split('T')[0]
       })
     }
@@ -218,6 +225,27 @@ function RetiroModal({ isOpen, onClose, onSave, retiro, estudiantes }: RetiroMod
                 {motivosComunes.map(motivo => (
                   <option key={motivo} value={motivo}>{motivo}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Medio de contacto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                📞 Medio de contacto *
+              </label>
+              <select
+                value={formData.medioContacto}
+                onChange={(e) => setFormData(prev => ({ ...prev, medioContacto: e.target.value }))}
+                required
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white transition-all"
+              >
+                <option value="">Seleccionar medio</option>
+                <option value="LLAMADA">Llamada telefónica</option>
+                <option value="WHATSAPP">WhatsApp</option>
+                <option value="PRESENCIAL">Presencial</option>
+                <option value="EMAIL">Correo electrónico</option>
+                <option value="MENSAJE">Mensaje de texto</option>
+                <option value="OTRO">Otro</option>
               </select>
             </div>
 

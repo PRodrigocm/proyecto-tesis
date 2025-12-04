@@ -88,14 +88,21 @@ export async function PATCH(
       })
     }
 
-    // Actualizar el retiro
+    // Actualizar el retiro - El usuario que autoriza/rechaza es el verificador
     const retiroActualizado = await prisma.retiro.update({
       where: { idRetiro: retiroId },
       data: {
         idEstadoRetiro: estadoRetiro.idEstadoRetiro,
-        observaciones: observaciones,
-        verificadoPor: userId
+        observaciones: observaciones || retiro.observaciones,
+        verificadoPor: userId, // El usuario que autoriza es el verificador
+        horaContacto: retiro.horaContacto || new Date() // Si no tenía hora de contacto, usar la actual
       }
+    })
+    
+    console.log(`✅ Retiro ${autorizado ? 'autorizado' : 'rechazado'}:`, {
+      id: retiroActualizado.idRetiro,
+      verificadoPor: retiroActualizado.verificadoPor,
+      estado: estadoRetiro.codigo
     })
 
     // === NOTIFICACIONES BIDIRECCIONALES ===

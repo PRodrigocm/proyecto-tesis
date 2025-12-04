@@ -172,6 +172,96 @@ export default function DocenteAsistencias() {
     }
   }, [claseSeleccionada, fechaSeleccionada, token])
 
+  // Verificar automáticamente si debe marcar inasistencias cuando termina la clase
+  useEffect(() => {
+    if (!claseSeleccionada || !fechaSeleccionada || !token) return
+    
+    // Solo verificar si es la fecha de hoy
+    const hoy = new Date().toISOString().split('T')[0]
+    if (fechaSeleccionada !== hoy) return
+
+    let inasistenciasMarcadas = false
+    
+    const verificarInasistenciasAutomaticas = async () => {
+      if (inasistenciasMarcadas) return
+      
+      try {
+        // Obtener el día de la semana actual (1=Lunes, 7=Domingo)
+        const fechaObj = new Date(fechaSeleccionada + 'T12:00:00')
+        const diaSemanaJS = fechaObj.getDay()
+        const diasSemana = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
+        const diaSemana = diasSemana[diaSemanaJS]
+        
+        // Consultar el horario real de la clase desde la BD
+        const horarioResponse = await fetch(
+          `/api/horarios/verificar?claseId=${claseSeleccionada}&diaSemana=${diaSemana}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        )
+        
+        if (!horarioResponse.ok) return
+        
+        const horarioData = await horarioResponse.json()
+        
+        // Si no hay clase hoy, no hacer nada
+        if (!horarioData.hayClase || !horarioData.horaFin) return
+        
+        // Parsear hora fin desde la BD (formato ISO)
+        const horaFinDate = new Date(horarioData.horaFin)
+        const horaFinMinutos = horaFinDate.getUTCHours() * 60 + horaFinDate.getUTCMinutes()
+        
+        // Obtener hora actual
+        const ahora = new Date()
+        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes()
+        
+        // Verificar si hay estudiantes sin registrar
+        const sinRegistrar = estudiantes.filter(e => e.estado === 'sin_registrar')
+        
+        console.log(`🕐 Verificando horario: actual=${Math.floor(horaActualMinutos/60)}:${String(horaActualMinutos%60).padStart(2,'0')}, fin=${Math.floor(horaFinMinutos/60)}:${String(horaFinMinutos%60).padStart(2,'0')}, sinRegistrar=${sinRegistrar.length}`)
+        
+        // Si ya pasó la hora fin y hay estudiantes sin registrar
+        if (horaActualMinutos >= horaFinMinutos && sinRegistrar.length > 0) {
+          console.log(`⏰ Hora fin de clase alcanzada. Marcando ${sinRegistrar.length} inasistencias automáticamente...`)
+          
+          try {
+            const response = await fetch('/api/asistencia/marcar-inasistencias', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                fecha: fechaSeleccionada,
+                idGradoSeccion: horarioData.idGradoSeccion, // Usar el idGradoSeccion real de la BD
+                idHorarioClase: horarioData.idHorarioClase,
+                forzar: true // Ya verificamos la hora aquí
+              })
+            })
+            
+            if (response.ok) {
+              const resultado = await response.json()
+              console.log(`✅ Inasistencias marcadas:`, resultado)
+              inasistenciasMarcadas = true
+              
+              if (resultado.marcados > 0) {
+                alert(`⏰ Se marcaron ${resultado.marcados} inasistencia(s) automáticamente porque la clase ya terminó (${horarioData.horario}).`)
+                loadEstudiantes() // Recargar para ver cambios
+              }
+            }
+          } catch (error) {
+            console.error('Error marcando inasistencias:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Error verificando inasistencias automáticas:', error)
+      }
+    }
+    
+    // Verificar cada 30 segundos
+    verificarInasistenciasAutomaticas()
+    const interval = setInterval(verificarInasistenciasAutomaticas, 30000)
+    
+    return () => clearInterval(interval)
+  }, [claseSeleccionada, fechaSeleccionada, token, clases, estudiantes])
 
   const loadClases = async (tokenData: string, userData: any) => {
     try {
@@ -179,6 +269,12 @@ export default function DocenteAsistencias() {
       console.log('🔍 Cargando clases para asistencia del docente:', userId)
       console.log('👤 Datos del usuario:', userData)
       console.log('🔑 Token disponible:', tokenData ? 'SÍ' : 'NO')
+
+      if (!userId) {
+        console.error('❌ No se pudo obtener el ID del usuario')
+        setErrorMessage('Error: No se pudo identificar al usuario. Intenta cerrar sesión e iniciar nuevamente.')
+        return
+      }
 
       const apiUrl = `/api/docentes/${userId}/clases-asistencia`
       console.log('🌐 URL de la API:', apiUrl)
@@ -222,17 +318,18 @@ export default function DocenteAsistencias() {
         setClases(clasesCorregidas)
         setErrorMessage(null) // Limpiar mensaje de error si la carga es exitosa
       } else {
-        const errorText = await response.text()
-        console.error('❌ Error al cargar clases:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        })
+        let errorData: any = {}
+        try {
+          errorData = await response.json()
+        } catch {
+          errorData = { message: await response.text() }
+        }
+        console.warn('⚠️ Error al cargar clases - Status:', response.status, 'Error:', JSON.stringify(errorData))
         
         // Mostrar mensaje específico según el error
         if (response.status === 404) {
           console.warn('⚠️ No se encontraron clases asignadas para este docente')
-          setErrorMessage('No tienes clases asignadas. Contacta al administrador para que te asigne aulas.')
+          setErrorMessage(errorData?.error || 'No tienes clases asignadas. Contacta al administrador para que te asigne aulas.')
           setClases([])
         } else if (response.status === 401) {
           console.error('🔐 Error de autenticación')
@@ -326,24 +423,46 @@ export default function DocenteAsistencias() {
       }
 
       // Guardar cada asistencia editada
+      let exitosos = 0
+      let errores: string[] = []
+      
       for (const estudiante of estudiantesEditados) {
-        await fetch('/api/asistencia', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            estudianteId: estudiante.id,
-            claseId: claseSeleccionada,
-            fecha: fechaSeleccionada,
-            estado: estudiante.estado,
-            horaLlegada: estudiante.horaLlegada
+        try {
+          const response = await fetch('/api/asistencia', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              estudianteId: estudiante.id,
+              claseId: claseSeleccionada,
+              fecha: fechaSeleccionada,
+              estado: estudiante.estado.toUpperCase(), // Asegurar mayúsculas
+              horaLlegada: estudiante.horaLlegada
+            })
           })
-        })
+          
+          if (response.ok) {
+            exitosos++
+            console.log(`✅ Asistencia guardada para ${estudiante.nombre}`)
+          } else {
+            const errorData = await response.json()
+            errores.push(`${estudiante.nombre}: ${errorData.error || 'Error desconocido'}`)
+            console.error(`❌ Error guardando asistencia para ${estudiante.nombre}:`, errorData)
+          }
+        } catch (error) {
+          errores.push(`${estudiante.nombre}: Error de conexión`)
+          console.error(`❌ Error de conexión para ${estudiante.nombre}:`, error)
+        }
       }
 
-      alert(`✅ ${estudiantesEditados.length} asistencia(s) guardada(s) correctamente`)
+      if (exitosos > 0) {
+        alert(`✅ ${exitosos} asistencia(s) guardada(s) correctamente${errores.length > 0 ? `\n\n❌ Errores:\n${errores.join('\n')}` : ''}`)
+      } else if (errores.length > 0) {
+        alert(`❌ No se pudo guardar ninguna asistencia:\n${errores.join('\n')}`)
+      }
+      
       setModoEdicion(false)
       loadEstudiantes() // Recargar para ver cambios
     } catch (error) {
@@ -801,9 +920,6 @@ export default function DocenteAsistencias() {
                       {estudiante.horaLlegada && (
                         <span className="text-[10px] text-green-600">{estudiante.horaLlegada}</span>
                       )}
-                      {estudiante.tieneRetiro && (
-                        <span className="text-[10px] text-orange-600">🚪</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -871,27 +987,14 @@ export default function DocenteAsistencias() {
                     {estudiante.codigo}
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-1 md:space-x-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
-                        {getEstadoLabel(estudiante.estado)}
-                      </span>
-                      {estudiante.tieneRetiro && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
-                          🚪
-                        </span>
-                      )}
-                    </div>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
+                      {getEstadoLabel(estudiante.estado)}
+                    </span>
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">
-                    <div>
-                      {estudiante.horaLlegada && (
-                        <div className="text-green-600">{estudiante.horaLlegada}</div>
-                      )}
-                      {estudiante.horaSalida && (
-                        <div className="text-orange-600">{estudiante.horaSalida}</div>
-                      )}
-                      {!estudiante.horaLlegada && !estudiante.horaSalida && '-'}
-                    </div>
+                    {estudiante.horaLlegada ? (
+                      <span className="text-green-600">{estudiante.horaLlegada}</span>
+                    ) : '-'}
                   </td>
                   {modoEdicion && (
                     <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium">

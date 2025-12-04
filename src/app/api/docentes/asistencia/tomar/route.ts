@@ -440,13 +440,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener estudiantes ACTIVOS de la clase con sus asistencias del día
+    // Normalizar fecha a medianoche para que coincida con la BD
     const fechaConsulta = new Date(fecha)
+    fechaConsulta.setHours(0, 0, 0, 0)
     
     // Crear rango de fechas para la consulta (inicio y fin del día)
     const fechaInicio = new Date(fecha)
     fechaInicio.setHours(0, 0, 0, 0)
     const fechaFin = new Date(fecha)
     fechaFin.setHours(23, 59, 59, 999)
+    
+    console.log(`🔍 Buscando asistencias para fecha: ${fechaConsulta.toISOString()}`)
     
     const estudiantes = await prisma.estudiante.findMany({
       where: {
@@ -466,7 +470,10 @@ export async function GET(request: NextRequest) {
         usuario: true,
         asistencias: {
           where: {
-            fecha: fechaConsulta
+            fecha: {
+              gte: fechaInicio,
+              lte: fechaFin
+            }
           },
           include: {
             estadoAsistencia: true
@@ -497,10 +504,48 @@ export async function GET(request: NextRequest) {
     })
 
     console.log(`📊 Estudiantes encontrados: ${estudiantes.length} (IE: ${docenteIeId}, GradoSeccion: ${docenteAula.idGradoSeccion})`)
+    
+    // Debug: consulta directa a tabla Asistencia para verificar
+    const asistenciasDirectas = await prisma.asistencia.findMany({
+      where: {
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin
+        },
+        idEstudiante: {
+          in: estudiantes.map(e => e.idEstudiante)
+        }
+      },
+      include: {
+        estadoAsistencia: true,
+        estudiante: {
+          include: { usuario: true }
+        }
+      }
+    })
+    
+    console.log(`🔍 Asistencias directas encontradas: ${asistenciasDirectas.length}`)
+    asistenciasDirectas.forEach(a => {
+      console.log(`  📋 ${a.estudiante?.usuario?.nombre}: estado=${a.estadoAsistencia?.codigo}, fecha=${a.fecha.toISOString()}`)
+    })
+    
+    // Debug: mostrar asistencias encontradas via include
+    estudiantes.forEach(est => {
+      if (est.asistencias.length > 0) {
+        console.log(`  📋 (include) ${est.usuario?.nombre}: asistencia=${est.asistencias[0]?.estadoAsistencia?.codigo || 'N/A'}`)
+      }
+    })
+
+    // Crear mapa de asistencias directas por estudiante para acceso rápido
+    const asistenciasPorEstudiante = new Map<number, typeof asistenciasDirectas[0]>()
+    asistenciasDirectas.forEach(a => {
+      asistenciasPorEstudiante.set(a.idEstudiante, a)
+    })
 
     // Transformar datos
     const estudiantesTransformados = estudiantes.map(estudiante => {
-      const asistenciaDelDia = estudiante.asistencias[0]
+      // Usar asistencia directa en lugar del include
+      const asistenciaDelDia = asistenciasPorEstudiante.get(estudiante.idEstudiante)
       const asistenciaIEDelDia = estudiante.asistenciasIE?.[0]
       const retiroDelDia = estudiante.retiros?.[0]
       
@@ -570,13 +615,41 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ ${estudiantesTransformados.length} estudiantes obtenidos`)
 
+    // Obtener horario de clase para saber hora de inicio y fin
+    // Parsear la fecha correctamente para obtener el día de la semana
+    const [year, month, day] = fecha.split('-').map(Number)
+    const fechaLocal = new Date(year, month - 1, day)
+    const diaSemanaJS = fechaLocal.getDay()
+    
+    // Mapear día de JavaScript (0=Domingo) a día de la BD (1=Lunes, 7=Domingo)
+    const diasMap: { [key: number]: number } = {
+      0: 7, // Domingo
+      1: 1, // Lunes
+      2: 2, // Martes
+      3: 3, // Miércoles
+      4: 4, // Jueves
+      5: 5, // Viernes
+      6: 6  // Sábado
+    }
+    const diaBD = diasMap[diaSemanaJS]
+
+    const horarioClase = await prisma.horarioClase.findFirst({
+      where: {
+        idGradoSeccion: docenteAula.idGradoSeccion,
+        diaSemana: diaBD
+      }
+    })
+
     return NextResponse.json({
       success: true,
       estudiantes: estudiantesTransformados,
       clase: {
         id: docenteAula.idDocenteAula,
         nombre: `${docenteAula.gradoSeccion.grado.nombre}° ${docenteAula.gradoSeccion.seccion.nombre}`,
-        fecha: fecha
+        fecha: fecha,
+        idGradoSeccion: docenteAula.idGradoSeccion,
+        horaInicio: horarioClase?.horaInicio?.toISOString() || null,
+        horaFin: horarioClase?.horaFin?.toISOString() || null
       }
     })
 

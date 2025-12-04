@@ -73,27 +73,48 @@ export async function GET(request: NextRequest) {
     })
 
     // Transformar datos para el frontend
-    const retirosTransformados = retiros.map(retiro => ({
-      id: retiro.idRetiro.toString(),
-      estudiante: {
-        nombre: retiro.estudiante.usuario.nombre || '',
-        apellido: retiro.estudiante.usuario.apellido || '',
-        dni: retiro.estudiante.usuario.dni,
-        grado: retiro.estudiante.gradoSeccion?.grado?.nombre || '',
-        seccion: retiro.estudiante.gradoSeccion?.seccion?.nombre || ''
-      },
-      tipoRetiro: retiro.tipoRetiro?.nombre || 'Sin especificar',
-      fecha: retiro.fecha.toISOString().split('T')[0],
-      hora: retiro.hora.toTimeString().slice(0, 5),
-      estado: retiro.estadoRetiro?.nombre || 'Pendiente',
-      apoderadoQueRetira: retiro.apoderadoRetira 
-        ? `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
-        : undefined,
-      verificadoPor: retiro.usuarioVerificador
-        ? `${retiro.usuarioVerificador.nombre} ${retiro.usuarioVerificador.apellido}`
-        : undefined,
-      observaciones: retiro.observaciones
-    }))
+    const retirosTransformados = retiros.map(retiro => {
+      // Formatear hora correctamente
+      let horaFormateada = ''
+      if (retiro.hora) {
+        const horaDate = new Date(retiro.hora)
+        horaFormateada = `${horaDate.getUTCHours().toString().padStart(2, '0')}:${horaDate.getUTCMinutes().toString().padStart(2, '0')}`
+      }
+      
+      // Mapear estado a código
+      const estadoNombre = retiro.estadoRetiro?.nombre?.toUpperCase() || 'PENDIENTE'
+      let estadoCodigo: 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO' | 'COMPLETADO' = 'PENDIENTE'
+      if (estadoNombre.includes('AUTORIZADO') || estadoNombre.includes('APROBADO')) {
+        estadoCodigo = 'AUTORIZADO'
+      } else if (estadoNombre.includes('RECHAZADO') || estadoNombre.includes('DENEGADO')) {
+        estadoCodigo = 'RECHAZADO'
+      } else if (estadoNombre.includes('COMPLETADO') || estadoNombre.includes('FINALIZADO')) {
+        estadoCodigo = 'COMPLETADO'
+      }
+      
+      return {
+        id: retiro.idRetiro.toString(),
+        estudiante: {
+          nombre: retiro.estudiante.usuario.nombre || '',
+          apellido: retiro.estudiante.usuario.apellido || '',
+          dni: retiro.estudiante.usuario.dni || '',
+          grado: retiro.estudiante.gradoSeccion?.grado?.nombre || '',
+          seccion: retiro.estudiante.gradoSeccion?.seccion?.nombre || ''
+        },
+        tipoRetiro: retiro.tipoRetiro?.nombre || 'Sin especificar',
+        fechaRetiro: retiro.fecha.toISOString().split('T')[0],
+        horaRetiro: horaFormateada,
+        motivo: retiro.tipoRetiro?.nombre || 'Sin especificar',
+        estado: estadoCodigo,
+        apoderadoQueRetira: retiro.apoderadoRetira 
+          ? `${retiro.apoderadoRetira.usuario.nombre || ''} ${retiro.apoderadoRetira.usuario.apellido || ''}`.trim()
+          : undefined,
+        verificadoPor: retiro.usuarioVerificador
+          ? `${retiro.usuarioVerificador.nombre || ''} ${retiro.usuarioVerificador.apellido || ''}`.trim()
+          : undefined,
+        observaciones: retiro.observaciones || ''
+      }
+    })
 
     console.log(`✅ ${retirosTransformados.length} retiros obtenidos`)
 

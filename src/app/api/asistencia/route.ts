@@ -142,16 +142,21 @@ export async function POST(request: NextRequest) {
     const {
       estudianteId,
       fecha,
-      estado,
+      estado: estadoRaw,
       observaciones,
       horaLlegada
     } = body
+
+    // Normalizar estado a mayúsculas para consistencia con la BD
+    const estado = estadoRaw?.toUpperCase() || 'PRESENTE'
+    
+    console.log(`📝 Guardando asistencia: estudiante=${estudianteId}, fecha=${fecha}, estado=${estado}, horaLlegada=${horaLlegada}`)
 
     const fechaAsistencia = new Date(fecha)
     fechaAsistencia.setHours(0, 0, 0, 0)
 
     // Si el estado es "sin_registrar", eliminar el registro de asistencia
-    if (estado === 'sin_registrar') {
+    if (estado === 'SIN_REGISTRAR') {
       const existingToDelete = await prisma.asistenciaIE.findFirst({
         where: {
           idEstudiante: parseInt(estudianteId),
@@ -197,7 +202,7 @@ export async function POST(request: NextRequest) {
         horaIngresoDate.setHours(horas, minutos, 0, 0)
       }
 
-      // Actualizar asistencia existente
+      // Actualizar asistencia existente en AsistenciaIE
       const updatedAsistencia = await prisma.asistenciaIE.update({
         where: { idAsistenciaIE: existingAsistencia.idAsistenciaIE },
         data: {
@@ -205,6 +210,86 @@ export async function POST(request: NextRequest) {
           ...(horaIngresoDate && { horaIngreso: horaIngresoDate })
         }
       })
+      
+      console.log(`✅ AsistenciaIE actualizada: ${existingAsistencia.idAsistenciaIE}, estado: ${estado}`)
+
+      // SIEMPRE actualizar también la tabla Asistencia (que es la que usa el docente)
+      try {
+        // Buscar el estado de asistencia correspondiente - intentar varios códigos
+        let estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+          where: { codigo: estado }
+        })
+        
+        // Si no encuentra, intentar con variantes comunes
+        if (!estadoAsistencia) {
+          const codigosAlternativos: { [key: string]: string[] } = {
+            'INASISTENCIA': ['AUSENTE', 'FALTA', 'INASISTENTE'],
+            'AUSENTE': ['INASISTENCIA', 'FALTA', 'INASISTENTE'],
+            'PRESENTE': ['ASISTIO', 'ASISTENCIA'],
+            'TARDANZA': ['TARDE', 'RETRASO']
+          }
+          
+          const alternativas = codigosAlternativos[estado] || []
+          for (const alt of alternativas) {
+            estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+              where: { codigo: alt }
+            })
+            if (estadoAsistencia) break
+          }
+        }
+        
+        if (estadoAsistencia) {
+          // Buscar o crear registro en tabla Asistencia
+          let asistenciaAula = await prisma.asistencia.findFirst({
+            where: {
+              idEstudiante: parseInt(estudianteId),
+              fecha: fechaAsistencia
+            }
+          })
+          
+          if (!asistenciaAula) {
+            // Crear registro en Asistencia si no existe
+            asistenciaAula = await prisma.asistencia.create({
+              data: {
+                idEstudiante: parseInt(estudianteId),
+                fecha: fechaAsistencia,
+                idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+                registradoPor: userId,
+                horaRegistro: horaIngresoDate || new Date()
+              }
+            })
+            console.log(`✅ Asistencia (aula) CREADA: ${asistenciaAula.idAsistencia}, estado: ${estadoAsistencia.codigo}`)
+          } else {
+            // Actualizar el estado en Asistencia
+            await prisma.asistencia.update({
+              where: { idAsistencia: asistenciaAula.idAsistencia },
+              data: { 
+                idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+                ...(horaIngresoDate && { horaRegistro: horaIngresoDate })
+              }
+            })
+            console.log(`✅ Asistencia (aula) ACTUALIZADA: ${asistenciaAula.idAsistencia}, estado: ${estadoAsistencia.codigo}`)
+          }
+          
+          // Guardar en histórico si el estado cambió
+          if (estadoAnterior !== estado) {
+            await prisma.historicoEstadoAsistencia.create({
+              data: {
+                idAsistencia: asistenciaAula.idAsistencia,
+                idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+                cambiadoPor: userId,
+                fechaCambio: new Date()
+              }
+            })
+            console.log(`📝 Histórico guardado: Estudiante ${estudianteId}, ${estadoAnterior} -> ${estado}`)
+          }
+        } else {
+          console.warn(`⚠️ No se encontró estado de asistencia para código: ${estado}`)
+        }
+      } catch (asistenciaError) {
+        console.error('Error al actualizar tabla Asistencia:', asistenciaError)
+        // No fallar la operación principal por esto
+      }
 
       // NOTIFICAR AL APODERADO SI EL ESTADO CAMBIÓ
       if (estadoAnterior !== estado) {
@@ -271,7 +356,7 @@ export async function POST(request: NextRequest) {
         horaIngresoNueva.setHours(horas, minutos, 0, 0)
       }
 
-      // Crear nueva asistencia
+      // Crear nueva asistencia en AsistenciaIE
       const nuevaAsistencia = await prisma.asistenciaIE.create({
         data: {
           idEstudiante: parseInt(estudianteId),
@@ -282,6 +367,50 @@ export async function POST(request: NextRequest) {
           ...(horaIngresoNueva && { horaIngreso: horaIngresoNueva })
         }
       })
+      
+      console.log(`✅ AsistenciaIE CREADA: ${nuevaAsistencia.idAsistenciaIE}, estado: ${estado}`)
+
+      // TAMBIÉN crear en tabla Asistencia (que es la que usa el docente)
+      try {
+        let estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+          where: { codigo: estado }
+        })
+        
+        // Si no encuentra, intentar con variantes comunes
+        if (!estadoAsistencia) {
+          const codigosAlternativos: { [key: string]: string[] } = {
+            'INASISTENCIA': ['AUSENTE', 'FALTA', 'INASISTENTE'],
+            'AUSENTE': ['INASISTENCIA', 'FALTA', 'INASISTENTE'],
+            'PRESENTE': ['ASISTIO', 'ASISTENCIA'],
+            'TARDANZA': ['TARDE', 'RETRASO']
+          }
+          
+          const alternativas = codigosAlternativos[estado] || []
+          for (const alt of alternativas) {
+            estadoAsistencia = await prisma.estadoAsistencia.findFirst({
+              where: { codigo: alt }
+            })
+            if (estadoAsistencia) break
+          }
+        }
+        
+        if (estadoAsistencia) {
+          const asistenciaAula = await prisma.asistencia.create({
+            data: {
+              idEstudiante: parseInt(estudianteId),
+              fecha: fechaAsistencia,
+              idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+              registradoPor: userId,
+              horaRegistro: horaIngresoNueva || new Date()
+            }
+          })
+          console.log(`✅ Asistencia (aula) CREADA: ${asistenciaAula.idAsistencia}, estado: ${estadoAsistencia.codigo}`)
+        } else {
+          console.warn(`⚠️ No se encontró estado de asistencia para código: ${estado}`)
+        }
+      } catch (asistenciaError) {
+        console.error('Error al crear en tabla Asistencia:', asistenciaError)
+      }
 
       // Si es AUSENTE/INASISTENCIA, notificar al apoderado
       const estadoFinal = estado || 'PRESENTE'

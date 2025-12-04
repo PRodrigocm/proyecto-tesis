@@ -6,6 +6,42 @@ import {
   notificarRetiroCreadoPorDocente 
 } from '@/lib/retiro-notifications'
 
+// Función helper para construir observaciones con persona que recoge
+function construirObservaciones(observaciones?: string, personaRecoge?: string, dniPersonaRecoge?: string): string | null {
+  const partes: string[] = []
+  
+  if (observaciones?.trim()) {
+    partes.push(observaciones.trim())
+  }
+  
+  if (personaRecoge?.trim()) {
+    let personaInfo = `Persona que recoge: ${personaRecoge.trim()}`
+    if (dniPersonaRecoge?.trim()) {
+      personaInfo += ` (DNI: ${dniPersonaRecoge.trim()})`
+    }
+    partes.push(personaInfo)
+  }
+  
+  return partes.length > 0 ? partes.join(' | ') : null
+}
+
+// Función helper para extraer persona que recoge de observaciones
+function extraerPersonaRecoge(observaciones?: string | null): { personaRecoge: string, dniPersonaRecoge: string } {
+  if (!observaciones) return { personaRecoge: '', dniPersonaRecoge: '' }
+  
+  // Buscar patrón "Persona que recoge: Nombre (DNI: 12345678)"
+  const matchConDNI = observaciones.match(/Persona que recoge:\s*([^(|]+?)(?:\s*\(DNI:\s*(\d+)\))?(?:\s*\||$)/)
+  
+  if (matchConDNI) {
+    return {
+      personaRecoge: matchConDNI[1]?.trim() || '',
+      dniPersonaRecoge: matchConDNI[2]?.trim() || ''
+    }
+  }
+  
+  return { personaRecoge: '', dniPersonaRecoge: '' }
+}
+
 // Función para actualizar la asistencia cuando se crea un retiro
 async function actualizarAsistenciaPorRetiro(tx: any, params: {
   estudianteId: number
@@ -227,27 +263,39 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Retiros después de filtros: ${filteredRetiros.length}`)
 
     const transformedRetiros = filteredRetiros.map(retiro => {
-      // Obtener persona que recoge desde la relación apoderadoRetira o desde observaciones
+      // Obtener persona que recoge desde múltiples fuentes
       let personaRecoge = ''
+      let dniPersonaRecoge = retiro.dniVerificado || ''
+      
+      // 1. Primero intentar desde la relación apoderadoRetira
       if (retiro.apoderadoRetira?.usuario) {
-        personaRecoge = `${retiro.apoderadoRetira.usuario.nombre} ${retiro.apoderadoRetira.usuario.apellido}`
-      } else {
-        // Fallback: extraer de observaciones si existe el patrón
-        const observaciones = retiro.observaciones || ''
-        const personaRecogeMatch = observaciones.match(/Persona que recoge: ([^|]+)/)
-        if (personaRecogeMatch) {
-          personaRecoge = personaRecogeMatch[1].trim()
+        personaRecoge = `${retiro.apoderadoRetira.usuario.nombre || ''} ${retiro.apoderadoRetira.usuario.apellido || ''}`.trim()
+        // Si el apoderado tiene DNI, usarlo
+        if (retiro.apoderadoRetira.usuario.dni) {
+          dniPersonaRecoge = dniPersonaRecoge || retiro.apoderadoRetira.usuario.dni
         }
       }
+      
+      // 2. Si no hay apoderado, extraer de observaciones
+      if (!personaRecoge) {
+        const extraido = extraerPersonaRecoge(retiro.observaciones)
+        personaRecoge = extraido.personaRecoge
+        dniPersonaRecoge = dniPersonaRecoge || extraido.dniPersonaRecoge
+      }
+      
+      // Limpiar observaciones para no mostrar la parte de "Persona que recoge"
+      let observacionesLimpias = retiro.observaciones || ''
+      observacionesLimpias = observacionesLimpias.replace(/\s*\|\s*Persona que recoge:[^|]*/g, '').trim()
+      observacionesLimpias = observacionesLimpias.replace(/^Persona que recoge:[^|]*\s*\|?\s*/g, '').trim()
 
       return {
         id: retiro.idRetiro.toString(),
         fecha: retiro.fecha.toISOString(),
         horaRetiro: retiro.hora.toTimeString().slice(0, 5),
         motivo: retiro.tipoRetiro?.nombre || 'Retiro',
-        observaciones: retiro.observaciones || '',
+        observaciones: observacionesLimpias,
         personaRecoge: personaRecoge,
-        dniPersonaRecoge: retiro.dniVerificado || '',
+        dniPersonaRecoge: dniPersonaRecoge,
         estado: retiro.estadoRetiro?.nombre || 'PENDIENTE',
         autorizado: retiro.estadoRetiro?.codigo === 'AUTORIZADO',
         fechaAutorizacion: retiro.updatedAt?.toISOString() || '',
@@ -323,10 +371,22 @@ export async function POST(request: NextRequest) {
       esAdministrativo = false // Nuevo campo para identificar si viene del panel admin
     } = body
     
-    console.log('📋 Datos del retiro:', {
-      estudianteId, idGradoSeccion, fecha, motivo, horaRetiro,
-      origen, medioContacto, apoderadoContactado, horaContacto,
-      verificadoPor, esAdministrativo
+    console.log('📋 Datos del retiro recibidos:', {
+      estudianteId, 
+      idGradoSeccion, 
+      fecha, 
+      motivo, 
+      horaRetiro,
+      personaRecoge: personaRecoge || '(no enviado)',
+      dniPersonaRecoge: dniPersonaRecoge || '(no enviado)',
+      observaciones: observaciones || '(no enviado)',
+      origen, 
+      medioContacto, 
+      apoderadoContactado, 
+      apoderadoQueRetira,
+      horaContacto,
+      verificadoPor, 
+      esAdministrativo
     })
 
     // Buscar o crear tipo de retiro
@@ -395,13 +455,17 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Preparar hora de contacto si se proporciona
-    let horaContactoDate = null
+    // Preparar hora de contacto
+    // Si se proporciona medioContacto pero no horaContacto, usar hora actual
+    let horaContactoDate: Date | null = null
     if (horaContacto) {
       horaContactoDate = new Date(horaContacto)
       if (isNaN(horaContactoDate.getTime())) {
         horaContactoDate = new Date() // Usar hora actual si es inválida
       }
+    } else if (medioContacto) {
+      // Si hay medio de contacto pero no hora, usar hora actual
+      horaContactoDate = new Date()
     }
     
     // Usar transacción para crear retiro y actualizar asistencia
@@ -420,14 +484,22 @@ export async function POST(request: NextRequest) {
           horaContacto: horaContactoDate,
           medioContacto: medioContacto || (esAdministrativo ? 'PRESENCIAL' : null),
           apoderadoQueRetira: apoderadoQueRetira ? parseInt(apoderadoQueRetira) : null,
-          dniVerificado: dniPersonaRecoge,
+          dniVerificado: dniPersonaRecoge || null,
           verificadoPor: verificadoPor ? parseInt(verificadoPor) : (esAdministrativo && userId ? userId : null),
           idEstadoRetiro: estadoRetiro.idEstadoRetiro,
-          observaciones: observaciones ? `${observaciones}${personaRecoge ? ` | Persona que recoge: ${personaRecoge}` : ''}` : (personaRecoge ? `Persona que recoge: ${personaRecoge}` : null)
+          observaciones: observaciones || null // Solo observaciones, sin concatenar persona
         }
       })
       
-      console.log(`✅ Retiro creado exitosamente con ID: ${nuevoRetiro.idRetiro}`)
+      console.log(`✅ Retiro creado exitosamente:`, {
+        id: nuevoRetiro.idRetiro,
+        apoderadoQueRetira: nuevoRetiro.apoderadoQueRetira,
+        dniVerificado: nuevoRetiro.dniVerificado,
+        observaciones: nuevoRetiro.observaciones,
+        medioContacto: nuevoRetiro.medioContacto,
+        horaContacto: nuevoRetiro.horaContacto,
+        verificadoPor: nuevoRetiro.verificadoPor
+      })
       
       // Actualizar o crear asistencia del estudiante para ese día
       await actualizarAsistenciaPorRetiro(tx, {

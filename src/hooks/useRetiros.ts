@@ -107,31 +107,56 @@ export const useRetiros = () => {
   const solicitarRetiro = async (data: {
     estudianteId: string
     horaRetiro: string
+    motivo?: string
     observaciones?: string
     personaRecoge?: string
     dniPersonaRecoge?: string
+    apoderadoQueRetira?: string
+    medioContacto?: string
+    fecha?: string
   }) => {
     try {
       const token = localStorage.getItem('token')
+      
+      // Preparar datos para enviar
+      const payload = {
+        estudianteId: data.estudianteId,
+        horaRetiro: data.horaRetiro,
+        motivo: data.motivo || 'Retiro solicitado',
+        observaciones: data.observaciones,
+        personaRecoge: data.personaRecoge,
+        dniPersonaRecoge: data.dniPersonaRecoge,
+        apoderadoQueRetira: data.apoderadoQueRetira, // ID del apoderado que retira
+        medioContacto: data.medioContacto,
+        horaContacto: new Date().toISOString(), // Hora actual del contacto
+        fecha: data.fecha || filters.fecha || new Date().toISOString().split('T')[0]
+      }
+      
+      console.log('📤 Enviando solicitud de retiro:', payload)
+      
       const response = await fetch('/api/retiros', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...data,
-          fecha: filters.fecha
-        })
+        body: JSON.stringify(payload)
       })
 
-      if (response.ok) {
+      const result = await response.json()
+      console.log('📥 Respuesta del servidor:', result)
+
+      if (response.ok && result.success) {
         loadRetiros()
         return true
+      } else {
+        console.error('❌ Error al crear retiro:', result.error || result.message)
+        alert(`Error: ${result.error || result.message || 'No se pudo crear el retiro'}`)
+        return false
       }
-      return false
     } catch (error) {
       console.error('Error creating retiro:', error)
+      alert('Error de conexión al crear retiro')
       return false
     }
   }

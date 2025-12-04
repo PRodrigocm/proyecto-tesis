@@ -338,13 +338,15 @@ export default function TomarAsistenciaPopup({
     }
   }, [claseSeleccionada, fechaSeleccionada])
 
-  // Auto-refresh cada 0.5 segundos para actualizar tarjetas en tiempo real
+  // Auto-refresh cada 3 segundos para actualizar tarjetas en tiempo real
+  // También verifica si debe marcar inasistencias automáticas
   useEffect(() => {
     if (!claseSeleccionada || !fechaSeleccionada) return
 
-    console.log('🔄 Auto-refresh activado (cada 0.5s)')
+    console.log('🔄 Auto-refresh activado (cada 3s)')
+    let inasistenciasMarcadas = false // Flag para evitar llamar múltiples veces
     
-    const interval = setInterval(async () => {
+    const verificarYRefrescar = async () => {
       try {
         const token = localStorage.getItem('token')
         if (!token) return
@@ -356,11 +358,69 @@ export default function TomarAsistenciaPopup({
         if (response.ok) {
           const data = await response.json()
           setEstudiantes(data.estudiantes)
+          
+          // Verificar si la clase ya terminó y hay estudiantes sin registrar
+          if (data.clase?.horaFin && !inasistenciasMarcadas) {
+            const ahora = new Date()
+            // Convertir a hora Perú (UTC-5)
+            const horaActualPeru = new Date(ahora.getTime() - (5 * 60 * 60 * 1000))
+            const horaActualMinutos = horaActualPeru.getHours() * 60 + horaActualPeru.getMinutes()
+            
+            // Parsear hora fin de clase
+            const horaFinDate = new Date(data.clase.horaFin)
+            const horaFinMinutos = horaFinDate.getUTCHours() * 60 + horaFinDate.getUTCMinutes()
+            
+            // Si ya pasó la hora fin y hay estudiantes pendientes
+            const estudiantesPendientes = data.estudiantes.filter(
+              (e: Estudiante) => e.estado === 'pendiente' || e.estado === 'sin_registrar'
+            )
+            
+            if (horaActualMinutos >= horaFinMinutos && estudiantesPendientes.length > 0) {
+              console.log(`⏰ Hora fin de clase alcanzada (${Math.floor(horaFinMinutos/60)}:${String(horaFinMinutos%60).padStart(2,'0')}). Marcando ${estudiantesPendientes.length} inasistencias...`)
+              
+              // Marcar inasistencias automáticamente
+              try {
+                const marcarResponse = await fetch('/api/asistencia/marcar-inasistencias', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    fecha: fechaSeleccionada,
+                    idHorarioClase: claseSeleccionada,
+                    forzar: true // Ya verificamos la hora aquí
+                  })
+                })
+                
+                if (marcarResponse.ok) {
+                  const resultado = await marcarResponse.json()
+                  console.log(`✅ Inasistencias marcadas automáticamente:`, resultado)
+                  inasistenciasMarcadas = true
+                  
+                  // Recargar estudiantes para mostrar el cambio
+                  await cargarEstudiantes()
+                  
+                  mostrarNotificacion(
+                    `${resultado.marcados} inasistencias marcadas automáticamente`,
+                    'warning',
+                    5000
+                  )
+                }
+              } catch (error) {
+                console.error('Error marcando inasistencias:', error)
+              }
+            }
+          }
         }
       } catch (error) {
         // Silencioso para no saturar consola
       }
-    }, 3000) // Cada 3 segundos
+    }
+    
+    // Ejecutar inmediatamente y luego cada 3 segundos
+    verificarYRefrescar()
+    const interval = setInterval(verificarYRefrescar, 3000)
 
     return () => {
       console.log('🛑 Auto-refresh detenido')

@@ -105,13 +105,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Actualizar el retiro
+    // Actualizar el retiro - El usuario que autoriza/rechaza es el verificador
     const retiroActualizado = await prisma.retiro.update({
       where: { idRetiro: parseInt(retiroId) },
       data: {
         idEstadoRetiro: nuevoEstado.idEstadoRetiro,
-        verificadoPor: user.userId,
+        verificadoPor: user.userId, // El usuario que autoriza es el verificador
         observaciones: observaciones || retiro.observaciones,
+        horaContacto: retiro.horaContacto || new Date(), // Si no tenía hora de contacto, usar la actual
         updatedAt: new Date()
       },
       include: {

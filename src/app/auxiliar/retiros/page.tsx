@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
   EyeIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -28,7 +25,7 @@ interface Retiro {
   fechaRetiro: string
   horaRetiro: string
   motivo: string
-  estado: 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO'
+  estado: 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO' | 'COMPLETADO'
   apoderadoQueRetira?: string
   autorizadoPor?: string
   observaciones?: string
@@ -151,38 +148,12 @@ export default function RetirosGestion() {
     calculateStats(filtered)
   }
 
-  const eliminarRetiro = async (retiroId: string) => {
-    if (!confirm('¿Está seguro de que desea eliminar este retiro?')) {
-      return
-    }
-
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/auxiliar/retiros/${retiroId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        alert('✅ Retiro eliminado exitosamente')
-        loadRetiros()
-      } else {
-        const error = await response.json()
-        alert(`❌ Error: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error deleting retiro:', error)
-      alert('❌ Error al eliminar retiro')
-    }
-  }
-
   const getEstadoBadge = (estado: string) => {
     const badges = {
       'PENDIENTE': 'bg-yellow-100 text-yellow-800',
       'AUTORIZADO': 'bg-green-100 text-green-800',
-      'RECHAZADO': 'bg-red-100 text-red-800'
+      'RECHAZADO': 'bg-red-100 text-red-800',
+      'COMPLETADO': 'bg-blue-100 text-blue-800'
     }
     return badges[estado as keyof typeof badges] || 'bg-gray-100 text-gray-800'
   }
@@ -222,10 +193,10 @@ export default function RetirosGestion() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Gestión de Retiros
+            Ver Retiros
           </h1>
           <p className="mt-1 text-gray-500">
-            Administra los retiros de estudiantes
+            Consulta los retiros de estudiantes
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -238,13 +209,6 @@ export default function RetirosGestion() {
             </svg>
             Actualizar
           </button>
-          <Link
-            href="/auxiliar/retiros/crear"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl transition-all min-h-[44px]"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Nuevo Retiro
-          </Link>
         </div>
       </div>
       {/* Stats Cards */}
@@ -399,17 +363,8 @@ export default function RetirosGestion() {
                     className="flex-1 inline-flex items-center justify-center px-3 py-2 border-2 border-gray-200 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
                   >
                     <EyeIcon className="h-4 w-4 mr-1" />
-                    Ver
+                    Ver detalles
                   </Link>
-                  {['PENDIENTE', 'AUTORIZADO'].includes(retiro.estado) && (
-                    <Link
-                      href={`/auxiliar/retiros/editar/${retiro.id}`}
-                      className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      <PencilIcon className="h-4 w-4 mr-1" />
-                      Editar
-                    </Link>
-                  )}
                 </div>
               </div>
             ))
@@ -476,30 +431,13 @@ export default function RetirosGestion() {
                         {retiro.apoderadoQueRetira || '-'}
                       </td>
                       <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-1">
-                          <Link
-                            href={`/auxiliar/retiros/ver/${retiro.id}`}
-                            className="inline-flex items-center px-2 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 hover:bg-gray-50"
-                          >
-                            <EyeIcon className="h-3.5 w-3.5" />
-                          </Link>
-                          {['PENDIENTE', 'AUTORIZADO'].includes(retiro.estado) && (
-                            <Link
-                              href={`/auxiliar/retiros/editar/${retiro.id}`}
-                              className="inline-flex items-center px-2 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
-                            >
-                              <PencilIcon className="h-3.5 w-3.5" />
-                            </Link>
-                          )}
-                          {retiro.estado === 'PENDIENTE' && (
-                            <button
-                              onClick={() => eliminarRetiro(retiro.id)}
-                              className="inline-flex items-center px-2 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700"
-                            >
-                              <TrashIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
+                        <Link
+                          href={`/auxiliar/retiros/ver/${retiro.id}`}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 hover:bg-gray-50"
+                        >
+                          <EyeIcon className="h-3.5 w-3.5 mr-1" />
+                          Ver
+                        </Link>
                       </td>
                     </tr>
                   ))}
