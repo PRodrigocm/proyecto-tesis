@@ -82,7 +82,7 @@ async function main() {
   // 5. GRADOS
   console.log('📝 Creando Grados...')
   const grados = ['1°', '2°', '3°', '4°', '5°', '6°']
-  const gradosCreados = []
+  const gradosCreados: any[] = []
 
   for (const nombreGrado of grados) {
     const grado = await prisma.grado.upsert({
@@ -105,7 +105,7 @@ async function main() {
   // 6. SECCIONES
   console.log('📋 Creando Secciones...')
   const secciones = ['A', 'B', 'C']
-  const seccionesCreadas = []
+  const seccionesCreadas: any[] = []
 
   for (const nombreSeccion of secciones) {
     const seccion = await prisma.seccion.upsert({

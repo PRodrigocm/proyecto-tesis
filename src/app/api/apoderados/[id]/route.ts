@@ -119,11 +119,11 @@ export async function PUT(
     }
 
     console.log('Apoderado existente encontrado:', existingApoderado.idApoderado)
-    console.log('Estudiantes actuales:', existingApoderado.estudiantes.map(e => e.estudiante.idEstudiante))
+    console.log('Estudiantes actuales:', existingApoderado.estudiantes.map((e: { estudiante: { idEstudiante: number } }) => e.estudiante.idEstudiante))
     console.log('Nuevos estudiantes:', estudiantesIds)
 
     // Actualizar el apoderado usando una transacción
-    const updatedApoderado = await prisma.$transaction(async (tx) => {
+    const updatedApoderado = await prisma.$transaction(async (tx: any) => {
       // 1. Actualizar datos básicos del usuario asociado al apoderado
       await tx.usuario.update({
         where: { idUsuario: existingApoderado.idUsuario },
@@ -199,7 +199,7 @@ export async function PUT(
     })
 
     console.log('Apoderado actualizado exitosamente:', updatedApoderado?.idApoderado)
-    console.log('Estudiantes finales:', updatedApoderado?.estudiantes.map(e => e.estudiante.idEstudiante))
+    console.log('Estudiantes finales:', updatedApoderado?.estudiantes.map((e: { estudiante: { idEstudiante: number } }) => e.estudiante.idEstudiante))
 
     return NextResponse.json({
       message: 'Apoderado actualizado exitosamente',

@@ -67,6 +67,27 @@ export async function POST(request: NextRequest) {
     const fechaAsistencia = fecha ? new Date(fecha) : new Date()
     fechaAsistencia.setHours(0, 0, 0, 0)
 
+    // Obtener configuración de horarios de la IE
+    let configuracion = await prisma.configuracionIE.findUnique({
+      where: { idIe: ieId }
+    })
+
+    // Si no existe configuración, usar valores por defecto
+    const horaSalidaConfig = configuracion?.horaSalida || '13:00'
+    
+    // Validar que no se haya pasado la hora de salida
+    const horaActualStr = ahora.toTimeString().slice(0, 5) // HH:MM
+    if (horaActualStr > horaSalidaConfig) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede registrar asistencia después de la hora de salida',
+          horaSalida: horaSalidaConfig,
+          horaActual: horaActualStr
+        },
+        { status: 400 }
+      )
+    }
+
     // Verificar si ya existe asistencia IE para hoy
     const asistenciaIEExistente = await prisma.asistenciaIE.findFirst({
       where: {

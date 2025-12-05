@@ -154,7 +154,7 @@ export async function PUT(request: NextRequest) {
       console.log('🗑️ Horarios existentes eliminados')
 
       // Crear nuevos horarios
-      const horariosCreados = []
+      const horariosCreados: any[] = []
       console.log(`🔄 Iniciando creación de ${horarios.length} horarios`)
       
       for (let i = 0; i < horarios.length; i++) {
@@ -177,7 +177,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // Buscar el docente por nombre si está especificado
-        let idDocente = null
+        let idDocente: number | null = null
         if (horario.docente && horario.docente.trim() !== '') {
           const [nombre, apellido] = horario.docente.split(' ')
           console.log(`🔍 Buscando docente: ${nombre} ${apellido || ''}`)

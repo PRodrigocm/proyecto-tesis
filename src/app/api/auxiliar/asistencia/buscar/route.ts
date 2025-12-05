@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
         })
 
         // Buscar horario de clases del día actual
-        let horarioClase = null
+        let horarioClase: { horaInicio: Date; horaFin: Date; materia: string | null } | null = null
         if (estudiante.idGradoSeccion) {
           const diaSemana = fechaBusqueda.getDay() === 0 ? 7 : fechaBusqueda.getDay() // Domingo = 7
           horarioClase = await prisma.horarioClase.findFirst({

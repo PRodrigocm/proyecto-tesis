@@ -18,6 +18,7 @@ export default function DocenteAsistencias() {
   const [modoEdicion, setModoEdicion] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [hayClaseHoy, setHayClaseHoy] = useState(true) // Por defecto asumimos que sí hay clase
+  const [verificandoId, setVerificandoId] = useState<number | null>(null) // ID del estudiante que se está verificando
 
   // Verificar si la fecha seleccionada es hoy (usando fecha local)
   const esFechaHoy = () => {
@@ -203,11 +204,27 @@ export default function DocenteAsistencias() {
         const horarioData = await horarioResponse.json()
         
         // Si no hay clase hoy, no hacer nada
-        if (!horarioData.hayClase || !horarioData.horaFin) return
+        if (!horarioData.hayClase || !horarioData.horaFin) {
+          console.log('⚠️ No hay clase o no hay hora de fin definida:', horarioData)
+          return
+        }
         
-        // Parsear hora fin desde la BD (formato ISO)
-        const horaFinDate = new Date(horarioData.horaFin)
-        const horaFinMinutos = horaFinDate.getUTCHours() * 60 + horaFinDate.getUTCMinutes()
+        // Parsear hora fin desde la BD
+        // Puede venir como ISO string o como string "HH:MM"
+        let horaFinMinutos: number
+        
+        if (horarioData.horaFin.includes('T')) {
+          // Formato ISO: "2000-01-01T13:00:00.000Z"
+          const horaFinDate = new Date(horarioData.horaFin)
+          horaFinMinutos = horaFinDate.getUTCHours() * 60 + horaFinDate.getUTCMinutes()
+        } else if (horarioData.horaFin.includes(':')) {
+          // Formato "HH:MM"
+          const [h, m] = horarioData.horaFin.split(':').map(Number)
+          horaFinMinutos = h * 60 + m
+        } else {
+          console.log('⚠️ Formato de hora no reconocido:', horarioData.horaFin)
+          return
+        }
         
         // Obtener hora actual
         const ahora = new Date()
@@ -216,7 +233,7 @@ export default function DocenteAsistencias() {
         // Verificar si hay estudiantes sin registrar
         const sinRegistrar = estudiantes.filter(e => e.estado === 'sin_registrar')
         
-        console.log(`🕐 Verificando horario: actual=${Math.floor(horaActualMinutos/60)}:${String(horaActualMinutos%60).padStart(2,'0')}, fin=${Math.floor(horaFinMinutos/60)}:${String(horaFinMinutos%60).padStart(2,'0')}, sinRegistrar=${sinRegistrar.length}`)
+        console.log(`🕐 Verificando horario: actual=${Math.floor(horaActualMinutos/60)}:${String(horaActualMinutos%60).padStart(2,'0')}, fin=${Math.floor(horaFinMinutos/60)}:${String(horaFinMinutos%60).padStart(2,'0')}, sinRegistrar=${sinRegistrar.length}, fuente=${horarioData.fuenteHorario || 'horario_clase'}`)
         
         // Si ya pasó la hora fin y hay estudiantes sin registrar
         if (horaActualMinutos >= horaFinMinutos && sinRegistrar.length > 0) {
@@ -231,7 +248,8 @@ export default function DocenteAsistencias() {
               },
               body: JSON.stringify({
                 fecha: fechaSeleccionada,
-                idGradoSeccion: horarioData.idGradoSeccion, // Usar el idGradoSeccion real de la BD
+                idGradoSeccion: horarioData.idGradoSeccion,
+                idDocenteAula: claseSeleccionada, // ID de la clase del docente
                 idHorarioClase: horarioData.idHorarioClase,
                 forzar: true // Ya verificamos la hora aquí
               })
@@ -491,78 +509,71 @@ export default function DocenteAsistencias() {
     setModoEdicion(true)
   }
 
-  // Marcar como INASISTENCIA a todos los estudiantes sin registro QR
-  const handleMarcarInasistencias = async () => {
-    if (!claseSeleccionada || estudiantes.length === 0) {
-      alert('Primero selecciona una clase y carga los estudiantes')
-      return
-    }
-
-    const sinRegistrar = estudiantes.filter(e => e.estado === 'sin_registrar')
-    
-    if (sinRegistrar.length === 0) {
-      alert('✅ Todos los estudiantes ya tienen asistencia registrada')
-      return
-    }
-
-    const confirmacion = confirm(
-      `⚠️ ¿Estás seguro de marcar como INASISTENCIA a ${sinRegistrar.length} estudiante(s) sin registro?\n\n` +
-      `Esto enviará notificaciones a los padres de familia.\n\n` +
-      `Estudiantes afectados:\n${sinRegistrar.map(e => `• ${e.nombre}`).join('\n')}`
-    )
-
-    if (!confirmacion) return
-
-    try {
-      setLoading(true)
-      let exitosos = 0
-      let fallidos = 0
-
-      for (const estudiante of sinRegistrar) {
-        try {
-          const response = await fetch('/api/asistencia', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              estudianteId: estudiante.id,
-              claseId: claseSeleccionada,
-              fecha: fechaSeleccionada,
-              estado: 'AUSENTE',
-              observaciones: 'Inasistencia registrada automáticamente - Sin registro QR'
-            })
-          })
-
-          if (response.ok) {
-            exitosos++
-          } else {
-            fallidos++
-          }
-        } catch (error) {
-          console.error(`Error marcando inasistencia para ${estudiante.nombre}:`, error)
-          fallidos++
-        }
-      }
-
-      if (exitosos > 0) {
-        alert(`✅ ${exitosos} inasistencia(s) registrada(s) correctamente.\n${fallidos > 0 ? `❌ ${fallidos} fallaron.` : ''}\n\nSe han enviado notificaciones a los padres.`)
-        loadEstudiantes() // Recargar para ver cambios
-      } else {
-        alert('❌ No se pudo registrar ninguna inasistencia')
-      }
-    } catch (error) {
-      console.error('Error marcando inasistencias:', error)
-      alert('❌ Error al marcar inasistencias')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleTomarAsistenciaQR = async (estudiantesActualizados: any[]) => {
     console.log('📥 Callback directo recibido (no se usa, se prefiere el evento)')
     // No hacer nada aquí, el listener de eventos se encargará de recargar
+  }
+
+  // Función para verificar/aprobar asistencia precargada por auxiliar
+  const handleVerificarAsistencia = async (estudianteId: number, accion: 'aprobar' | 'rechazar') => {
+    if (!token || !claseSeleccionada) return
+    
+    try {
+      setLoading(true)
+      const response = await fetch('/api/docentes/asistencia/verificar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          estudianteId,
+          fecha: fechaSeleccionada,
+          accion,
+          claseId: claseSeleccionada
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Actualizar el estado del estudiante en la lista sin mostrar alert
+        if (accion === 'aprobar') {
+          setEstudiantes(prev => prev.map(est => 
+            est.id === estudianteId 
+              ? { 
+                  ...est, 
+                  estado: data.estado || 'presente',
+                  horaLlegada: data.horaRegistro,
+                  pendienteVerificacion: false,
+                  verificado: true,
+                  mensajeVerificacion: `✅ ${data.estado?.toUpperCase() || 'PRESENTE'}`
+                }
+              : est
+          ))
+        } else {
+          setEstudiantes(prev => prev.map(est => 
+            est.id === estudianteId 
+              ? { 
+                  ...est, 
+                  pendienteVerificacion: false,
+                  verificado: true,
+                  mensajeVerificacion: '❌ Rechazado'
+                }
+              : est
+          ))
+        }
+        setVerificandoId(null)
+      } else {
+        // Solo mostrar alert en caso de error
+        alert(`Error: ${data.error || 'No se pudo verificar la asistencia'}`)
+      }
+    } catch (error) {
+      console.error('Error verificando asistencia:', error)
+      alert('Error al verificar asistencia')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getEstadoColor = (estado: string, estadoVisual?: string) => {
@@ -868,22 +879,16 @@ export default function DocenteAsistencias() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {/* Botón Marcar Inasistencias - Solo visible si hay estudiantes sin registrar */}
+              {/* Indicador de estudiantes sin registrar - Las inasistencias se marcan automáticamente al finalizar la jornada */}
               {estudiantes.filter(e => e.estado === 'sin_registrar').length > 0 && esFechaHoy() && (
-                <button
-                  onClick={handleMarcarInasistencias}
-                  disabled={loading}
-                  className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-md shadow-sm transition-colors min-h-[40px] disabled:bg-gray-400"
-                >
+                <div className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-100 rounded-md">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="hidden sm:inline">Marcar Inasistencias</span>
-                  <span className="sm:hidden">Inasist.</span>
-                  <span className="ml-1 bg-red-800 px-1.5 py-0.5 rounded text-xs">
-                    {estudiantes.filter(e => e.estado === 'sin_registrar').length}
-                  </span>
-                </button>
+                  <span className="hidden sm:inline">Pendientes: </span>
+                  <span className="font-bold">{estudiantes.filter(e => e.estado === 'sin_registrar').length}</span>
+                  <span className="hidden sm:inline ml-1 text-xs">(se marcarán automáticamente)</span>
+                </div>
               )}
               {modoEdicion && (
                 <button
@@ -914,16 +919,46 @@ export default function DocenteAsistencias() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 truncate">{estudiante.nombre}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
-                        {getEstadoLabel(estudiante.estado)}
-                      </span>
-                      {estudiante.horaLlegada && (
+                      {estudiante.pendienteVerificacion ? (
+                        <button
+                          onClick={() => setVerificandoId(verificandoId === estudiante.id ? null : estudiante.id)}
+                          className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-800"
+                        >
+                          🚪 Verificar
+                        </button>
+                      ) : (
+                        <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
+                          {getEstadoLabel(estudiante.estado)}
+                        </span>
+                      )}
+                      {estudiante.pendienteVerificacion ? (
+                        <span className="text-[10px] text-purple-600">{estudiante.horaIngresoIE}</span>
+                      ) : estudiante.horaLlegada && (
                         <span className="text-[10px] text-green-600">{estudiante.horaLlegada}</span>
                       )}
                     </div>
+                    {/* Botones de verificación en móvil */}
+                    {estudiante.pendienteVerificacion && verificandoId === estudiante.id && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleVerificarAsistencia(estudiante.id, 'aprobar')}
+                          disabled={loading}
+                          className="flex-1 inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md"
+                        >
+                          ✓ Aprobar
+                        </button>
+                        <button
+                          onClick={() => handleVerificarAsistencia(estudiante.id, 'rechazar')}
+                          disabled={loading}
+                          className="flex-1 inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md"
+                        >
+                          ✗ Rechazar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {modoEdicion && (
+                {modoEdicion && !estudiante.pendienteVerificacion && (
                   <select
                     value={estudiante.estado}
                     onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
@@ -958,7 +993,7 @@ export default function DocenteAsistencias() {
                 <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Hora
                 </th>
-                {modoEdicion && (
+                {(modoEdicion || estudiantes.some(e => e.pendienteVerificacion)) && (
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
@@ -987,28 +1022,72 @@ export default function DocenteAsistencias() {
                     {estudiante.codigo}
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
-                      {getEstadoLabel(estudiante.estado)}
-                    </span>
+                    {estudiante.pendienteVerificacion ? (
+                      // Ícono de puerta para asistencia pendiente de verificación
+                      <button
+                        onClick={() => setVerificandoId(verificandoId === estudiante.id ? null : estudiante.id)}
+                        className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors cursor-pointer"
+                        title={`Ingreso IE: ${estudiante.horaIngresoIE || 'N/A'} - Click para verificar`}
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                        </svg>
+                        Verificar
+                      </button>
+                    ) : (
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(estudiante.estado, estudiante.estadoVisual)}`}>
+                        {getEstadoLabel(estudiante.estado)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">
-                    {estudiante.horaLlegada ? (
+                    {estudiante.pendienteVerificacion ? (
+                      <span className="text-purple-600" title="Hora de ingreso a la IE">
+                        🚪 {estudiante.horaIngresoIE || '-'}
+                      </span>
+                    ) : estudiante.horaLlegada ? (
                       <span className="text-green-600">{estudiante.horaLlegada}</span>
                     ) : '-'}
                   </td>
-                  {modoEdicion && (
+                  {(modoEdicion || estudiantes.some(e => e.pendienteVerificacion)) && (
                     <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium">
-                      <select
-                        value={estudiante.estado}
-                        onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-black min-h-[36px]"
-                      >
-                        {estadosAsistencia.map((estado) => (
-                          <option key={estado.value} value={estado.value}>
-                            {estado.label}
-                          </option>
-                        ))}
-                      </select>
+                      {estudiante.pendienteVerificacion && verificandoId === estudiante.id ? (
+                        // Botones de aprobar/rechazar
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleVerificarAsistencia(estudiante.id, 'aprobar')}
+                            disabled={loading}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:bg-gray-400"
+                          >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() => handleVerificarAsistencia(estudiante.id, 'rechazar')}
+                            disabled={loading}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:bg-gray-400"
+                          >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Rechazar
+                          </button>
+                        </div>
+                      ) : modoEdicion ? (
+                        <select
+                          value={estudiante.estado}
+                          onChange={(e) => handleEstadoChange(estudiante.id, e.target.value)}
+                          className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-black min-h-[36px]"
+                        >
+                          {estadosAsistencia.map((estado) => (
+                            <option key={estado.value} value={estado.value}>
+                              {estado.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                     </td>
                   )}
                 </tr>

@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const estudianteIds = estudiantesApoderado.map(ea => ea.estudiante.idEstudiante)
+    const estudianteIds = estudiantesApoderado.map((ea: typeof estudiantesApoderado[number]) => ea.estudiante.idEstudiante)
 
     if (estudianteIds.length === 0) {
       return NextResponse.json({
@@ -115,11 +115,11 @@ export async function GET(request: NextRequest) {
 
     // Filtrar las que no tienen justificación
     const inasistenciasSinJustificar = inasistencias.filter(
-      asist => asist.justificacionesAfectadas.length === 0
+      (asist: typeof inasistencias[number]) => asist.justificacionesAfectadas.length === 0
     )
 
     // Transformar a formato esperado por el frontend
-    const inasistenciasPendientes = inasistenciasSinJustificar.map(inasistencia => {
+    const inasistenciasPendientes = inasistenciasSinJustificar.map((inasistencia: typeof inasistenciasSinJustificar[number]) => {
       // Determinar sesión basada en la hora de registro
       let sesion = 'Sin especificar'
       if (inasistencia.horaRegistro) {

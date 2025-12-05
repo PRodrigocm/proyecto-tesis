@@ -82,6 +82,19 @@ export async function POST(request: NextRequest) {
     // Obtener valores de configuración
     const horaIngreso = configuracion?.horaIngreso || '07:30'
     const toleranciaMinutos = configuracion?.toleranciaMinutos || 15
+    const horaSalidaConfig = configuracion?.horaSalida || '13:00'
+    
+    // Validar que no se haya pasado la hora de salida
+    if (horaActual > horaSalidaConfig) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede registrar asistencia después de la hora de salida',
+          horaSalida: horaSalidaConfig,
+          horaActual: horaActual
+        },
+        { status: 400 }
+      )
+    }
 
     // Calcular hora límite: hora de ingreso + tolerancia
     // La tolerancia se aplica DESDE la hora de ingreso

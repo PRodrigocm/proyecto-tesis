@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Crear todos los horarios en una transacción
     const horariosCreados = await prisma.$transaction(async (tx) => {
-      const resultados = []
+      const resultados: any[] = []
 
       // Obtener el grado-sección con su docente asignado
       const gradoSeccion = await (tx as any).gradoSeccion.findUnique({

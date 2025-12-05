@@ -40,14 +40,28 @@ export async function getEstadosRetiroIds(codigos: string[]): Promise<number[]> 
 
 /**
  * Verifica si un apoderado puede gestionar un estudiante específico
+ * @param idUsuario - ID del usuario (no del apoderado)
+ * @param idEstudiante - ID del estudiante
  */
-export async function puedeGestionarEstudiante(idApoderado: number, idEstudiante: number): Promise<boolean> {
+export async function puedeGestionarEstudiante(idUsuario: number, idEstudiante: number): Promise<boolean> {
+  // Primero buscar el apoderado por el idUsuario
+  const apoderado = await prisma.apoderado.findFirst({
+    where: { idUsuario: idUsuario }
+  })
+
+  if (!apoderado) {
+    console.log(`⚠️ No se encontró apoderado para usuario ${idUsuario}`)
+    return false
+  }
+
   const relacion = await prisma.estudianteApoderado.findFirst({
     where: {
-      idApoderado,
+      idApoderado: apoderado.idApoderado,
       idEstudiante
     }
   })
+
+  console.log(`🔍 Verificando permisos: usuario=${idUsuario}, apoderado=${apoderado.idApoderado}, estudiante=${idEstudiante}, tiene_relacion=${relacion !== null}`)
 
   return relacion !== null
 }

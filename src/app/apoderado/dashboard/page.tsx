@@ -182,20 +182,8 @@ export default function ApoderadoDashboard() {
       {/* Acciones Rápidas - Grid de botones grandes */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-4 sm:mb-6">
         <button
-          onClick={() => router.push('/apoderado/retiros/solicitar')}
-          className="bg-white p-3 sm:p-4 rounded-xl shadow-md hover:shadow-lg active:bg-blue-50 transition-all border-2 border-transparent hover:border-blue-200 min-h-[90px] sm:min-h-[100px]"
-        >
-          <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
-              <span className="text-xl sm:text-2xl">🚪</span>
-            </div>
-            <span className="text-xs sm:text-sm font-medium text-gray-900">Solicitar Retiro</span>
-          </div>
-        </button>
-
-        <button
-          onClick={() => router.push('/apoderado/retiros/aprobar')}
-          className="bg-white p-3 sm:p-4 rounded-xl shadow-md hover:shadow-lg active:bg-green-50 transition-all border-2 border-transparent hover:border-green-200 min-h-[90px] sm:min-h-[100px] relative"
+          onClick={() => router.push('/apoderado/retiros')}
+          className="bg-white p-3 sm:p-4 rounded-xl shadow-md hover:shadow-lg active:bg-blue-50 transition-all border-2 border-transparent hover:border-blue-200 min-h-[90px] sm:min-h-[100px] relative"
         >
           {retirosPendientes.length > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
@@ -203,10 +191,10 @@ export default function ApoderadoDashboard() {
             </span>
           )}
           <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center mb-2">
-              <span className="text-xl sm:text-2xl">✅</span>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
+              <span className="text-xl sm:text-2xl">🚪</span>
             </div>
-            <span className="text-xs sm:text-sm font-medium text-gray-900">Aprobar Retiros</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900">Retiros</span>
           </div>
         </button>
 

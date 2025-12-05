@@ -530,7 +530,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Obtener información del creador
-    let creadorInfo = null
+    let creadorInfo: { id: number; nombre: string; apellido: string; rol: string; email: string | undefined } | null = null
     let creadorRol = 'DESCONOCIDO'
     if (userId) {
       const creador = await prisma.usuario.findUnique({

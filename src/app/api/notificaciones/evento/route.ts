@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     console.log(`📊 Apoderados encontrados: ${apoderadosData.length}`)
 
     // Crear notificaciones para cada apoderado
-    const notificaciones = []
+    const notificaciones: any[] = []
     for (const apoderado of apoderadosData) {
       if (apoderado.usuario?.idUsuario) {
         try {

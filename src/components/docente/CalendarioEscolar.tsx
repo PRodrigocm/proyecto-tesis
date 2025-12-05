@@ -129,7 +129,7 @@ export default function CalendarioEscolar({ className = '' }: CalendarioEscolarP
     const diasEnMes = ultimoDia.getDate()
     const primerDiaSemana = primerDia.getDay()
     
-    const dias = []
+    const dias: { fecha: Date; esDelMes: boolean; eventos: any[] }[] = []
     
     // Días del mes anterior para completar la primera semana
     for (let i = primerDiaSemana - 1; i >= 0; i--) {

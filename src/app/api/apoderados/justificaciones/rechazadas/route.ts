@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       orderBy: { fechaPresentacion: 'desc' }
     })
 
-    const justificacionesTransformadas = justificaciones.map(j => ({
+    const justificacionesTransformadas = justificaciones.map((j: typeof justificaciones[number]) => ({
       id: j.idJustificacion.toString(),
       fechaInicio: j.fechaInicio.toISOString(),
       fechaFin: j.fechaFin.toISOString(),
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
         nombre: j.usuarioRevisor.nombre,
         apellido: j.usuarioRevisor.apellido
       } : null,
-      documentos: j.documentos.map(d => ({
+      documentos: j.documentos.map((d: typeof j.documentos[number]) => ({
         id: d.idDocumento,
         nombre: d.nombreArchivo
       }))

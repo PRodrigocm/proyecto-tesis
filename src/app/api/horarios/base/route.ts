@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
         console.log(`🏫 Procesando ${gs.grado.nombre}° ${gs.seccion.nombre} - Aula: ${aulaGenerada}`)
 
         // Buscar docente asignado
-        let docenteAsignado = null
+        let docenteAsignado: number | null = null
         try {
           const docenteAula = await prisma.docenteAula.findFirst({
             where: { idGradoSeccion: gs.idGradoSeccion }
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Conexión a BD OK:', testConnection)
     
     // Crear horarios para L-V (días 1-5)
-    const horariosCreados = []
+    const horariosCreados: any[] = []
     const diasSemana = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
     
     for (let dia = 1; dia <= 5; dia++) {
@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
       console.log(`➕ Creando horario para ${diasSemana[dia]}...`)
       
       // Buscar docente asignado a este grado-sección
-      let docenteAsignado = null
+      let docenteAsignado: number | null = null
       try {
         const docenteAula = await prisma.docenteAula.findFirst({
           where: {

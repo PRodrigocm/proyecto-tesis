@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const estudianteIds = estudiantesApoderado.map(ea => ea.estudiante.idEstudiante)
+    const estudianteIds = estudiantesApoderado.map((ea: typeof estudiantesApoderado[number]) => ea.estudiante.idEstudiante)
 
     if (estudianteIds.length === 0) {
       return NextResponse.json({
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const estadosSolicitadoIds = estadosSolicitado.map(e => e.idEstadoRetiro)
+    const estadosSolicitadoIds = estadosSolicitado.map((e: typeof estadosSolicitado[number]) => e.idEstadoRetiro)
 
     const retirosPendientes = await prisma.retiro.findMany({
       where: {
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       take: 10
     })
 
-    retirosPendientes.forEach(retiro => {
+    retirosPendientes.forEach((retiro: typeof retirosPendientes[number]) => {
       notificaciones.push({
         id: `retiro-${retiro.idRetiro}`,
         tipo: 'RETIRO_PENDIENTE',
@@ -140,10 +140,10 @@ export async function GET(request: NextRequest) {
 
       // Filtrar las que no tienen justificación
       const inasistenciasSinJustificar = inasistencias.filter(
-        asist => asist.justificacionesAfectadas.length === 0
+        (asist: typeof inasistencias[number]) => asist.justificacionesAfectadas.length === 0
       )
 
-      inasistenciasSinJustificar.slice(0, 10).forEach(inasistencia => {
+      inasistenciasSinJustificar.slice(0, 10).forEach((inasistencia: typeof inasistenciasSinJustificar[number]) => {
         notificaciones.push({
           id: `inasistencia-${inasistencia.idAsistencia}`,
           tipo: 'JUSTIFICACION_REQUERIDA',

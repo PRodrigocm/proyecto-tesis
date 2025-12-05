@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    let docenteInfo = null
+    let docenteInfo: { nombre: string; especialidad: string | null; codigo: string | null } | null = null
     if (docenteId) {
       const docente = await prisma.docente.findFirst({
         where: { idDocente: docenteId },
@@ -219,8 +219,8 @@ export async function GET(request: NextRequest) {
       })
       docenteInfo = {
         nombre: `${docente?.usuario.nombre} ${docente?.usuario.apellido}`,
-        especialidad: docente?.especialidad,
-        codigo: docente?.codigo
+        especialidad: docente?.especialidad || null,
+        codigo: docente?.codigo || null
       }
     }
 

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       select: { idEstudiante: true }
     })
 
-    const idsEstudiantes = estudiantesApoderado.map(e => e.idEstudiante)
+    const idsEstudiantes = estudiantesApoderado.map((e: typeof estudiantesApoderado[number]) => e.idEstudiante)
 
     // Obtener retiros de los estudiantes
     const retiros = await prisma.retiro.findMany({
@@ -63,22 +63,26 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      retiros: retiros.map(r => ({
+      retiros: retiros.map((r: typeof retiros[number]) => ({
         id: r.idRetiro.toString(),
         fecha: r.fecha.toISOString().split('T')[0],
         hora: r.hora.toISOString().split('T')[1].substring(0, 5),
         estudiante: {
           id: r.estudiante.idEstudiante,
-          nombre: r.estudiante.usuario?.nombre,
-          apellido: r.estudiante.usuario?.apellido,
-          grado: r.estudiante.gradoSeccion?.grado?.nombre,
-          seccion: r.estudiante.gradoSeccion?.seccion?.nombre
+          nombre: r.estudiante.usuario?.nombre || '',
+          apellido: r.estudiante.usuario?.apellido || '',
+          grado: r.estudiante.gradoSeccion?.grado?.nombre || '',
+          seccion: r.estudiante.gradoSeccion?.seccion?.nombre || ''
         },
+        motivo: r.tipoRetiro?.nombre || 'No especificado',
         tipoRetiro: r.tipoRetiro?.nombre || 'No especificado',
-        estado: r.estadoRetiro?.nombre || 'Pendiente',
-        estadoCodigo: r.estadoRetiro?.codigo,
-        observaciones: r.observaciones,
-        origen: r.origen
+        estado: r.estadoRetiro?.codigo || 'PENDIENTE',
+        estadoNombre: r.estadoRetiro?.nombre || 'Pendiente',
+        observaciones: r.observaciones || '',
+        origen: r.origen || 'AULA',
+        personaRecoge: (r as any).personaRecoge || null,
+        dniPersonaRecoge: (r as any).dniVerificado || null,
+        creadoEn: r.fecha.toISOString()
       }))
     })
 
@@ -172,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener tipo de retiro si se especificó
-    let tipoRetiroDb = null
+    let tipoRetiroDb: { idTipoRetiro: number } | null = null
     if (tipoRetiro) {
       tipoRetiroDb = await prisma.tipoRetiro.findFirst({
         where: { nombre: tipoRetiro }

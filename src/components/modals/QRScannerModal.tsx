@@ -43,6 +43,8 @@ interface QRScannerModalProps {
   handleQRScan: () => void
   estudiantesEscaneados: Estudiante[]
   setEstudiantesEscaneados: (estudiantes: Estudiante[] | ((prev: Estudiante[]) => Estudiante[])) => void
+  entradaBloqueada?: boolean
+  horaSalida?: string | null
 }
 
 export default function QRScannerModal({
@@ -54,7 +56,9 @@ export default function QRScannerModal({
   setQrCode,
   handleQRScan,
   estudiantesEscaneados,
-  setEstudiantesEscaneados
+  setEstudiantesEscaneados,
+  entradaBloqueada = false,
+  horaSalida = null
 }: QRScannerModalProps) {
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string>('')
   const [estudianteEscaneado, setEstudianteEscaneado] = useState<Estudiante | null>(null)
@@ -518,19 +522,36 @@ export default function QRScannerModal({
             </div>
           </div>
 
+          {/* Alerta de entrada bloqueada */}
+          {entradaBloqueada && (
+            <div className="mb-3 md:mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center">
+                <span className="text-red-500 mr-2">⚠️</span>
+                <p className="text-sm text-red-700">
+                  <strong>Entrada bloqueada:</strong> Ya pasó la hora de salida ({horaSalida}). Solo se permite registrar salidas.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Selector de Acción */}
           <div className="mb-3 md:mb-6">
             <div className="flex items-center justify-center gap-2 md:gap-4">
               <button
-                onClick={() => setAccionSeleccionada('entrada')}
+                onClick={() => !entradaBloqueada && setAccionSeleccionada('entrada')}
+                disabled={entradaBloqueada}
                 className={`flex-1 md:flex-none inline-flex items-center justify-center px-3 md:px-6 py-2 md:py-3 border text-xs md:text-sm font-medium rounded-md transition-colors ${
-                  accionSeleccionada === 'entrada'
-                    ? 'border-transparent text-white bg-green-600 hover:bg-green-700'
-                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  entradaBloqueada
+                    ? 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : accionSeleccionada === 'entrada'
+                      ? 'border-transparent text-white bg-green-600 hover:bg-green-700'
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                 }`}
+                title={entradaBloqueada ? `Entrada bloqueada - Hora de salida: ${horaSalida}` : 'Registrar entrada'}
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
                 <span className="hidden md:inline">Registrar </span>Entrada
+                {entradaBloqueada && <span className="ml-1">🔒</span>}
               </button>
               <button
                 onClick={() => setAccionSeleccionada('salida')}

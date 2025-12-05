@@ -142,7 +142,7 @@ export default function CalendarioAnual({ year, calendarioEscolar, reuniones = [
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
     
-    const days = []
+    const days: React.ReactElement[] = []
     const today = new Date()
     
     for (let i = 0; i < 42; i++) {

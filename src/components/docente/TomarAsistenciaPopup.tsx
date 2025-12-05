@@ -388,7 +388,7 @@ export default function TomarAsistenciaPopup({
                   },
                   body: JSON.stringify({
                     fecha: fechaSeleccionada,
-                    idHorarioClase: claseSeleccionada,
+                    idDocenteAula: claseSeleccionada, // ID de DocenteAula, no HorarioClase
                     forzar: true // Ya verificamos la hora aquí
                   })
                 })

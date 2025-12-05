@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
+import { notificarInasistencia } from '@/lib/notifications'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'
 
 /**
  * POST - Marcar inasistencias automáticas para estudiantes que no registraron asistencia
- * Se ejecuta cuando termina el horario de clases
+ * Se ejecuta automáticamente cuando termina el horario de clases
+ * También envía notificaciones a los padres de familia
  */
 export async function POST(request: NextRequest) {
   try {
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
       fecha, 
       idGradoSeccion, 
       idHorarioClase,
+      idDocenteAula, // ID de la clase del docente (DocenteAula)
       forzar = false // Si es true, marca inasistencia sin verificar hora
     } = body
 
@@ -40,8 +43,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Fecha es requerida' }, { status: 400 })
     }
 
-    const fechaAsistencia = new Date(fecha)
-    fechaAsistencia.setHours(0, 0, 0, 0)
+    // Parsear la fecha correctamente para evitar problemas de zona horaria
+    // fecha viene como "YYYY-MM-DD", la parseamos manualmente
+    const [anio, mes, dia] = fecha.split('-').map(Number)
+    const fechaAsistencia = new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+    
+    console.log(`📅 Fecha recibida: ${fecha}, Fecha parseada: ${fechaAsistencia.toLocaleDateString()}`)
     
     // Obtener hora actual en Perú (UTC-5)
     const ahora = new Date()
@@ -71,16 +78,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Obtener todos los estudiantes del grado/sección o de la IE
+    // Determinar el idGradoSeccion a usar
+    let gradoSeccionId: number | null = null
+    
+    if (idGradoSeccion) {
+      gradoSeccionId = parseInt(idGradoSeccion)
+    } else if (idDocenteAula || idHorarioClase) {
+      // Obtener idGradoSeccion desde DocenteAula o HorarioClase
+      if (idDocenteAula) {
+        const docenteAula = await prisma.docenteAula.findUnique({
+          where: { idDocenteAula: parseInt(idDocenteAula) }
+        })
+        if (docenteAula) {
+          gradoSeccionId = docenteAula.idGradoSeccion
+          console.log(`📚 GradoSeccion obtenido de DocenteAula: ${gradoSeccionId}`)
+        }
+      } else if (idHorarioClase) {
+        const horarioClase = await prisma.horarioClase.findUnique({
+          where: { idHorarioClase: parseInt(idHorarioClase) }
+        })
+        if (horarioClase) {
+          gradoSeccionId = horarioClase.idGradoSeccion
+          console.log(`📚 GradoSeccion obtenido de HorarioClase: ${gradoSeccionId}`)
+        }
+      }
+    }
+
+    if (!gradoSeccionId) {
+      return NextResponse.json({ 
+        error: 'No se pudo determinar el grado/sección. Proporcione idGradoSeccion, idDocenteAula o idHorarioClase válido.' 
+      }, { status: 400 })
+    }
+
+    // Obtener todos los estudiantes del grado/sección
     const whereEstudiantes: any = {
+      idGradoSeccion: gradoSeccionId,
       usuario: {
         idIe: ieId,
         estado: 'ACTIVO'
       }
-    }
-    
-    if (idGradoSeccion) {
-      whereEstudiantes.idGradoSeccion = parseInt(idGradoSeccion)
     }
 
     const estudiantes = await prisma.estudiante.findMany({
@@ -91,6 +127,16 @@ export async function POST(request: NextRequest) {
           include: {
             grado: true,
             seccion: true
+          }
+        },
+        // Incluir apoderados para enviar notificaciones
+        apoderados: {
+          include: {
+            apoderado: {
+              include: {
+                usuario: true
+              }
+            }
           }
         }
       }
@@ -117,58 +163,58 @@ export async function POST(request: NextRequest) {
 
     let marcados = 0
     let yaRegistrados = 0
-    const estudiantesMarcados: string[] = []
+    const estudiantesMarcados: {
+      id: number
+      nombre: string
+      dni: string
+      grado: string
+      seccion: string
+      apoderados: any[]
+    }[] = []
+
+    // Crear rango de fechas para la consulta (inicio y fin del día)
+    const fechaInicio = new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+    const fechaFin = new Date(anio, mes - 1, dia, 23, 59, 59, 999)
+    
+    console.log(`🔍 Buscando asistencias en tabla Asistencia entre ${fechaInicio.toISOString()} y ${fechaFin.toISOString()}`)
 
     for (const estudiante of estudiantes) {
-      // Verificar si ya tiene asistencia registrada en AsistenciaIE
-      const asistenciaExistente = await prisma.asistenciaIE.findFirst({
+      // Verificar si ya tiene asistencia registrada en tabla Asistencia (usando rango de fechas)
+      const asistenciaExistente = await prisma.asistencia.findFirst({
         where: {
           idEstudiante: estudiante.idEstudiante,
-          fecha: fechaAsistencia
+          fecha: {
+            gte: fechaInicio,
+            lte: fechaFin
+          }
+        },
+        include: {
+          estadoAsistencia: true
         }
       })
 
       if (asistenciaExistente) {
+        console.log(`⚠️ ${estudiante.usuario?.nombre} ya tiene registro en Asistencia: estado=${asistenciaExistente.estadoAsistencia?.codigo}, fecha=${asistenciaExistente.fecha}`)
         yaRegistrados++
         continue // Ya tiene registro, no marcar inasistencia
       }
 
-      // Marcar como INASISTENCIA en AsistenciaIE
-      await prisma.asistenciaIE.create({
+      // Marcar como INASISTENCIA en tabla Asistencia
+      const nuevaAsistencia = await prisma.asistencia.create({
         data: {
           idEstudiante: estudiante.idEstudiante,
-          idIe: ieId,
           fecha: fechaAsistencia,
-          estado: 'INASISTENCIA',
-          registradoIngresoPor: userId
+          idEstadoAsistencia: estadoInasistencia.idEstadoAsistencia,
+          idHorarioClase: idHorarioClase ? parseInt(idHorarioClase) : null,
+          registradoPor: userId,
+          observaciones: 'Inasistencia marcada automáticamente por el sistema al finalizar la clase'
         }
       })
-
-      // También crear/actualizar en tabla Asistencia para el histórico
-      let asistenciaParaHistorico = await prisma.asistencia.findFirst({
-        where: {
-          idEstudiante: estudiante.idEstudiante,
-          fecha: fechaAsistencia
-        }
-      })
-
-      if (!asistenciaParaHistorico) {
-        asistenciaParaHistorico = await prisma.asistencia.create({
-          data: {
-            idEstudiante: estudiante.idEstudiante,
-            fecha: fechaAsistencia,
-            idEstadoAsistencia: estadoInasistencia.idEstadoAsistencia,
-            idHorarioClase: idHorarioClase ? parseInt(idHorarioClase) : null,
-            registradoPor: userId,
-            observaciones: 'Inasistencia marcada automáticamente por el sistema'
-          }
-        })
-      }
 
       // Guardar en histórico
       await prisma.historicoEstadoAsistencia.create({
         data: {
-          idAsistencia: asistenciaParaHistorico.idAsistencia,
+          idAsistencia: nuevaAsistencia.idAsistencia,
           idEstadoAsistencia: estadoInasistencia.idEstadoAsistencia,
           cambiadoPor: userId,
           fechaCambio: new Date()
@@ -176,20 +222,68 @@ export async function POST(request: NextRequest) {
       })
 
       marcados++
-      estudiantesMarcados.push(`${estudiante.usuario?.nombre} ${estudiante.usuario?.apellido}`)
+      estudiantesMarcados.push({
+        id: estudiante.idEstudiante,
+        nombre: `${estudiante.usuario?.nombre} ${estudiante.usuario?.apellido}`,
+        dni: estudiante.usuario?.dni || '',
+        grado: estudiante.gradoSeccion?.grado?.nombre || '',
+        seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+        apoderados: estudiante.apoderados || []
+      })
       
       console.log(`❌ Inasistencia marcada: ${estudiante.usuario?.nombre} ${estudiante.usuario?.apellido}`)
     }
 
     console.log(`✅ Proceso completado: ${marcados} inasistencias marcadas, ${yaRegistrados} ya tenían registro`)
 
+    // FASE 2: Enviar notificaciones a los padres de familia (después de marcar todas las inasistencias)
+    let notificacionesEnviadas = 0
+    let notificacionesFallidas = 0
+
+    if (marcados > 0) {
+      console.log(`📧 Iniciando envío de notificaciones a padres de familia...`)
+      
+      for (const estData of estudiantesMarcados) {
+        if (estData.apoderados && estData.apoderados.length > 0) {
+          for (const relacion of estData.apoderados) {
+            const apoderado = relacion.apoderado
+            if (apoderado?.usuario) {
+              try {
+                await notificarInasistencia({
+                  estudianteId: estData.id,
+                  estudianteNombre: estData.nombre.split(' ')[0] || '',
+                  estudianteApellido: estData.nombre.split(' ').slice(1).join(' ') || '',
+                  estudianteDNI: estData.dni,
+                  grado: estData.grado,
+                  seccion: estData.seccion,
+                  fecha: fechaAsistencia.toISOString(),
+                  emailApoderado: apoderado.usuario.email || '',
+                  telefonoApoderado: apoderado.usuario.telefono || '',
+                  apoderadoUsuarioId: apoderado.usuario.idUsuario
+                })
+                notificacionesEnviadas++
+                console.log(`📧 Notificación enviada a: ${apoderado.usuario.nombre} ${apoderado.usuario.apellido}`)
+              } catch (notifError) {
+                notificacionesFallidas++
+                console.error(`❌ Error enviando notificación a apoderado:`, notifError)
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`📧 Notificaciones: ${notificacionesEnviadas} enviadas, ${notificacionesFallidas} fallidas`)
+    }
+
     return NextResponse.json({
       success: true,
       message: `Inasistencias marcadas automáticamente`,
       marcados,
       yaRegistrados,
+      notificacionesEnviadas,
+      notificacionesFallidas,
       total: estudiantes.length,
-      estudiantesMarcados: estudiantesMarcados.slice(0, 10), // Solo mostrar primeros 10
+      estudiantesMarcados: estudiantesMarcados.slice(0, 10).map(e => e.nombre),
       fecha: fechaAsistencia.toISOString().split('T')[0]
     })
 
@@ -258,8 +352,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Verificar cuáles no tienen asistencia
-    const sinAsistencia = []
-    const conAsistencia = []
+    const sinAsistencia: any[] = []
+    const conAsistencia: any[] = []
 
     for (const estudiante of estudiantes) {
       const asistencia = await prisma.asistenciaIE.findFirst({

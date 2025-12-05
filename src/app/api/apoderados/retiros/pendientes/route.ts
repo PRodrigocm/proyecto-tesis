@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const retiros = retirosPendientes.map(retiro => ({
+    const retiros = retirosPendientes.map((retiro: typeof retirosPendientes[number]) => ({
       id: retiro.idRetiro.toString(),
       fecha: retiro.fecha.toISOString().split('T')[0],
       hora: retiro.hora.toISOString().split('T')[1].substring(0, 5), // Formato HH:MM

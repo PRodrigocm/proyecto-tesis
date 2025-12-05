@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const notificacionesEnviadas = []
+    const notificacionesEnviadas: any[] = []
 
     for (const apoderadoRel of apoderados) {
       // TODO: Obtener configuración real de notificaciones del apoderado
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       }
 
       let debeNotificar = false
-      let configTipo = null
+      let configTipo: { email: boolean; telefono: boolean } | null = null
 
       switch (tipoEvento) {
         case 'ENTRADA_IE':

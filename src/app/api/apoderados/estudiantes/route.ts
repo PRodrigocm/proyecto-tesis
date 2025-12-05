@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const estudiantes = estudiantesApoderado.map(ea => ({
+    const estudiantes = estudiantesApoderado.map((ea: typeof estudiantesApoderado[number]) => ({
       id: ea.estudiante.idEstudiante.toString(),
       nombre: ea.estudiante.usuario.nombre,
       apellido: ea.estudiante.usuario.apellido,

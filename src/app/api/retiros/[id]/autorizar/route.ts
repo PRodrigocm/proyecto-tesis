@@ -105,6 +105,80 @@ export async function PATCH(
       estado: estadoRetiro.codigo
     })
 
+    // === ACTUALIZAR ASISTENCIA SEGÚN RESULTADO DEL RETIRO ===
+    // Retiro aprobado: PRESENTE en AsistenciaIE
+    // Retiro rechazado: INASISTENCIA en AsistenciaIE
+    const fechaRetiroDate = new Date(retiro.fecha)
+    const fechaInicio = new Date(fechaRetiroDate.getFullYear(), fechaRetiroDate.getMonth(), fechaRetiroDate.getDate(), 0, 0, 0, 0)
+    const fechaFin = new Date(fechaRetiroDate.getFullYear(), fechaRetiroDate.getMonth(), fechaRetiroDate.getDate(), 23, 59, 59, 999)
+    
+    const estadoAsistenciaIE = autorizado ? 'PRESENTE' : 'INASISTENCIA'
+    
+    // Buscar si ya existe asistencia IE para este estudiante en esta fecha
+    const asistenciaIEExistente = await prisma.asistenciaIE.findFirst({
+      where: {
+        idEstudiante: retiro.idEstudiante,
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin
+        }
+      }
+    })
+
+    if (asistenciaIEExistente) {
+      // Actualizar el estado
+      await prisma.asistenciaIE.update({
+        where: { idAsistenciaIE: asistenciaIEExistente.idAsistenciaIE },
+        data: { estado: estadoAsistenciaIE }
+      })
+      console.log(`✅ AsistenciaIE actualizada por retiro: ${estadoAsistenciaIE}`)
+    } else {
+      // Crear nuevo registro
+      await prisma.asistenciaIE.create({
+        data: {
+          idEstudiante: retiro.idEstudiante,
+          idIe: retiro.idIe,
+          fecha: fechaInicio,
+          estado: estadoAsistenciaIE,
+          registradoIngresoPor: userId
+        }
+      })
+      console.log(`✅ AsistenciaIE creada por retiro: ${estadoAsistenciaIE}`)
+    }
+
+    // También actualizar tabla Asistencia (aula) si existe
+    const estadoAsistenciaAula = autorizado ? 'PRESENTE' : 'INASISTENCIA'
+    let estadoAsistenciaObj = await prisma.estadoAsistencia.findFirst({
+      where: { codigo: estadoAsistenciaAula }
+    })
+    
+    if (!estadoAsistenciaObj) {
+      // Intentar con variantes
+      estadoAsistenciaObj = await prisma.estadoAsistencia.findFirst({
+        where: { codigo: autorizado ? 'ASISTIO' : 'AUSENTE' }
+      })
+    }
+
+    if (estadoAsistenciaObj) {
+      const asistenciaAulaExistente = await prisma.asistencia.findFirst({
+        where: {
+          idEstudiante: retiro.idEstudiante,
+          fecha: {
+            gte: fechaInicio,
+            lte: fechaFin
+          }
+        }
+      })
+
+      if (asistenciaAulaExistente) {
+        await prisma.asistencia.update({
+          where: { idAsistencia: asistenciaAulaExistente.idAsistencia },
+          data: { idEstadoAsistencia: estadoAsistenciaObj.idEstadoAsistencia }
+        })
+        console.log(`✅ Asistencia (aula) actualizada por retiro: ${estadoAsistenciaAula}`)
+      }
+    }
+
     // === NOTIFICACIONES BIDIRECCIONALES ===
     const estudianteNombre = `${retiro.estudiante.usuario.nombre} ${retiro.estudiante.usuario.apellido}`
     const fechaRetiro = retiro.fecha.toLocaleDateString('es-ES', {
@@ -114,6 +188,13 @@ export async function PATCH(
 
     // Determinar quién aprobó y a quién notificar
     const esAprobacionApoderado = origenAprobacion === 'APODERADO' || userRol === 'APODERADO'
+    
+    console.log('📧 Procesando notificaciones:', {
+      userRol,
+      origenAprobacion,
+      esAprobacionApoderado,
+      autorizado
+    })
 
     if (esAprobacionApoderado && autorizado) {
       // APODERADO APROBÓ -> Notificar a Admin/Auxiliar
@@ -158,15 +239,21 @@ export async function PATCH(
           })
         }
       }
-    } else if (!esAprobacionApoderado) {
-      // ADMIN CREÓ/MODIFICÓ -> Notificar a Apoderados
-      console.log('📧 Admin modificó retiro, notificando a apoderados...')
+    } else {
+      // ADMIN/AUXILIAR autorizó o rechazó -> Notificar a Apoderados
+      console.log('📧 Administrador/Auxiliar modificó retiro, notificando a apoderados...')
       
       const apoderados = retiro.estudiante.apoderados || []
+      console.log(`📧 Encontrados ${apoderados.length} apoderados para notificar`)
       
       for (const ea of apoderados) {
         const apoderado = ea.apoderado
-        if (!apoderado?.usuario) continue
+        if (!apoderado?.usuario) {
+          console.log('⚠️ Apoderado sin usuario, saltando...')
+          continue
+        }
+
+        console.log(`📧 Notificando a apoderado: ${apoderado.usuario.nombre} ${apoderado.usuario.apellido} (${apoderado.usuario.email})`)
 
         // Crear notificación en sistema
         await prisma.notificacion.create({
@@ -176,7 +263,7 @@ export async function PATCH(
               ? '✅ Retiro Autorizado' 
               : '❌ Retiro Rechazado',
             mensaje: autorizado
-              ? `El retiro de ${estudianteNombre} ha sido autorizado para ${fechaRetiro} a las ${horaRetiro}. Por favor, confirme su aprobación.`
+              ? `El retiro de ${estudianteNombre} ha sido autorizado para ${fechaRetiro} a las ${horaRetiro}.`
               : `El retiro de ${estudianteNombre} programado para ${fechaRetiro} ha sido rechazado. ${observaciones || ''}`,
             tipo: autorizado ? 'INFORMATIVO' : 'ALERTA',
             leida: false
@@ -185,15 +272,23 @@ export async function PATCH(
 
         // Enviar email
         if (apoderado.usuario.email) {
-          await enviarEmailRetiroNotificacion({
-            destinatario: apoderado.usuario.email,
-            nombreDestinatario: `${apoderado.usuario.nombre} ${apoderado.usuario.apellido}`,
-            estudianteNombre,
-            fechaRetiro,
-            horaRetiro,
-            estado: autorizado ? 'AUTORIZADO' : 'RECHAZADO',
-            observaciones: observaciones || ''
-          })
+          console.log(`📧 Enviando correo a: ${apoderado.usuario.email}`)
+          try {
+            await enviarEmailRetiroNotificacion({
+              destinatario: apoderado.usuario.email,
+              nombreDestinatario: `${apoderado.usuario.nombre} ${apoderado.usuario.apellido}`,
+              estudianteNombre,
+              fechaRetiro,
+              horaRetiro,
+              estado: autorizado ? 'AUTORIZADO' : 'RECHAZADO',
+              observaciones: observaciones || ''
+            })
+            console.log(`✅ Correo enviado exitosamente a ${apoderado.usuario.email}`)
+          } catch (emailError) {
+            console.error(`❌ Error enviando correo a ${apoderado.usuario.email}:`, emailError)
+          }
+        } else {
+          console.log('⚠️ Apoderado sin email configurado')
         }
       }
     }

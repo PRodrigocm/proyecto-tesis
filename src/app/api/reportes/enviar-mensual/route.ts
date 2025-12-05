@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`📊 Procesando docente: ${docente.usuario.nombre} ${docente.usuario.apellido}`)
         
-        const aulasReporte = []
+        const aulasReporte: any[] = []
 
         for (const docenteAula of docente.docenteAulas) {
           const gradoSeccion = docenteAula.gradoSeccion

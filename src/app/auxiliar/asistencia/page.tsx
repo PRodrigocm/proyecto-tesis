@@ -79,6 +79,38 @@ export default function AsistenciaControl() {
   })
   const [accionSeleccionada, setAccionSeleccionada] = useState<'entrada' | 'salida'>('entrada')
   const [qrCode, setQrCode] = useState('')
+  const [horaSalida, setHoraSalida] = useState<string | null>(null)
+  const [entradaBloqueada, setEntradaBloqueada] = useState(false)
+
+  // Verificar si ya pasó la hora de salida
+  const verificarHoraSalida = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/configuracion/horarios', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        const horaSalidaConfig = data.configuracion?.horaSalida || data.horaSalida || '13:00'
+        setHoraSalida(horaSalidaConfig)
+        
+        // Comparar con hora actual
+        const ahora = new Date()
+        const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`
+        
+        if (horaActual > horaSalidaConfig) {
+          setEntradaBloqueada(true)
+          setAccionSeleccionada('salida') // Forzar modo salida
+          console.log(`⚠️ Entrada bloqueada: hora actual ${horaActual} > hora salida ${horaSalidaConfig}`)
+        } else {
+          setEntradaBloqueada(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando hora de salida:', error)
+    }
+  }
 
   useEffect(() => {
     const checkAuth = () => {
@@ -106,6 +138,11 @@ export default function AsistenciaControl() {
     loadEstudiantes()
     loadGrados()
     loadSecciones()
+    verificarHoraSalida()
+    
+    // Verificar cada minuto si ya pasó la hora de salida
+    const interval = setInterval(verificarHoraSalida, 60000)
+    return () => clearInterval(interval)
   }, [router])
 
   const loadEstudiantes = async (fecha?: string) => {
@@ -432,11 +469,38 @@ export default function AsistenciaControl() {
         </div>
       </div>
 
+      {/* Alerta de entrada bloqueada */}
+      {entradaBloqueada && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <XCircleIcon className="h-6 w-6 text-red-500" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Registro de entrada bloqueado</h3>
+              <p className="text-sm text-red-700 mt-1">
+                Ya pasó la hora de salida ({horaSalida}). Solo se permite registrar salidas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Acciones Principales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
-          onClick={() => setShowQRModal(true)}
-          className="group relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+          onClick={() => {
+            if (entradaBloqueada) {
+              // Si está bloqueada la entrada, forzar modo salida
+              setAccionSeleccionada('salida')
+            }
+            setShowQRModal(true)
+          }}
+          className={`group relative overflow-hidden p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
+            entradaBloqueada 
+              ? 'bg-gradient-to-br from-orange-500 to-amber-600' 
+              : 'bg-gradient-to-br from-green-500 to-emerald-600'
+          }`}
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
           <div className="relative flex items-center gap-4">
@@ -444,8 +508,12 @@ export default function AsistenciaControl() {
               <CameraIcon className="h-8 w-8 text-white" />
             </div>
             <div className="text-white text-left flex-1">
-              <h3 className="text-xl font-bold">Escanear QR</h3>
-              <p className="text-white/80 text-sm">Registrar entrada/salida</p>
+              <h3 className="text-xl font-bold">
+                {entradaBloqueada ? 'Registrar Salida' : 'Escanear QR'}
+              </h3>
+              <p className="text-white/80 text-sm">
+                {entradaBloqueada ? 'Solo salidas disponibles' : 'Registrar entrada/salida'}
+              </p>
             </div>
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -725,6 +793,8 @@ export default function AsistenciaControl() {
         handleQRScan={handleQRScan}
         estudiantesEscaneados={estudiantesEscaneados}
         setEstudiantesEscaneados={setEstudiantesEscaneados}
+        entradaBloqueada={entradaBloqueada}
+        horaSalida={horaSalida}
       />
 
       <SearchModal

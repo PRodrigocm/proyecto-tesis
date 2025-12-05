@@ -74,6 +74,31 @@ export async function POST(request: NextRequest) {
     const ahora = new Date()
     const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
+    // Obtener configuración de horarios de la IE para validar hora de salida
+    const configuracion = await prisma.configuracionIE.findUnique({
+      where: { idIe: userInfo.idIe || 1 }
+    })
+    const horaSalidaConfig = configuracion?.horaSalida || '13:00'
+    
+    // Validar que no se haya pasado la hora de salida
+    const horaActualStr = ahora.toLocaleTimeString('es-PE', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Lima'
+    })
+    
+    if (horaActualStr > horaSalidaConfig) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede registrar asistencia después de la hora de salida',
+          horaSalida: horaSalidaConfig,
+          horaActual: horaActualStr
+        },
+        { status: 400 }
+      )
+    }
+
     // Función para formatear hora en zona horaria local (Lima/Peru)
     const formatearHora = (fecha: Date): string => {
       return fecha.toLocaleTimeString('es-PE', { 

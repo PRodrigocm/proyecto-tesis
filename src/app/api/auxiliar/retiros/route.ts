@@ -183,7 +183,10 @@ export async function POST(request: NextRequest) {
     // Verificar que el estudiante pertenece a la IE
     const estudiante = await prisma.estudiante.findUnique({
       where: { idEstudiante: parseInt(estudianteId) },
-      include: { usuario: true }
+      include: { 
+        usuario: true,
+        gradoSeccion: true
+      }
     })
 
     if (!estudiante || estudiante.usuario.idIe !== userInfo.idIe) {
@@ -192,16 +195,31 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
+    // Buscar estado PENDIENTE
+    let estadoPendiente = await prisma.estadoRetiro.findFirst({
+      where: { codigo: 'PENDIENTE' }
+    })
+    
+    if (!estadoPendiente) {
+      estadoPendiente = await prisma.estadoRetiro.create({
+        data: { codigo: 'PENDIENTE', nombre: 'Pendiente', orden: 1 }
+      })
+    }
+
     // Crear el retiro
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteId),
         idIe: userInfo.idIe || 1,
+        idGradoSeccion: estudiante.gradoSeccion?.idGradoSeccion || null,
         idTipoRetiro: parseInt(tipoRetiroId),
         fecha: new Date(fechaRetiro),
         hora: new Date(`1970-01-01T${horaRetiro}`),
         observaciones,
-        apoderadoQueRetira: apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null
+        origen: 'AULA', // Origen desde el panel del auxiliar
+        apoderadoQueRetira: apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null,
+        verificadoPor: userId,
+        idEstadoRetiro: estadoPendiente.idEstadoRetiro
       },
       include: {
         estudiante: {

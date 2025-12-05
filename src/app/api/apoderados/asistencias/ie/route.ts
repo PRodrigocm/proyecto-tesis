@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const asistenciasFormateadas = asistencias.map(asistencia => ({
+    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => ({
       id: asistencia.idAsistenciaIE.toString(),
       fecha: asistencia.fecha.toISOString().split('T')[0],
       horaEntrada: asistencia.horaIngreso?.toTimeString().slice(0, 5),

@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Convertir retiros al formato del historial
-    const historialRetiros = retiros.map(retiro => ({
+    const historialRetiros = retiros.map((retiro: typeof retiros[number]) => ({
       id: `retiro_${retiro.idRetiro}`,
       tipo: 'RETIRO' as const,
       fecha: retiro.fecha.toISOString(),
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Convertir justificaciones al formato del historial
-    const historialJustificaciones = justificaciones.map(justificacion => {
+    const historialJustificaciones = justificaciones.map((justificacion: typeof justificaciones[number]) => {
       // Obtener el primer estudiante afectado
       const primeraAsistencia = justificacion.asistenciasAfectadas[0]?.asistencia
       

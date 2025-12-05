@@ -440,17 +440,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener estudiantes ACTIVOS de la clase con sus asistencias del día
-    // Normalizar fecha a medianoche para que coincida con la BD
-    const fechaConsulta = new Date(fecha)
-    fechaConsulta.setHours(0, 0, 0, 0)
+    // Parsear la fecha correctamente para evitar problemas de zona horaria
+    // fecha viene como "YYYY-MM-DD", la parseamos manualmente
+    const [anioConsulta, mesConsulta, diaConsulta] = fecha.split('-').map(Number)
     
-    // Crear rango de fechas para la consulta (inicio y fin del día)
-    const fechaInicio = new Date(fecha)
-    fechaInicio.setHours(0, 0, 0, 0)
-    const fechaFin = new Date(fecha)
-    fechaFin.setHours(23, 59, 59, 999)
+    // Crear fechas en hora local (no UTC)
+    const fechaConsulta = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0)
+    const fechaInicio = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0)
+    const fechaFin = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 23, 59, 59, 999)
     
-    console.log(`🔍 Buscando asistencias para fecha: ${fechaConsulta.toISOString()}`)
+    console.log(`🔍 Buscando asistencias para fecha: ${fecha} (local: ${fechaConsulta.toLocaleDateString()})`)
     
     const estudiantes = await prisma.estudiante.findMany({
       where: {
@@ -551,7 +550,9 @@ export async function GET(request: NextRequest) {
       
       // Mapear estados de la BD al formato del frontend
       let estadoFrontend = 'sin_registrar'
-      let horaLlegada = null
+      let horaLlegada: string | null = null
+      let pendienteVerificacion = false
+      let horaIngresoIE: string | null = null
       
       // PRIMERO: Verificar asistencia en aula (Asistencia) - esto tiene prioridad
       if (asistenciaDelDia?.estadoAsistencia?.codigo) {
@@ -583,9 +584,16 @@ export async function GET(request: NextRequest) {
             minute: '2-digit' 
           }) : null
       }
-      // Si no hay asistencia en aula, el estado es "sin_registrar"
-      // NO mostramos hora de ingreso IE porque confunde - esa es hora de entrada a la IE, no al aula
-      // El docente debe tomar asistencia para que aparezca la hora
+      // SEGUNDO: Si no hay asistencia en aula pero SÍ hay asistencia IE (precargada por auxiliar)
+      // Marcar como pendiente de verificación
+      else if (asistenciaIEDelDia && (asistenciaIEDelDia.estado === 'INGRESADO' || asistenciaIEDelDia.estado === 'PRESENTE' || asistenciaIEDelDia.estado === 'TARDANZA')) {
+        pendienteVerificacion = true
+        horaIngresoIE = asistenciaIEDelDia.horaIngreso ? 
+          new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : null
+      }
       
       return {
         id: estudiante.idEstudiante,
@@ -595,6 +603,9 @@ export async function GET(request: NextRequest) {
         codigo: estudiante.codigoQR || estudiante.usuario.dni,
         estado: estadoFrontend,
         horaLlegada: horaLlegada,
+        // Campos para verificación de asistencia precargada
+        pendienteVerificacion: pendienteVerificacion,
+        horaIngresoIE: horaIngresoIE,
         tieneRetiro: !!retiroDelDia,
         retiro: retiroDelDia ? {
           id: retiroDelDia.idRetiro,

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Por ahora simulamos las configuraciones ya que no existe la tabla en el esquema
     // TODO: Crear tabla de configuraciones de notificaciones
-    const configuracionesSimuladas = estudiantesApoderado.map(ea => ({
+    const configuracionesSimuladas = estudiantesApoderado.map((ea: typeof estudiantesApoderado[number]) => ({
       estudianteId: ea.estudiante.idEstudiante.toString(),
       entradaIE: {
         email: true,

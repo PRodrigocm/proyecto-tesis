@@ -152,40 +152,64 @@ export async function POST(request: NextRequest) {
     
     console.log(`📝 Guardando asistencia: estudiante=${estudianteId}, fecha=${fecha}, estado=${estado}, horaLlegada=${horaLlegada}`)
 
-    const fechaAsistencia = new Date(fecha)
-    fechaAsistencia.setHours(0, 0, 0, 0)
+    // Parsear fecha correctamente para evitar problemas de zona horaria
+    const [anio, mes, dia] = fecha.split('-').map(Number)
+    const fechaAsistencia = new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+    
+    console.log(`📅 Fecha parseada: ${fechaAsistencia.toISOString()}`)
 
-    // Si el estado es "sin_registrar", eliminar el registro de asistencia
+    // Crear rango de fechas para búsqueda (inicio y fin del día)
+    const fechaInicio = new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+    const fechaFin = new Date(anio, mes - 1, dia, 23, 59, 59, 999)
+
+    // Si el estado es "sin_registrar", eliminar SOLO de tabla Asistencia (NO de AsistenciaIE)
     if (estado === 'SIN_REGISTRAR') {
-      const existingToDelete = await prisma.asistenciaIE.findFirst({
+      // Solo eliminar de tabla Asistencia (asistencia de aula del docente)
+      // NO tocar AsistenciaIE (registro de entrada a la institución)
+      const existingAula = await prisma.asistencia.findFirst({
         where: {
           idEstudiante: parseInt(estudianteId),
-          fecha: fechaAsistencia
+          fecha: {
+            gte: fechaInicio,
+            lte: fechaFin
+          }
         }
       })
-
-      if (existingToDelete) {
-        await prisma.asistenciaIE.delete({
-          where: { idAsistenciaIE: existingToDelete.idAsistenciaIE }
+      
+      if (existingAula) {
+        // Primero eliminar el histórico asociado
+        await prisma.historicoEstadoAsistencia.deleteMany({
+          where: { idAsistencia: existingAula.idAsistencia }
         })
-        console.log(`🗑️ Asistencia eliminada para estudiante ${estudianteId} en fecha ${fecha}`)
+        // Luego eliminar la asistencia
+        await prisma.asistencia.delete({
+          where: { idAsistencia: existingAula.idAsistencia }
+        })
+        console.log(`🗑️ Asistencia de aula eliminada para estudiante ${estudianteId} (AsistenciaIE no modificada)`)
         return NextResponse.json({
-          message: 'Asistencia eliminada (sin registrar)',
+          message: 'Asistencia de aula eliminada (sin registrar)',
           deleted: true
         })
       } else {
         return NextResponse.json({
-          message: 'No había asistencia registrada para eliminar',
+          message: 'No había asistencia de aula registrada para eliminar',
           deleted: false
         })
       }
     }
 
+    // Determinar el estado para AsistenciaIE
+    // JUSTIFICADA debe aparecer como PRESENTE en AsistenciaIE
+    const estadoParaAsistenciaIE = estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO' ? 'PRESENTE' : estado
+
     // Verificar si ya existe asistencia para este estudiante en esta fecha
     const existingAsistencia = await prisma.asistenciaIE.findFirst({
       where: {
         idEstudiante: parseInt(estudianteId),
-        fecha: fechaAsistencia
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin
+        }
       }
     })
 
@@ -203,15 +227,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Actualizar asistencia existente en AsistenciaIE
+      // Usar estadoParaAsistenciaIE (JUSTIFICADA → PRESENTE)
       const updatedAsistencia = await prisma.asistenciaIE.update({
         where: { idAsistenciaIE: existingAsistencia.idAsistenciaIE },
         data: {
-          estado: estado,
+          estado: estadoParaAsistenciaIE,
           ...(horaIngresoDate && { horaIngreso: horaIngresoDate })
         }
       })
       
-      console.log(`✅ AsistenciaIE actualizada: ${existingAsistencia.idAsistenciaIE}, estado: ${estado}`)
+      console.log(`✅ AsistenciaIE actualizada: ${existingAsistencia.idAsistenciaIE}, estado: ${estadoParaAsistenciaIE} (original: ${estado})`)
 
       // SIEMPRE actualizar también la tabla Asistencia (que es la que usa el docente)
       try {
@@ -243,7 +268,10 @@ export async function POST(request: NextRequest) {
           let asistenciaAula = await prisma.asistencia.findFirst({
             where: {
               idEstudiante: parseInt(estudianteId),
-              fecha: fechaAsistencia
+              fecha: {
+                gte: fechaInicio,
+                lte: fechaFin
+              }
             }
           })
           
@@ -357,18 +385,19 @@ export async function POST(request: NextRequest) {
       }
 
       // Crear nueva asistencia en AsistenciaIE
+      // Usar estadoParaAsistenciaIE (JUSTIFICADA → PRESENTE)
       const nuevaAsistencia = await prisma.asistenciaIE.create({
         data: {
           idEstudiante: parseInt(estudianteId),
           idIe: ieId,
           fecha: fechaAsistencia,
-          estado: estado || 'PRESENTE',
+          estado: estadoParaAsistenciaIE || 'PRESENTE',
           registradoIngresoPor: userId,
           ...(horaIngresoNueva && { horaIngreso: horaIngresoNueva })
         }
       })
       
-      console.log(`✅ AsistenciaIE CREADA: ${nuevaAsistencia.idAsistenciaIE}, estado: ${estado}`)
+      console.log(`✅ AsistenciaIE CREADA: ${nuevaAsistencia.idAsistenciaIE}, estado: ${estadoParaAsistenciaIE} (original: ${estado})`)
 
       // TAMBIÉN crear en tabla Asistencia (que es la que usa el docente)
       try {

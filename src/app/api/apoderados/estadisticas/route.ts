@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
         // Filtrar las que no tienen justificación
         justificacionesPendientes = inasistencias.filter(
-          asist => asist.justificacionesAfectadas.length === 0
+          (asist: typeof inasistencias[number]) => asist.justificacionesAfectadas.length === 0
         ).length
       }
     }
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      const estadosPositivosIds = estadosPositivos.map(e => e.idEstadoAsistencia)
+      const estadosPositivosIds = estadosPositivos.map((e: typeof estadosPositivos[number]) => e.idEstadoAsistencia)
 
       // Contar asistencias totales
       const totalAsistencias = await prisma.asistencia.count({

@@ -23,10 +23,20 @@ export async function POST(request: NextRequest) {
     await inicializarTiposRetiro()
 
     const body = await request.json()
-    const { estudianteId, fecha, hora, observaciones, tipoRetiroNombre } = body
+    console.log('📋 Datos recibidos para solicitud de retiro:', body)
+    
+    const { estudianteId, fecha, hora, observaciones, tipoRetiroNombre, tipoRetiro, motivo } = body
+    
+    // Usar tipoRetiroNombre o tipoRetiro (compatibilidad)
+    const tipoRetiroFinal = tipoRetiroNombre || tipoRetiro
+    // Usar observaciones o motivo (compatibilidad)
+    const observacionesFinal = observaciones || motivo
+
+    console.log('📋 Datos procesados:', { estudianteId, fecha, hora, tipoRetiroFinal, observacionesFinal })
 
     // Validaciones
     if (!estudianteId || !fecha || !hora) {
+      console.log('❌ Faltan campos requeridos:', { estudianteId, fecha, hora })
       return NextResponse.json(
         { error: 'Estudiante, fecha y hora son campos requeridos' },
         { status: 400 }
@@ -42,23 +52,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener el estado "SOLICITADO"
-    const estadoSolicitado = await prisma.estadoRetiro.findFirst({
-      where: { codigo: 'SOLICITADO' }
+    // Obtener o crear el estado "SOLICITADO" o "PENDIENTE"
+    let estadoSolicitado = await prisma.estadoRetiro.findFirst({
+      where: { 
+        OR: [
+          { codigo: 'SOLICITADO' },
+          { codigo: 'PENDIENTE' }
+        ]
+      }
     })
 
     if (!estadoSolicitado) {
-      return NextResponse.json(
-        { error: 'Error de configuración: estado SOLICITADO no encontrado' },
-        { status: 500 }
-      )
+      // Crear el estado si no existe
+      estadoSolicitado = await prisma.estadoRetiro.create({
+        data: {
+          codigo: 'PENDIENTE',
+          nombre: 'Pendiente',
+          orden: 1
+        }
+      })
     }
 
     // Obtener el tipo de retiro si se especificó
-    let tipoRetiro = null
-    if (tipoRetiroNombre) {
-      tipoRetiro = await prisma.tipoRetiro.findFirst({
-        where: { nombre: tipoRetiroNombre }
+    let tipoRetiroObj: { idTipoRetiro: number; nombre: string } | null = null
+    if (tipoRetiroFinal) {
+      tipoRetiroObj = await prisma.tipoRetiro.findFirst({
+        where: { nombre: tipoRetiroFinal }
       })
     }
 
@@ -101,15 +120,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Obtener el idIe del estudiante o del usuario
+    const idIe = estudiante.idIe || estudiante.usuario?.idIe || 1
+
     // Crear la solicitud de retiro
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteId),
-        idIe: estudiante.idIe || 1, // Usar IE del estudiante o default
+        idIe: idIe,
+        idGradoSeccion: estudiante.gradoSeccion?.idGradoSeccion || null,
         fecha: new Date(fecha),
         hora: new Date(`1970-01-01T${hora}:00.000Z`), // Convertir hora a Time
-        observaciones: observaciones || null,
-        idTipoRetiro: tipoRetiro?.idTipoRetiro || null,
+        observaciones: observacionesFinal || null,
+        idTipoRetiro: tipoRetiroObj?.idTipoRetiro || null,
         idEstadoRetiro: estadoSolicitado.idEstadoRetiro,
         origen: 'APODERADO'
       }
@@ -123,7 +146,7 @@ export async function POST(request: NextRequest) {
         fecha: nuevoRetiro.fecha.toISOString().split('T')[0],
         hora: nuevoRetiro.hora.toISOString().split('T')[1].substring(0, 5),
         observaciones: nuevoRetiro.observaciones || '',
-        tipoRetiro: tipoRetiro?.nombre || 'No especificado',
+        tipoRetiro: tipoRetiroObj?.nombre || 'No especificado',
         estado: estadoSolicitado.nombre,
         estudiante: `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
         grado: estudiante.gradoSeccion ? 

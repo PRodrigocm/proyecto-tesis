@@ -55,10 +55,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Fecha para buscar asistencias
-    const fechaInicio = new Date(fecha)
-    fechaInicio.setHours(0, 0, 0, 0)
-    const fechaFin = new Date(fecha)
-    fechaFin.setHours(23, 59, 59, 999)
+    // Parsear la fecha correctamente para evitar problemas de zona horaria
+    // fecha viene como "YYYY-MM-DD", la parseamos manualmente
+    const [anio, mes, dia] = fecha.split('-').map(Number)
+    const fechaInicio = new Date(anio, mes - 1, dia, 0, 0, 0, 0)
+    const fechaFin = new Date(anio, mes - 1, dia, 23, 59, 59, 999)
 
     // Obtener asistencias del día para estos estudiantes
     const estudianteIds = estudiantes.map(e => e.idEstudiante)
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
       let horaEntrada: string | null = null
       let horaSalida: string | null = null
 
+      // PRIMERO: Verificar asistencia en aula (Asistencia) - tiene prioridad
       if (asistencia) {
         estado = asistencia.estadoAsistencia?.codigo || asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE'
         if (asistencia.horaRegistro) {
@@ -118,6 +120,19 @@ export async function GET(request: NextRequest) {
           })
         }
       }
+      // SEGUNDO: Si no hay asistencia de aula, verificar asistencia IE (ingreso a institución)
+      else if (asistenciaIE) {
+        // Si tiene asistencia IE pero no de aula, mostrar el estado de IE
+        const estadoIE = asistenciaIE.estado
+        if (estadoIE === 'TARDANZA') {
+          estado = 'TARDANZA'
+        } else if (estadoIE === 'INGRESADO' || estadoIE === 'PRESENTE') {
+          estado = 'PRESENTE'
+        } else {
+          estado = estadoIE || 'PRESENTE'
+        }
+      }
+      // Si no hay ninguna asistencia, queda como SIN_REGISTRAR
 
       // Verificar asistencia al aula (AsistenciaIE)
       const asistenciaAula = asistenciaIE ? true : false

@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Formatear asistencias
-    const asistenciasFormateadas = asistencias.map(asistencia => ({
+    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => ({
       id: asistencia.idAsistencia.toString(),
       fecha: asistencia.fecha.toISOString(),
       hora: asistencia.horaRegistro?.toLocaleTimeString('es-ES', { 

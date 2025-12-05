@@ -2275,7 +2275,7 @@ async function generateReporteSemanalCompleto(ieId: number, fechaInicio: Date, f
 
         const totalRegistros = presentes + tardanzas + faltas + justificadas
         const porcentajeAsistencia = totalRegistros > 0 
-          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          ? (((presentes + tardanzas + justificadas) / totalRegistros) * 100).toFixed(1)
           : '0.0'
 
         reportData.push({
@@ -2465,7 +2465,7 @@ async function generateReporteMensualCompleto(ieId: number, fechaInicio: Date, f
 
         const totalRegistros = presentes + tardanzas + faltas + justificadas
         const porcentajeAsistencia = totalRegistros > 0 
-          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          ? (((presentes + tardanzas + justificadas) / totalRegistros) * 100).toFixed(1)
           : '0.0'
 
         reportData.push({
@@ -2646,7 +2646,7 @@ async function generateReporteAnualCompleto(ieId: number, fechaInicio: Date, fec
 
         const totalRegistros = presentes + tardanzas + faltas + justificadas
         const porcentajeAsistencia = totalRegistros > 0 
-          ? (((presentes + tardanzas) / totalRegistros) * 100).toFixed(1)
+          ? (((presentes + tardanzas + justificadas) / totalRegistros) * 100).toFixed(1)
           : '0.0'
 
         reportData.push({
@@ -2771,7 +2771,7 @@ async function generateWordReport(data: any[], title: string, colegioInfo?: any,
     const sections: any[] = []
     
     // PORTADA
-    const portadaElements = []
+    const portadaElements: any[] = []
     
     if (colegioInfo && usuarioInfo) {
       // Título principal
