@@ -401,7 +401,7 @@ async function enviarEmailRetiroNotificacion(data: {
             <p><strong>Estado:</strong> ${data.estado}</p>
             ${data.observaciones ? `<p><strong>Observaciones:</strong> ${data.observaciones}</p>` : ''}
           </div>
-          ${esAutorizado ? '<p>Por favor, confirme su aprobación ingresando al sistema.</p>' : ''}
+          ${esAutorizado ? '<p>El estudiante puede ser retirado en el horario indicado.</p>' : ''}
         </div>
         <div class="footer">
           <p>Sistema de Control Escolar</p>

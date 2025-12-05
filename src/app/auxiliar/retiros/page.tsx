@@ -193,10 +193,10 @@ export default function RetirosGestion() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Ver Retiros
+            Gestión de Retiros
           </h1>
           <p className="mt-1 text-gray-500">
-            Consulta los retiros de estudiantes
+            Crea y consulta los retiros de estudiantes
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -209,6 +209,15 @@ export default function RetirosGestion() {
             </svg>
             Actualizar
           </button>
+          <Link
+            href="/auxiliar/retiros/crear"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-xl text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg min-h-[44px]"
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Crear Retiro
+          </Link>
         </div>
       </div>
       {/* Stats Cards */}

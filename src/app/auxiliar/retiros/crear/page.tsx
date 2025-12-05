@@ -23,7 +23,6 @@ interface Estudiante {
 interface TipoRetiro {
   id: string
   nombre: string
-  descripcion?: string
 }
 
 interface Apoderado {
@@ -94,7 +93,8 @@ export default function CrearRetiro() {
 
       if (response.ok) {
         const data = await response.json()
-        setEstudiantes(data.estudiantes.filter((e: any) => e.estado === 'PRESENTE'))
+        // Mostrar todos los estudiantes, no solo los presentes
+        setEstudiantes(data.estudiantes || [])
       }
     } catch (error) {
       console.error('Error loading estudiantes:', error)
@@ -200,238 +200,302 @@ export default function CrearRetiro() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-black">Cargando formulario...</span>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-orange-200 rounded-full animate-spin border-t-orange-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ClockIcon className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando formulario...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Crear Nuevo Retiro
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Registrar solicitud de retiro de estudiante
-        </p>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+      {/* Header mejorado */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-2">
+          <Link
+            href="/auxiliar/retiros"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              Crear Nuevo Retiro
+            </h1>
+            <p className="mt-1 text-gray-500">
+              Registrar solicitud de retiro de estudiante
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-4xl mx-auto">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Información del Estudiante */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                <UserIcon className="h-5 w-5 inline mr-2" />
-                Información del Estudiante
-              </h3>
-              
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Buscar Estudiante *
-                  </label>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Información del Estudiante */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <UserIcon className="h-5 w-5" />
+              Información del Estudiante
+            </h3>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔍 Buscar Estudiante
+                </label>
+                <div className="relative">
                   <input
                     type="text"
                     value={searchEstudiante}
                     onChange={(e) => setSearchEstudiante(e.target.value)}
-                    placeholder="Buscar por nombre, DNI o grado..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black mb-2"
+                    placeholder="Escriba nombre, DNI o grado para filtrar..."
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-gray-50 transition-all"
                   />
-                  
-                  <select
-                    name="estudianteId"
-                    value={formData.estudianteId}
-                    onChange={(e) => handleEstudianteChange(e.target.value)}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  >
-                    <option value="">Seleccionar estudiante...</option>
-                    {filteredEstudiantes.map((estudiante) => (
-                      <option key={estudiante.id} value={estudiante.id}>
-                        {estudiante.apellido}, {estudiante.nombre} - {estudiante.grado}° {estudiante.seccion} (DNI: {estudiante.dni})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Solo se muestran estudiantes presentes en la IE
-                  </p>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Detalles del Retiro */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                <ClockIcon className="h-5 w-5 inline mr-2" />
-                Detalles del Retiro
-              </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de Retiro *
-                  </label>
-                  <select
-                    name="tipoRetiroId"
-                    value={formData.tipoRetiroId}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  >
-                    <option value="">Seleccionar tipo...</option>
-                    {tiposRetiro.map((tipo) => (
-                      <option key={tipo.id} value={tipo.id}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha del Retiro *
-                  </label>
-                  <input
-                    type="date"
-                    name="fechaRetiro"
-                    value={formData.fechaRetiro}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hora del Retiro *
-                  </label>
-                  <input
-                    type="time"
-                    name="horaRetiro"
-                    value={formData.horaRetiro}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Apoderado que Retira
-                  </label>
-                  <select
-                    name="apoderadoQueRetiraId"
-                    value={formData.apoderadoQueRetiraId}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  >
-                    <option value="">Seleccionar apoderado...</option>
-                    {apoderados.map((apoderado) => (
-                      <option key={apoderado.id} value={apoderado.id}>
-                        {apoderado.nombre} {apoderado.apellido} - {apoderado.relacion} (DNI: {apoderado.dni})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Opcional - Se carga automáticamente al seleccionar estudiante
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Motivo y Observaciones */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                <DocumentTextIcon className="h-5 w-5 inline mr-2" />
-                Motivo y Observaciones
-              </h3>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Motivo del Retiro *
-                  </label>
-                  <textarea
-                    name="motivo"
-                    value={formData.motivo}
-                    onChange={handleInputChange}
-                    required
-                    rows={3}
-                    placeholder="Describa el motivo del retiro..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Observaciones Adicionales
-                  </label>
-                  <textarea
-                    name="observaciones"
-                    value={formData.observaciones}
-                    onChange={handleInputChange}
-                    rows={2}
-                    placeholder="Observaciones adicionales (opcional)..."
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Información Importante */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex">
-              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2 mt-0.5" />
               <div>
-                <h4 className="text-sm font-medium text-yellow-800">Información Importante</h4>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>El retiro se creará en estado PENDIENTE</li>
-                    <li>Requiere autorización del administrativo</li>
-                    <li>Solo estudiantes presentes pueden ser retirados</li>
-                    <li>Verifique que el apoderado esté autorizado para retirar al estudiante</li>
-                  </ul>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  👤 Seleccionar Estudiante <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="estudianteId"
+                  value={formData.estudianteId}
+                  onChange={(e) => handleEstudianteChange(e.target.value)}
+                  required
+                  className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">-- Seleccionar estudiante --</option>
+                  {filteredEstudiantes.map((estudiante) => (
+                    <option key={estudiante.id} value={estudiante.id}>
+                      {estudiante.apellido}, {estudiante.nombre} - {estudiante.grado}° {estudiante.seccion} (DNI: {estudiante.dni})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {filteredEstudiantes.length} estudiantes encontrados
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detalles del Retiro */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <ClockIcon className="h-5 w-5" />
+              Detalles del Retiro
+            </h3>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📋 Tipo de Retiro <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="tipoRetiroId"
+                  value={formData.tipoRetiroId}
+                  onChange={handleInputChange}
+                  required
+                  className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">-- Seleccionar tipo --</option>
+                  {tiposRetiro.map((tipo) => (
+                    <option key={tipo.id} value={tipo.id}>
+                      {tipo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📅 Fecha del Retiro <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="fechaRetiro"
+                  value={formData.fechaRetiro}
+                  onChange={handleInputChange}
+                  required
+                  className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🕐 Hora del Retiro <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  name="horaRetiro"
+                  value={formData.horaRetiro}
+                  onChange={handleInputChange}
+                  required
+                  className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  👨‍👩‍👧 Apoderado que Retira
+                </label>
+                <select
+                  name="apoderadoQueRetiraId"
+                  value={formData.apoderadoQueRetiraId}
+                  onChange={handleInputChange}
+                  className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">-- Seleccionar apoderado (opcional) --</option>
+                  {apoderados.map((apoderado) => (
+                    <option key={apoderado.id} value={apoderado.id}>
+                      {apoderado.nombre} {apoderado.apellido} - {apoderado.relacion} (DNI: {apoderado.dni})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Se carga automáticamente al seleccionar estudiante
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Motivo y Observaciones */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <DocumentTextIcon className="h-5 w-5" />
+              Motivo y Observaciones
+            </h3>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📝 Motivo del Retiro <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                name="motivo"
+                value={formData.motivo}
+                onChange={handleInputChange}
+                required
+                rows={3}
+                placeholder="Describa el motivo del retiro..."
+                className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                💬 Observaciones Adicionales
+              </label>
+              <textarea
+                name="observaciones"
+                value={formData.observaciones}
+                onChange={handleInputChange}
+                rows={2}
+                placeholder="Observaciones adicionales (opcional)..."
+                className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 bg-white transition-all resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Información Importante */}
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl border border-amber-200 p-6">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+            <div>
+              <h4 className="text-base font-semibold text-amber-800 mb-3">Información Importante</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">⏳</span>
+                  <p className="text-sm text-amber-700">El retiro se creará en estado PENDIENTE</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">✅</span>
+                  <p className="text-sm text-amber-700">Requiere autorización del administrativo</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">📧</span>
+                  <p className="text-sm text-amber-700">Se notificará al apoderado por correo</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">🔐</span>
+                  <p className="text-sm text-amber-700">Verifique que el apoderado esté autorizado</p>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Botones */}
-          <div className="flex justify-end space-x-4">
-            <Link
-              href="/auxiliar/retiros"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancelar
-            </Link>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creando...
-                </>
-              ) : (
-                'Crear Retiro'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Botones */}
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
+          <Link
+            href="/auxiliar/retiros"
+            className="inline-flex items-center justify-center px-6 py-3 border-2 border-gray-200 text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          >
+            {submitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                Creando retiro...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Crear Retiro
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

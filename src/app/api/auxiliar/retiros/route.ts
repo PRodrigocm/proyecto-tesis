@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
         fecha: new Date(fechaRetiro),
         hora: new Date(`1970-01-01T${horaRetiro}`),
         observaciones,
-        origen: 'AULA', // Origen desde el panel del auxiliar
+        origen: 'PORTERIA', // Origen desde el panel del auxiliar (portería)
         apoderadoQueRetira: apoderadoQueRetiraId ? parseInt(apoderadoQueRetiraId) : null,
         verificadoPor: userId,
         idEstadoRetiro: estadoPendiente.idEstadoRetiro

@@ -156,7 +156,20 @@ export async function GET(request: NextRequest) {
       try {
         const token = authHeader.substring(7)
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
-        ieId = decoded.ieId || 1
+        
+        // Primero intentar obtener ieId del token
+        if (decoded.ieId) {
+          ieId = decoded.ieId
+        } else if (decoded.userId) {
+          // Si no está en el token, obtenerlo de la base de datos
+          const usuario = await prisma.usuario.findUnique({
+            where: { idUsuario: decoded.userId },
+            select: { idIe: true }
+          })
+          if (usuario?.idIe) {
+            ieId = usuario.idIe
+          }
+        }
         console.log('✅ Token decodificado, ieId:', ieId)
       } catch (error) {
         console.log('⚠️ Error decoding token, using default ieId:', ieId)

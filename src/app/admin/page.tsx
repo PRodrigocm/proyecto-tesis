@@ -266,7 +266,11 @@ export default function AdminDashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Asistencia Promedio</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.promedioAsistencia}%</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.promedioAsistencia !== undefined && stats.promedioAsistencia !== null 
+                  ? `${stats.promedioAsistencia.toFixed(1)}%` 
+                  : 'N/A'}
+              </p>
               <p className="text-xs text-gray-500">Últimos 7 días</p>
             </div>
           </div>
@@ -491,7 +495,11 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Promedio Asistencia</span>
-                  <span className="font-medium text-blue-600">{stats.promedioAsistencia}%</span>
+                  <span className="font-medium text-blue-600">
+                    {stats.promedioAsistencia !== undefined && stats.promedioAsistencia !== null 
+                      ? `${stats.promedioAsistencia.toFixed(1)}%` 
+                      : 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
