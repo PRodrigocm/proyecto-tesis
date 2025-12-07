@@ -33,15 +33,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Obtener el apoderado
+    const apoderadoUserId = decoded.userId || decoded.idUsuario || decoded.id
+    const apoderado = await prisma.apoderado.findFirst({
+      where: { idUsuario: apoderadoUserId }
+    })
+
+    if (!apoderado) {
+      return NextResponse.json(
+        { error: 'Apoderado no encontrado' },
+        { status: 404 }
+      )
+    }
+
     // Obtener la asistencia (inasistencia) para extraer datos necesarios
     const asistencia = await prisma.asistencia.findUnique({
       where: { idAsistencia: parseInt(inasistenciaId) },
       include: {
         estudiante: {
           include: {
-            ie: true
+            ie: true,
+            apoderados: true
           }
-        }
+        },
+        justificacionesAfectadas: true
       }
     })
 
@@ -49,6 +64,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Asistencia no encontrada' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que el estudiante pertenezca al apoderado
+    const esEstudianteDelApoderado = asistencia.estudiante.apoderados.some(
+      ea => ea.idApoderado === apoderado.idApoderado
+    )
+
+    if (!esEstudianteDelApoderado) {
+      return NextResponse.json(
+        { error: 'No tiene permisos para justificar esta inasistencia' },
+        { status: 403 }
+      )
+    }
+
+    // Verificar que no exista ya una justificación para esta asistencia
+    if (asistencia.justificacionesAfectadas.length > 0) {
+      return NextResponse.json(
+        { error: 'Esta inasistencia ya tiene una justificación asociada' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que no exista un retiro para esta fecha y estudiante
+    const fechaAsistencia = asistencia.fecha
+    const retiroExistente = await prisma.retiro.findFirst({
+      where: {
+        idEstudiante: asistencia.idEstudiante,
+        fecha: fechaAsistencia
+      }
+    })
+
+    if (retiroExistente) {
+      return NextResponse.json(
+        { error: 'No se puede justificar una inasistencia que tiene un retiro asociado' },
+        { status: 400 }
       )
     }
 
@@ -91,12 +142,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Obtener usuario del apoderado
-    const apoderado = await prisma.apoderado.findFirst({
-      where: { idUsuario: decoded.userId || decoded.idUsuario || decoded.id }
-    })
-
-    // Crear la justificación en la BD
+    // Crear la justificación en la BD (usando el apoderado ya obtenido arriba)
     const nuevaJustificacion = await prisma.justificacion.create({
       data: {
         idEstudiante: asistencia.idEstudiante,

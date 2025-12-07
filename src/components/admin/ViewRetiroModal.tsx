@@ -24,7 +24,11 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
   if (!isOpen || !retiro) return null
 
   const formatFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+    const fechaStr = fecha.split('T')[0]
+    const [year, month, day] = fechaStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day) // Crear fecha local
+    return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   }
 
   const getEstadoStyle = (estado: string) => {

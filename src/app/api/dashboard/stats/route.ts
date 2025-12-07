@@ -164,28 +164,38 @@ export async function GET(request: NextRequest) {
       justificacionesPendientes = await prisma.justificacion.count({
         where: {
           estudiante: {
-            usuario: {
-              idIe: ieId
-            }
+            OR: [
+              { idIe: ieId },
+              { usuario: { idIe: ieId } }
+            ]
+          },
+          estadoJustificacion: {
+            codigo: { in: ['PENDIENTE', 'EN_REVISION'] }
           }
-          // TODO: Agregar filtro por estado cuando esté disponible
         }
       })
-      console.log('✅ Total justificaciones:', justificacionesPendientes)
+      console.log('✅ Total justificaciones pendientes:', justificacionesPendientes)
     } catch (error) {
       console.error('❌ Error contando justificaciones:', error)
     }
 
-    // 9. Calcular asistencia promedio (últimos 7 días)
+    // 9. Calcular asistencia promedio (últimos 7 días hábiles)
     try {
       console.log('🔍 Calculando asistencia promedio...')
       const hace7Dias = new Date()
       hace7Dias.setDate(hace7Dias.getDate() - 7)
       
+      // Obtener asistencias de la IE en los últimos 7 días
       const asistenciasRecientes = await prisma.asistencia.findMany({
         where: {
           fecha: {
             gte: hace7Dias
+          },
+          estudiante: {
+            OR: [
+              { idIe: ieId },
+              { usuario: { idIe: ieId } }
+            ]
           }
         },
         include: {
@@ -194,15 +204,20 @@ export async function GET(request: NextRequest) {
       })
       
       const totalAsistencias = asistenciasRecientes.length
-      const asistenciasPresentes = asistenciasRecientes.filter(a => 
-        a.estadoAsistencia?.codigo === 'PRESENTE'
-      ).length
+      // Contar como asistencia efectiva: PRESENTE, TARDANZA, RETIRO, JUSTIFICADA
+      const asistenciasEfectivas = asistenciasRecientes.filter(a => {
+        const codigo = a.estadoAsistencia?.codigo?.toUpperCase()
+        return codigo === 'PRESENTE' || codigo === 'TARDANZA' || 
+               codigo === 'RETIRO' || codigo === 'RETIRADO' ||
+               codigo === 'JUSTIFICADA' || codigo === 'JUSTIFICADO'
+      }).length
       
       asistenciaPromedio = totalAsistencias > 0 
-        ? Math.round((asistenciasPresentes / totalAsistencias) * 100 * 10) / 10
+        ? Math.round((asistenciasEfectivas / totalAsistencias) * 100 * 10) / 10
         : 0
       
-      console.log('✅ Asistencia promedio (7 días):', asistenciaPromedio + '%')
+      console.log('✅ Asistencia promedio (7 días):', asistenciaPromedio + '%', 
+        `(${asistenciasEfectivas}/${totalAsistencias})`)
     } catch (error) {
       console.error('❌ Error calculando asistencia promedio:', error)
     }

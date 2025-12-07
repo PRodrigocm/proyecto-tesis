@@ -382,65 +382,16 @@ export default function RetirosDocente() {
         const data = await response.json()
         console.log('✅ Estudiantes cargados:', data.estudiantes?.length || 0)
         setEstudiantes(data.estudiantes || [])
+        if (data.message) {
+          console.log('ℹ️', data.message)
+        }
       } else {
         console.error('❌ Error al cargar estudiantes:', response.status)
-        // Datos de ejemplo si falla la API
-        setEstudiantes([
-          { 
-            id: '1', 
-            nombre: 'Juan Carlos', 
-            apellido: 'Pérez García', 
-            dni: '12345678', 
-            grado: '3', 
-            seccion: 'A',
-            apoderadoTitular: {
-              id: '1',
-              nombre: 'María Elena',
-              apellido: 'García López',
-              dni: '87654321',
-              telefono: '987654321',
-              email: 'maria.garcia@email.com'
-            }
-          },
-          { 
-            id: '2', 
-            nombre: 'Ana Sofía', 
-            apellido: 'Rodríguez Silva', 
-            dni: '11223344', 
-            grado: '3', 
-            seccion: 'A',
-            apoderadoTitular: {
-              id: '2',
-              nombre: 'Carlos Alberto',
-              apellido: 'Rodríguez Torres',
-              dni: '44332211',
-              telefono: '912345678',
-              email: 'carlos.rodriguez@email.com'
-            }
-          }
-        ])
+        setEstudiantes([])
       }
     } catch (error) {
       console.error('❌ Error loading estudiantes:', error)
-      // Usar datos de ejemplo en caso de error
-      setEstudiantes([
-        { 
-          id: '1', 
-          nombre: 'Juan Carlos', 
-          apellido: 'Pérez García', 
-          dni: '12345678', 
-          grado: '3', 
-          seccion: 'A',
-          apoderadoTitular: {
-            id: '1',
-            nombre: 'María Elena',
-            apellido: 'García López',
-            dni: '87654321',
-            telefono: '987654321',
-            email: 'maria.garcia@email.com'
-          }
-        }
-      ])
+      setEstudiantes([])
     }
   }
 
@@ -473,21 +424,27 @@ export default function RetirosDocente() {
 
   const handleDeleteRetiro = async (retiro: Retiro) => {
     if (retiro.estado === 'AUTORIZADO') {
-      alert('No se puede eliminar un retiro que ya fue autorizado')
+      alert('No se puede eliminar un retiro que ya fue autorizado. El estudiante ya fue retirado.')
       return
     }
 
-    if (confirm(`¿Estás seguro de eliminar el retiro de ${retiro.estudiante.nombre} ${retiro.estudiante.apellido}?`)) {
-      await eliminarRetiro(retiro.id)
+    const mensaje = retiro.estado === 'RECHAZADO' 
+      ? `¿Estás seguro de eliminar el retiro rechazado de ${retiro.estudiante.nombre} ${retiro.estudiante.apellido}?`
+      : `¿Estás seguro de eliminar el retiro pendiente de ${retiro.estudiante.nombre} ${retiro.estudiante.apellido}?`
+
+    if (confirm(mensaje)) {
+      const success = await eliminarRetiro(retiro.id)
+      if (success) {
+        // El hook ya actualiza la lista automáticamente
+      }
     }
   }
 
   const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+    const fechaStr = fecha.split('T')[0]
+    const [year, month, day] = fechaStr.split('-')
+    return `${day}/${month}/${year}`
   }
 
   const formatearHora = (hora: string) => {
@@ -672,24 +629,33 @@ export default function RetirosDocente() {
                   {/* Acciones */}
                   <div className="flex gap-2 pt-2 border-t border-gray-100">
                     {retiro.estado === 'PENDIENTE' && (
-                      <>
-                        <button
-                          onClick={() => handleEditRetiro(retiro)}
-                          className="flex-1 sm:flex-none px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 active:bg-yellow-800 transition-colors text-xs sm:text-sm min-h-[40px]"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRetiro(retiro)}
-                          className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors text-xs sm:text-sm min-h-[40px]"
-                        >
-                          🗑️ Eliminar
-                        </button>
-                      </>
+                      <button
+                        onClick={() => handleEditRetiro(retiro)}
+                        className="flex-1 sm:flex-none px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 active:bg-yellow-800 transition-colors text-xs sm:text-sm min-h-[40px]"
+                      >
+                        ✏️ Editar
+                      </button>
                     )}
+                    
+                    {/* Botón eliminar - disponible para PENDIENTE y RECHAZADO */}
+                    {(retiro.estado === 'PENDIENTE' || retiro.estado === 'RECHAZADO') && (
+                      <button
+                        onClick={() => handleDeleteRetiro(retiro)}
+                        className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors text-xs sm:text-sm min-h-[40px]"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    )}
+                    
                     {retiro.estado === 'AUTORIZADO' && (
                       <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg text-xs sm:text-sm">
                         ✅ Autorizado
+                      </span>
+                    )}
+                    
+                    {retiro.estado === 'RECHAZADO' && (
+                      <span className="px-3 py-2 bg-red-100 text-red-800 rounded-lg text-xs sm:text-sm">
+                        ❌ Rechazado
                       </span>
                     )}
                   </div>

@@ -106,61 +106,18 @@ export async function PATCH(
     })
 
     // === ACTUALIZAR ASISTENCIA SEGÚN RESULTADO DEL RETIRO ===
-    // Retiro aprobado: PRESENTE en AsistenciaIE
-    // Retiro rechazado: INASISTENCIA en AsistenciaIE
+    // Retiro aprobado: RETIRO en AsistenciaIE y Asistencia (aula)
+    // Retiro rechazado: No cambiar asistencia (mantener estado actual)
     const fechaRetiroDate = new Date(retiro.fecha)
     const fechaInicio = new Date(fechaRetiroDate.getFullYear(), fechaRetiroDate.getMonth(), fechaRetiroDate.getDate(), 0, 0, 0, 0)
     const fechaFin = new Date(fechaRetiroDate.getFullYear(), fechaRetiroDate.getMonth(), fechaRetiroDate.getDate(), 23, 59, 59, 999)
     
-    const estadoAsistenciaIE = autorizado ? 'PRESENTE' : 'INASISTENCIA'
-    
-    // Buscar si ya existe asistencia IE para este estudiante en esta fecha
-    const asistenciaIEExistente = await prisma.asistenciaIE.findFirst({
-      where: {
-        idEstudiante: retiro.idEstudiante,
-        fecha: {
-          gte: fechaInicio,
-          lte: fechaFin
-        }
-      }
-    })
-
-    if (asistenciaIEExistente) {
-      // Actualizar el estado
-      await prisma.asistenciaIE.update({
-        where: { idAsistenciaIE: asistenciaIEExistente.idAsistenciaIE },
-        data: { estado: estadoAsistenciaIE }
-      })
-      console.log(`✅ AsistenciaIE actualizada por retiro: ${estadoAsistenciaIE}`)
-    } else {
-      // Crear nuevo registro
-      await prisma.asistenciaIE.create({
-        data: {
-          idEstudiante: retiro.idEstudiante,
-          idIe: retiro.idIe,
-          fecha: fechaInicio,
-          estado: estadoAsistenciaIE,
-          registradoIngresoPor: userId
-        }
-      })
-      console.log(`✅ AsistenciaIE creada por retiro: ${estadoAsistenciaIE}`)
-    }
-
-    // También actualizar tabla Asistencia (aula) si existe
-    const estadoAsistenciaAula = autorizado ? 'PRESENTE' : 'INASISTENCIA'
-    let estadoAsistenciaObj = await prisma.estadoAsistencia.findFirst({
-      where: { codigo: estadoAsistenciaAula }
-    })
-    
-    if (!estadoAsistenciaObj) {
-      // Intentar con variantes
-      estadoAsistenciaObj = await prisma.estadoAsistencia.findFirst({
-        where: { codigo: autorizado ? 'ASISTIO' : 'AUSENTE' }
-      })
-    }
-
-    if (estadoAsistenciaObj) {
-      const asistenciaAulaExistente = await prisma.asistencia.findFirst({
+    if (autorizado) {
+      // Solo actualizar asistencia si el retiro fue AUTORIZADO
+      const estadoAsistenciaIE = 'RETIRO'
+      
+      // Buscar si ya existe asistencia IE para este estudiante en esta fecha
+      const asistenciaIEExistente = await prisma.asistenciaIE.findFirst({
         where: {
           idEstudiante: retiro.idEstudiante,
           fecha: {
@@ -170,13 +127,66 @@ export async function PATCH(
         }
       })
 
-      if (asistenciaAulaExistente) {
+      if (asistenciaIEExistente) {
+        // Actualizar el estado a RETIRO
+        await prisma.asistenciaIE.update({
+          where: { idAsistenciaIE: asistenciaIEExistente.idAsistenciaIE },
+          data: { estado: estadoAsistenciaIE }
+        })
+        console.log(`✅ AsistenciaIE actualizada por retiro autorizado: ${estadoAsistenciaIE}`)
+      } else {
+        // Crear nuevo registro con estado RETIRO
+        await prisma.asistenciaIE.create({
+          data: {
+            idEstudiante: retiro.idEstudiante,
+            idIe: retiro.idIe,
+            fecha: fechaInicio,
+            estado: estadoAsistenciaIE,
+            registradoIngresoPor: userId
+          }
+        })
+        console.log(`✅ AsistenciaIE creada por retiro autorizado: ${estadoAsistenciaIE}`)
+      }
+
+      // También actualizar tabla Asistencia (aula) - buscar estado RETIRO
+      let estadoAsistenciaObj = await prisma.estadoAsistencia.findFirst({
+        where: { codigo: 'RETIRO' }
+      })
+      
+      // Si no existe el estado RETIRO, crearlo
+      if (!estadoAsistenciaObj) {
+        estadoAsistenciaObj = await prisma.estadoAsistencia.create({
+          data: {
+            codigo: 'RETIRO',
+            nombreEstado: 'Retiro',
+            activo: true,
+            afectaAsistencia: false,
+            requiereJustificacion: false
+          }
+        })
+        console.log('✅ Estado de asistencia RETIRO creado')
+      }
+
+      // Actualizar todas las asistencias de aula del estudiante en esa fecha
+      const asistenciasAulaExistentes = await prisma.asistencia.findMany({
+        where: {
+          idEstudiante: retiro.idEstudiante,
+          fecha: {
+            gte: fechaInicio,
+            lte: fechaFin
+          }
+        }
+      })
+
+      for (const asistencia of asistenciasAulaExistentes) {
         await prisma.asistencia.update({
-          where: { idAsistencia: asistenciaAulaExistente.idAsistencia },
+          where: { idAsistencia: asistencia.idAsistencia },
           data: { idEstadoAsistencia: estadoAsistenciaObj.idEstadoAsistencia }
         })
-        console.log(`✅ Asistencia (aula) actualizada por retiro: ${estadoAsistenciaAula}`)
       }
+      console.log(`✅ ${asistenciasAulaExistentes.length} asistencias de aula actualizadas a RETIRO`)
+    } else {
+      console.log('ℹ️ Retiro rechazado - No se modifica la asistencia')
     }
 
     // === NOTIFICACIONES BIDIRECCIONALES ===

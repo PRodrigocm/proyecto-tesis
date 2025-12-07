@@ -137,6 +137,22 @@ export async function POST(
             }
           }
         }
+        
+        // También actualizar AsistenciaIE (tabla del auxiliar) a JUSTIFICADO
+        await tx.asistenciaIE.updateMany({
+          where: {
+            idEstudiante: justificacion.idEstudiante,
+            fecha: {
+              gte: justificacion.fechaInicio,
+              lte: justificacion.fechaFin
+            },
+            estado: { in: ['AUSENTE', 'INASISTENCIA'] }
+          },
+          data: {
+            estado: 'JUSTIFICADO'
+          }
+        })
+        console.log('✅ AsistenciaIE actualizada a JUSTIFICADO')
       }
 
       return justificacionAprobada

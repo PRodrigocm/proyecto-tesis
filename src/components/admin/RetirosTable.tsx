@@ -180,10 +180,10 @@ export default function RetirosTable({ retiros, onAutorizar, onModificar, onElim
                     </div>
                   )}
                   
-                  {/* Mostrar quién autorizó */}
-                  {retiro.autorizadoPor && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Autorizado por: {retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}
+                  {/* Mostrar quién autorizó/rechazó */}
+                  {retiro.autorizadoPor && (retiro.estado === 'AUTORIZADO' || retiro.estado === 'RECHAZADO') && (
+                    <div className={`text-xs mt-1 ${retiro.estado === 'RECHAZADO' ? 'text-red-500' : 'text-gray-500'}`}>
+                      {retiro.estado === 'RECHAZADO' ? 'Rechazado por' : 'Autorizado por'}: {retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}
                     </div>
                   )}
                 </div>

@@ -122,6 +122,23 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc'
           }
         })
+        
+        // Buscar retiro autorizado del día
+        const retiroAutorizado = await prisma.retiro.findFirst({
+          where: {
+            idEstudiante: estudiante.idEstudiante,
+            fecha: {
+              gte: fechaBusqueda,
+              lt: new Date(fechaBusqueda.getTime() + 24 * 60 * 60 * 1000)
+            },
+            estadoRetiro: {
+              codigo: 'AUTORIZADO'
+            }
+          },
+          include: {
+            estadoRetiro: true
+          }
+        })
 
         // Función para formatear hora en zona horaria local (Lima/Peru)
         const formatearHora = (fecha: Date | null): string => {
@@ -147,23 +164,34 @@ export async function GET(request: NextRequest) {
         let horaEntrada: string | undefined
         let horaSalida: string | undefined
 
-        // Determinar estado basado en AsistenciaIE
-        if (asistenciaIE) {
-          if (asistenciaIE.horaSalida) {
+        // PRIMERO: Verificar si hay un retiro AUTORIZADO - tiene máxima prioridad
+        if (retiroAutorizado) {
+          estado = 'RETIRADO'
+          horaEntrada = asistenciaIE?.horaIngreso ? formatearHora(asistenciaIE.horaIngreso) : undefined
+          horaSalida = retiroAutorizado.hora ? formatearHora(retiroAutorizado.hora) : undefined
+        }
+        // SEGUNDO: Determinar estado basado en AsistenciaIE
+        else if (asistenciaIE) {
+          // Verificar estados especiales guardados
+          if (asistenciaIE.estado === 'RETIRO') {
+            estado = 'RETIRADO'
+            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+            horaSalida = formatearHora(asistenciaIE.horaSalida)
+          } else if (asistenciaIE.estado === 'JUSTIFICADO' || asistenciaIE.estado === 'JUSTIFICADA') {
+            estado = 'PRESENTE' // Mostrar como presente pero con justificación
+            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+          } else if (asistenciaIE.horaSalida) {
             estado = 'RETIRADO'
             horaSalida = formatearHora(asistenciaIE.horaSalida)
-          }
-          
-          if (asistenciaIE.horaIngreso) {
+            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+          } else if (asistenciaIE.horaIngreso) {
             horaEntrada = formatearHora(asistenciaIE.horaIngreso)
             // Si tiene hora de ingreso pero no salida, está presente
-            if (!asistenciaIE.horaSalida) {
-              // Verificar si el estado guardado es TARDANZA
-              if (asistenciaIE.estado === 'TARDANZA') {
-                estado = 'TARDANZA'
-              } else {
-                estado = 'PRESENTE'
-              }
+            // Verificar si el estado guardado es TARDANZA
+            if (asistenciaIE.estado === 'TARDANZA') {
+              estado = 'TARDANZA'
+            } else {
+              estado = 'PRESENTE'
             }
           }
         }

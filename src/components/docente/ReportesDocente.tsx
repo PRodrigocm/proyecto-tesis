@@ -350,29 +350,48 @@ export default function ReportesDocente() {
                                 // Buscar si hay asistencia para esta fecha
                                 const fechaStr = fecha.toISOString().split('T')[0]
                                 const asistencia = estudiante.asistencias?.find(
-                                  (a: any) => a.fecha?.split('T')[0] === fechaStr
+                                  (a: any) => a.fecha?.split('T')[0] === fechaStr || a.fecha === fechaStr
+                                )
+                                
+                                // También buscar retiros autorizados para esta fecha
+                                const retiro = estudiante.retiros?.find(
+                                  (r: any) => (r.fecha?.split('T')[0] === fechaStr || r.fecha === fechaStr) && 
+                                              (r.estado === 'AUTORIZADO' || r.estado === 'Autorizado')
                                 )
                                 
                                 let contenido = ''
                                 let colorClass = 'text-gray-400'
                                 
-                                if (asistencia) {
-                                  switch (asistencia.estado) {
-                                    case 'presente':
+                                // Primero verificar retiro autorizado
+                                if (retiro) {
+                                  contenido = 'R'
+                                  colorClass = 'text-purple-600 font-bold'
+                                } else if (asistencia) {
+                                  // Usar codigo o estado (la API puede devolver cualquiera)
+                                  const estadoAsistencia = (asistencia.codigo || asistencia.estado || '').toUpperCase()
+                                  switch (estadoAsistencia) {
+                                    case 'PRESENTE':
                                       contenido = 'X'
                                       colorClass = 'text-green-600 font-bold'
                                       break
-                                    case 'tardanza':
+                                    case 'TARDANZA':
                                       contenido = 'T'
                                       colorClass = 'text-yellow-600 font-bold'
                                       break
-                                    case 'inasistencia':
+                                    case 'INASISTENCIA':
+                                    case 'AUSENTE':
                                       contenido = 'F'
                                       colorClass = 'text-red-600 font-bold'
                                       break
-                                    case 'justificada':
+                                    case 'JUSTIFICADA':
+                                    case 'JUSTIFICADO':
                                       contenido = 'J'
                                       colorClass = 'text-blue-600 font-bold'
+                                      break
+                                    case 'RETIRO':
+                                    case 'RETIRADO':
+                                      contenido = 'R'
+                                      colorClass = 'text-purple-600 font-bold'
                                       break
                                     default:
                                       contenido = '-'
@@ -401,19 +420,23 @@ export default function ReportesDocente() {
                       <div className="flex flex-wrap gap-2 sm:gap-4 text-[10px] sm:text-xs">
                         <span className="flex items-center gap-1">
                           <span className="w-4 h-4 sm:w-5 sm:h-5 bg-green-100 text-green-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">X</span>
-                          <span className="hidden sm:inline">Presente</span>
+                          <span className="text-gray-700">Presente</span>
                         </span>
                         <span className="flex items-center gap-1">
                           <span className="w-4 h-4 sm:w-5 sm:h-5 bg-yellow-100 text-yellow-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">T</span>
-                          <span className="hidden sm:inline">Tardanza</span>
+                          <span className="text-gray-700">Tardanza</span>
                         </span>
                         <span className="flex items-center gap-1">
                           <span className="w-4 h-4 sm:w-5 sm:h-5 bg-red-100 text-red-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">F</span>
-                          <span className="hidden sm:inline">Falta</span>
+                          <span className="text-gray-700">Falta</span>
                         </span>
                         <span className="flex items-center gap-1">
                           <span className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">J</span>
-                          <span className="hidden sm:inline">Justificada</span>
+                          <span className="text-gray-700">Justificada</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-4 h-4 sm:w-5 sm:h-5 bg-purple-100 text-purple-600 rounded flex items-center justify-center font-bold text-[10px] sm:text-xs">R</span>
+                          <span className="text-gray-700">Retiro</span>
                         </span>
                       </div>
                     </div>

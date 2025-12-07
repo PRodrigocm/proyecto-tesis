@@ -111,11 +111,20 @@ export const useDocentes = () => {
       docente.nombre.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       docente.apellido.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       docente.email.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      docente.dni.includes(filters.searchTerm)
+      docente.dni.includes(filters.searchTerm) ||
+      docente.especialidad.toLowerCase().includes(filters.searchTerm.toLowerCase())
 
     const matchesFilter = filters.filterEstado === 'TODOS' || docente.estado === filters.filterEstado
-    const matchesGrado = !filters.filterGrado || docente.grado === filters.filterGrado
-    const matchesSeccion = !filters.filterSeccion || docente.seccion === filters.filterSeccion
+    
+    // Verificar grado en la primera asignación o en las materias
+    const matchesGrado = !filters.filterGrado || 
+      docente.grado === filters.filterGrado ||
+      docente.materias?.some(m => m.nombre.includes(`${filters.filterGrado}°`))
+    
+    // Verificar sección en la primera asignación o en las materias
+    const matchesSeccion = !filters.filterSeccion || 
+      docente.seccion === filters.filterSeccion ||
+      docente.materias?.some(m => m.nombre.includes(filters.filterSeccion))
 
     return matchesSearch && matchesFilter && matchesGrado && matchesSeccion
   })

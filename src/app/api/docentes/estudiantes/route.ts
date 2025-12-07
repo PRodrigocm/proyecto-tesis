@@ -29,8 +29,14 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Buscando estudiantes para docente:', decoded.idUsuario)
 
-    // Si es administrador, mostrar todos los estudiantes
+    // Si es administrador, mostrar todos los estudiantes de la IE
     if (decoded.rol === 'ADMINISTRATIVO') {
+      const ieId = decoded.ieId
+      
+      if (!ieId) {
+        return NextResponse.json({ error: 'IE no encontrada en el token' }, { status: 400 })
+      }
+      
       const estudiantes = await prisma.estudiante.findMany({
         include: {
           usuario: true,
@@ -54,6 +60,7 @@ export async function GET(request: NextRequest) {
           }
         },
         where: {
+          idIe: ieId, // Filtrar por IE
           usuario: {
             estado: 'ACTIVO'
           }
@@ -93,6 +100,14 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Obtener IE del usuario docente
+    const usuarioDocente = await prisma.usuario.findUnique({
+      where: { idUsuario: decoded.userId || decoded.idUsuario },
+      select: { idIe: true }
+    })
+    
+    const docenteIeId = usuarioDocente?.idIe || decoded.ieId
+
     // Para docentes, primero obtener el ID del docente
     const docente = await prisma.docente.findFirst({
       where: { idUsuario: decoded.userId || decoded.idUsuario }
@@ -131,7 +146,14 @@ export async function GET(request: NextRequest) {
               where: {
                 usuario: {
                   estado: 'ACTIVO'
-                }
+                },
+                // Filtrar por IE del docente
+                ...(docenteIeId && {
+                  OR: [
+                    { idIe: docenteIeId },
+                    { usuario: { idIe: docenteIeId } }
+                  ]
+                })
               }
             }
           }
@@ -183,62 +205,14 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Encontrados ${estudiantesUnicos.length} estudiantes únicos`)
 
-    // Si no hay estudiantes, devolver datos de ejemplo
+    // Si no hay estudiantes, devolver lista vacía
     if (estudiantesUnicos.length === 0) {
-      console.log('⚠️ No se encontraron estudiantes, devolviendo datos de ejemplo')
+      console.log('⚠️ No se encontraron estudiantes para este docente')
       return NextResponse.json({
         success: true,
-        estudiantes: [
-          {
-            id: '1',
-            nombre: 'Juan Carlos',
-            apellido: 'Pérez García',
-            dni: '12345678',
-            grado: '3',
-            seccion: 'A',
-            apoderadoTitular: {
-              id: '1',
-              nombre: 'María Elena',
-              apellido: 'García López',
-              dni: '87654321',
-              telefono: '987654321',
-              email: 'maria.garcia@email.com'
-            }
-          },
-          {
-            id: '2',
-            nombre: 'Ana Sofía',
-            apellido: 'Rodríguez Silva',
-            dni: '11223344',
-            grado: '3',
-            seccion: 'A',
-            apoderadoTitular: {
-              id: '2',
-              nombre: 'Carlos Alberto',
-              apellido: 'Rodríguez Torres',
-              dni: '44332211',
-              telefono: '912345678',
-              email: 'carlos.rodriguez@email.com'
-            }
-          },
-          {
-            id: '3',
-            nombre: 'Luis Fernando',
-            apellido: 'González Martínez',
-            dni: '55667788',
-            grado: '4',
-            seccion: 'B',
-            apoderadoTitular: {
-              id: '3',
-              nombre: 'Patricia Isabel',
-              apellido: 'Martínez Vega',
-              dni: '88776655',
-              telefono: '923456789',
-              email: 'patricia.martinez@email.com'
-            }
-          }
-        ],
-        total: 3
+        estudiantes: [],
+        total: 0,
+        message: 'No tienes estudiantes asignados. Verifica que tengas aulas asignadas.'
       })
     }
 

@@ -93,10 +93,12 @@ export async function POST(request: NextRequest) {
     
     const { 
       dni, nombre, apellido, email, telefono, 
-      especialidad, grado, seccion, tipoAsignacion, password, esDocenteTaller 
+      especialidad, grado, seccion, tipoAsignacion, password, esDocenteTaller,
+      asignaciones // Array de { gradoId, seccionId, tipoAsignacionId }
     } = body
 
     console.log('Campos extraídos:', { dni, nombre, apellido, email, especialidad, password, esDocenteTaller })
+    console.log('📚 Asignaciones recibidas en API:', asignaciones)
 
     // Validar campos requeridos
     const camposRequeridos = { dni, nombre, apellido, email, especialidad, password }
@@ -202,9 +204,57 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Crear asignación de aula solo si NO es docente de taller y se proporcionan todos los datos
-    if (!esDocenteTaller && grado && seccion && tipoAsignacion) {
-      console.log('Creando asignación de aula para docente regular')
+    // Crear asignaciones de aula (múltiples)
+    if (asignaciones && Array.isArray(asignaciones) && asignaciones.length > 0) {
+      console.log(`📚 Creando ${asignaciones.length} asignaciones de aula`)
+      console.log('📋 Asignaciones recibidas:', JSON.stringify(asignaciones, null, 2))
+      
+      for (const asig of asignaciones) {
+        console.log(`🔍 Buscando GradoSeccion: gradoId=${asig.gradoId}, seccionId=${asig.seccionId}`)
+        
+        // Buscar el GradoSeccion que corresponde a este grado y sección
+        let gradoSeccion = await prisma.gradoSeccion.findFirst({
+          where: {
+            idGrado: parseInt(asig.gradoId),
+            idSeccion: parseInt(asig.seccionId)
+          }
+        })
+
+        // Si no existe, crearlo
+        if (!gradoSeccion) {
+          console.log(`⚠️ GradoSeccion no existe, creándolo...`)
+          try {
+            gradoSeccion = await prisma.gradoSeccion.create({
+              data: {
+                idGrado: parseInt(asig.gradoId),
+                idSeccion: parseInt(asig.seccionId)
+              }
+            })
+            console.log(`✅ GradoSeccion creado: ${gradoSeccion.idGradoSeccion}`)
+          } catch (gsError) {
+            console.error(`❌ Error creando GradoSeccion:`, gsError)
+            continue
+          }
+        }
+
+        console.log(`📍 GradoSeccion:`, gradoSeccion.idGradoSeccion)
+
+        try {
+          await prisma.docenteAula.create({
+            data: {
+              idDocente: newDocente.idDocente,
+              idGradoSeccion: gradoSeccion.idGradoSeccion,
+              idTipoAsignacion: parseInt(asig.tipoAsignacionId)
+            }
+          })
+          console.log(`✅ Asignación creada: Docente ${newDocente.idDocente} -> GradoSeccion ${gradoSeccion.idGradoSeccion}`)
+        } catch (createError) {
+          console.error(`❌ Error creando asignación:`, createError)
+        }
+      }
+    } else if (!esDocenteTaller && grado && seccion && tipoAsignacion) {
+      // Compatibilidad con el formato anterior (una sola asignación)
+      console.log('Creando asignación de aula para docente regular (formato legacy)')
       const gradoSeccion = await prisma.gradoSeccion.findFirst({
         where: {
           idGrado: parseInt(grado),
@@ -221,8 +271,6 @@ export async function POST(request: NextRequest) {
           }
         })
         console.log('Asignación de aula creada exitosamente')
-      } else {
-        console.log('No se encontró el grado-sección especificado')
       }
     } else if (esDocenteTaller) {
       console.log('Docente de taller creado sin asignación de aula específica')
@@ -250,7 +298,7 @@ export async function PUT(request: NextRequest) {
     const url = new URL(request.url)
     const docenteId = url.searchParams.get('id')
     const body = await request.json()
-    const { nombre, apellido, dni, email, telefono, especialidad, gradoId, seccionId, tipoAsignacionId } = body
+    const { nombre, apellido, dni, email, telefono, especialidad, asignaciones } = body
 
     if (!docenteId) {
       return NextResponse.json(
@@ -325,30 +373,65 @@ export async function PUT(request: NextRequest) {
       }
     })
 
-    // Manejar asignación de aula si se proporcionan grado, sección y tipo
-    if (gradoId && seccionId && tipoAsignacionId) {
-      // Buscar el GradoSeccion correspondiente
-      const gradoSeccion = await prisma.gradoSeccion.findFirst({
+    // Manejar asignaciones de aula (múltiples)
+    if (asignaciones && Array.isArray(asignaciones)) {
+      console.log(`Procesando ${asignaciones.length} asignaciones para docente ${docenteId}`)
+      
+      // Obtener IDs de asignaciones actuales que se mantienen
+      const idsAsignacionesActuales = asignaciones
+        .filter((a: any) => a.id && !a.isNew)
+        .map((a: any) => parseInt(a.id))
+      
+      // Eliminar asignaciones que ya no están en la lista
+      await prisma.docenteAula.deleteMany({
         where: {
-          idGrado: gradoId,
-          idSeccion: seccionId
+          idDocente: parseInt(docenteId),
+          idDocenteAula: { notIn: idsAsignacionesActuales }
         }
       })
 
-      if (gradoSeccion) {
-        // Eliminar asignaciones anteriores del docente
-        await prisma.docenteAula.deleteMany({
-          where: { idDocente: parseInt(docenteId) }
-        })
+      // Crear nuevas asignaciones
+      for (const asig of asignaciones) {
+        if (asig.isNew && asig.gradoId && asig.seccionId && asig.tipoAsignacionId) {
+          console.log(`🔍 Buscando GradoSeccion para nueva asignación: gradoId=${asig.gradoId}, seccionId=${asig.seccionId}`)
+          
+          let gradoSeccion = await prisma.gradoSeccion.findFirst({
+            where: {
+              idGrado: parseInt(asig.gradoId),
+              idSeccion: parseInt(asig.seccionId)
+            }
+          })
 
-        // Crear nueva asignación con el tipo especificado
-        await prisma.docenteAula.create({
-          data: {
-            idDocente: parseInt(docenteId),
-            idGradoSeccion: gradoSeccion.idGradoSeccion,
-            idTipoAsignacion: tipoAsignacionId
+          // Si no existe, crearlo
+          if (!gradoSeccion) {
+            console.log(`⚠️ GradoSeccion no existe, creándolo...`)
+            try {
+              gradoSeccion = await prisma.gradoSeccion.create({
+                data: {
+                  idGrado: parseInt(asig.gradoId),
+                  idSeccion: parseInt(asig.seccionId)
+                }
+              })
+              console.log(`✅ GradoSeccion creado: ${gradoSeccion.idGradoSeccion}`)
+            } catch (gsError) {
+              console.error(`❌ Error creando GradoSeccion:`, gsError)
+              continue
+            }
           }
-        })
+
+          try {
+            await prisma.docenteAula.create({
+              data: {
+                idDocente: parseInt(docenteId),
+                idGradoSeccion: gradoSeccion.idGradoSeccion,
+                idTipoAsignacion: parseInt(asig.tipoAsignacionId)
+              }
+            })
+            console.log(`✅ Nueva asignación creada: Docente ${docenteId} -> GradoSeccion ${gradoSeccion.idGradoSeccion}`)
+          } catch (createError) {
+            console.error(`❌ Error creando asignación:`, createError)
+          }
+        }
       }
     }
 

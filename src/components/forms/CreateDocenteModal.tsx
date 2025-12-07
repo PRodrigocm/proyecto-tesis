@@ -46,6 +46,16 @@ interface CreateDocenteModalProps {
   onSuccess: () => void
 }
 
+// Interfaz para asignación de aula
+interface AulaAsignacion {
+  id: string
+  gradoId: string
+  seccionId: string
+  tipoAsignacionId: string
+  gradoNombre?: string
+  seccionNombre?: string
+}
+
 export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: CreateDocenteModalProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -55,10 +65,15 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     email: '',
     telefono: '',
     especialidad: '',
-    grado: '',
-    seccion: '',
-    tipoAsignacion: '',
     password: ''
+  })
+  
+  // Estado para múltiples asignaciones de aulas
+  const [asignaciones, setAsignaciones] = useState<AulaAsignacion[]>([])
+  const [nuevaAsignacion, setNuevaAsignacion] = useState({
+    gradoId: '',
+    seccionId: '',
+    tipoAsignacionId: ''
   })
   
   const [grados, setGrados] = useState<any[]>([])
@@ -79,11 +94,10 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
         email: '',
         telefono: '',
         especialidad: '',
-        grado: '',
-        seccion: '',
-        tipoAsignacion: '',
         password: ''
       })
+      setAsignaciones([])
+      setNuevaAsignacion({ gradoId: '', seccionId: '', tipoAsignacionId: '' })
       setFieldErrors({})
       setSecciones([])
     }
@@ -226,15 +240,57 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
     }
   }
 
-  // Manejar cambio de grado
-  const handleGradoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // Manejar cambio de grado en nueva asignación
+  const handleNuevaAsignacionGradoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const gradoId = e.target.value
-    setFormData({
-      ...formData,
-      grado: gradoId,
-      seccion: '' // Reset sección cuando cambia el grado
+    setNuevaAsignacion({
+      ...nuevaAsignacion,
+      gradoId,
+      seccionId: '' // Reset sección cuando cambia el grado
     })
     loadSecciones(gradoId)
+  }
+
+  // Agregar nueva asignación
+  const agregarAsignacion = () => {
+    if (!nuevaAsignacion.gradoId || !nuevaAsignacion.seccionId || !nuevaAsignacion.tipoAsignacionId) {
+      alert('Por favor, complete todos los campos de la asignación')
+      return
+    }
+
+    // Verificar que no exista ya esta combinación
+    const existe = asignaciones.some(
+      a => a.gradoId === nuevaAsignacion.gradoId && 
+           a.seccionId === nuevaAsignacion.seccionId &&
+           a.tipoAsignacionId === nuevaAsignacion.tipoAsignacionId
+    )
+
+    if (existe) {
+      alert('Esta asignación ya existe')
+      return
+    }
+
+    const grado = grados.find(g => g.idGrado.toString() === nuevaAsignacion.gradoId)
+    const seccion = secciones.find(s => s.idSeccion.toString() === nuevaAsignacion.seccionId)
+    const tipo = tiposAsignacion.find(t => t.idTipoAsignacion.toString() === nuevaAsignacion.tipoAsignacionId)
+
+    const nuevaAsignacionCompleta: AulaAsignacion = {
+      id: Date.now().toString(),
+      gradoId: nuevaAsignacion.gradoId,
+      seccionId: nuevaAsignacion.seccionId,
+      tipoAsignacionId: nuevaAsignacion.tipoAsignacionId,
+      gradoNombre: grado?.nombre || '',
+      seccionNombre: `${seccion?.nombre || ''} - ${tipo?.nombre || ''}`
+    }
+
+    setAsignaciones([...asignaciones, nuevaAsignacionCompleta])
+    setNuevaAsignacion({ gradoId: '', seccionId: '', tipoAsignacionId: '' })
+    setSecciones([])
+  }
+
+  // Eliminar asignación
+  const eliminarAsignacion = (id: string) => {
+    setAsignaciones(asignaciones.filter(a => a.id !== id))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,8 +313,20 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
 
       const token = localStorage.getItem('token')
       
-      console.log('Datos del formulario:', formData)
-      console.log('Token:', token)
+      console.log('📋 Datos del formulario:', formData)
+      console.log('📚 Asignaciones a enviar:', asignaciones)
+      console.log('🔑 Token:', token ? 'presente' : 'ausente')
+
+      const bodyData = {
+        ...formData,
+        asignaciones: asignaciones.map(a => ({
+          gradoId: a.gradoId,
+          seccionId: a.seccionId,
+          tipoAsignacionId: a.tipoAsignacionId
+        })),
+        userInfo: userStr
+      }
+      console.log('📤 Body completo:', JSON.stringify(bodyData, null, 2))
 
       const response = await fetch('/api/docentes', {
         method: 'POST',
@@ -268,6 +336,11 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
         },
         body: JSON.stringify({
           ...formData,
+          asignaciones: asignaciones.map(a => ({
+            gradoId: a.gradoId,
+            seccionId: a.seccionId,
+            tipoAsignacionId: a.tipoAsignacionId
+          })),
           userInfo: userStr // Enviar información del usuario para obtener ieId
         })
       })
@@ -288,11 +361,9 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
           email: '',
           telefono: '',
           especialidad: '',
-          grado: '',
-          seccion: '',
-          tipoAsignacion: '',
           password: ''
         })
+        setAsignaciones([])
       } else {
         const error = await response.json()
         console.log('Error de la API:', error)
@@ -469,82 +540,108 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
             </div>
           </div>
 
-          {/* Sección: Asignación Académica */}
+          {/* Sección: Asignación de Aulas (Múltiple) */}
           <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-            <h4 className="text-sm font-semibold text-blue-900 mb-4">Asignación Académica (Opcional)</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Asignación de Aulas (Opcional - Puede asignar múltiples)
+            </h4>
+            
+            {/* Lista de asignaciones actuales */}
+            {asignaciones.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-medium text-blue-700 mb-2">Aulas asignadas:</p>
+                {asignaciones.map((asig) => (
+                  <div key={asig.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-700">
+                        {asig.gradoNombre}° - {asig.seccionNombre}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => eliminarAsignacion(asig.id)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulario para agregar nueva asignación */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
               {/* Grado */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Grado</label>
-                <div className="relative">
-                  <select
-                    name="grado"
-                    value={formData.grado}
-                    onChange={handleGradoChange}
-                    className={selectClass}
-                    disabled={loadingGrados}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {grados.map((grado) => (
-                      <option key={grado.idGrado} value={grado.idGrado}>{grado.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Grado</label>
+                <select
+                  value={nuevaAsignacion.gradoId}
+                  onChange={handleNuevaAsignacionGradoChange}
+                  className={selectClass}
+                  disabled={loadingGrados}
+                >
+                  <option value="">Seleccionar...</option>
+                  {grados.map((grado) => (
+                    <option key={grado.idGrado} value={grado.idGrado}>{grado.nombre}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Sección */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Sección</label>
-                <div className="relative">
-                  <select
-                    name="seccion"
-                    value={formData.seccion}
-                    onChange={handleChange}
-                    className={selectClass}
-                    disabled={loadingSecciones || !formData.grado}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {secciones.map((seccion) => (
-                      <option key={seccion.idSeccion} value={seccion.idSeccion}>{seccion.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sección</label>
+                <select
+                  value={nuevaAsignacion.seccionId}
+                  onChange={(e) => setNuevaAsignacion({ ...nuevaAsignacion, seccionId: e.target.value })}
+                  className={selectClass}
+                  disabled={loadingSecciones || !nuevaAsignacion.gradoId}
+                >
+                  <option value="">Seleccionar...</option>
+                  {secciones.map((seccion) => (
+                    <option key={seccion.idSeccion} value={seccion.idSeccion}>{seccion.nombre}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Tipo de Asignación */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Tipo Asignación</label>
-                <div className="relative">
-                  <select
-                    name="tipoAsignacion"
-                    value={formData.tipoAsignacion}
-                    onChange={handleChange}
-                    className={selectClass}
-                    disabled={loadingTipos}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {tiposAsignacion.map((tipo) => (
-                      <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>{tipo.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
+                <select
+                  value={nuevaAsignacion.tipoAsignacionId}
+                  onChange={(e) => setNuevaAsignacion({ ...nuevaAsignacion, tipoAsignacionId: e.target.value })}
+                  className={selectClass}
+                  disabled={loadingTipos}
+                >
+                  <option value="">Seleccionar...</option>
+                  {tiposAsignacion.map((tipo) => (
+                    <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>{tipo.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Botón Agregar */}
+              <div>
+                <button
+                  type="button"
+                  onClick={agregarAsignacion}
+                  className="w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Agregar
+                </button>
               </div>
             </div>
+            
+            <p className="text-xs text-blue-600 mt-3">
+              💡 Puede asignar el docente a múltiples grados y secciones. Esto permite que varios docentes compartan la misma aula.
+            </p>
           </div>
 
           {/* Sección: Contraseña */}

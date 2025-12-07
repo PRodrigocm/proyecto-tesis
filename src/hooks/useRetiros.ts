@@ -45,7 +45,7 @@ export const useRetiros = () => {
 
   useEffect(() => {
     loadRetiros()
-  }, []) // Cargar al montar el componente, sin depender de filtros
+  }, [filters.fecha]) // Recargar cuando cambie la fecha
 
   const loadRetiros = async () => {
     console.log('🔄 useRetiros: Iniciando carga de retiros')
@@ -92,6 +92,8 @@ export const useRetiros = () => {
   }
 
   const filteredRetiros = retiros.filter(retiro => {
+    // Filtrar por fecha si está especificada
+    const matchesFecha = !filters.fecha || retiro.fecha.startsWith(filters.fecha)
     const matchesGrado = !filters.grado || retiro.estudiante.grado === filters.grado
     const matchesEstado = filters.estado === 'TODOS' || retiro.estado === filters.estado
     const matchesSearch = !filters.searchTerm || 
@@ -99,7 +101,7 @@ export const useRetiros = () => {
       retiro.estudiante.apellido.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       retiro.estudiante.dni.includes(filters.searchTerm)
 
-    return matchesGrado && matchesEstado && matchesSearch
+    return matchesFecha && matchesGrado && matchesEstado && matchesSearch
   })
 
   const grados = [...new Set(retiros.map(r => r.estudiante.grado))].filter(Boolean).sort()

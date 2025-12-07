@@ -554,8 +554,17 @@ export async function GET(request: NextRequest) {
       let pendienteVerificacion = false
       let horaIngresoIE: string | null = null
       
-      // PRIMERO: Verificar asistencia en aula (Asistencia) - esto tiene prioridad
-      if (asistenciaDelDia?.estadoAsistencia?.codigo) {
+      // PRIMERO: Verificar si hay un retiro AUTORIZADO para este día - tiene máxima prioridad
+      if (retiroDelDia && retiroDelDia.estadoRetiro?.codigo === 'AUTORIZADO') {
+        estadoFrontend = 'retirado'
+        horaLlegada = retiroDelDia.hora ? 
+          retiroDelDia.hora.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : null
+      }
+      // SEGUNDO: Verificar asistencia en aula (Asistencia)
+      else if (asistenciaDelDia?.estadoAsistencia?.codigo) {
         const codigoEstado = asistenciaDelDia.estadoAsistencia.codigo.toUpperCase()
         switch (codigoEstado) {
           case 'PRESENTE':
@@ -572,6 +581,7 @@ export async function GET(request: NextRequest) {
           case 'JUSTIFICADO':
             estadoFrontend = 'justificada'
             break
+          case 'RETIRO':
           case 'RETIRADO':
             estadoFrontend = 'retirado'
             break
@@ -584,15 +594,26 @@ export async function GET(request: NextRequest) {
             minute: '2-digit' 
           }) : null
       }
-      // SEGUNDO: Si no hay asistencia en aula pero SÍ hay asistencia IE (precargada por auxiliar)
-      // Marcar como pendiente de verificación
-      else if (asistenciaIEDelDia && (asistenciaIEDelDia.estado === 'INGRESADO' || asistenciaIEDelDia.estado === 'PRESENTE' || asistenciaIEDelDia.estado === 'TARDANZA')) {
-        pendienteVerificacion = true
-        horaIngresoIE = asistenciaIEDelDia.horaIngreso ? 
-          new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }) : null
+      // SEGUNDO: Si no hay asistencia en aula pero SÍ hay asistencia IE
+      else if (asistenciaIEDelDia) {
+        // Si el estado de IE es RETIRO, mostrar como retirado
+        if (asistenciaIEDelDia.estado === 'RETIRO') {
+          estadoFrontend = 'retirado'
+          horaLlegada = asistenciaIEDelDia.horaIngreso ? 
+            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }) : null
+        }
+        // Si está precargado por auxiliar, marcar como pendiente de verificación
+        else if (asistenciaIEDelDia.estado === 'INGRESADO' || asistenciaIEDelDia.estado === 'PRESENTE' || asistenciaIEDelDia.estado === 'TARDANZA') {
+          pendienteVerificacion = true
+          horaIngresoIE = asistenciaIEDelDia.horaIngreso ? 
+            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }) : null
+        }
       }
       
       return {

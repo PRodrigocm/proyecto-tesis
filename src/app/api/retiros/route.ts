@@ -190,14 +190,15 @@ export async function GET(request: NextRequest) {
       idIe: ieId
     }
 
-    // Solo aplicar filtro de fecha si se especifica explícitamente
-    if (fecha && fecha !== new Date().toISOString().split('T')[0]) {
-      const fechaDate = new Date(fecha)
+    // Aplicar filtro de fecha si se especifica
+    if (fecha) {
+      const fechaDate = new Date(fecha + 'T00:00:00')
+      const fechaFin = new Date(fecha + 'T23:59:59.999')
       whereClause.fecha = {
-        gte: new Date(fechaDate.setHours(0, 0, 0, 0)),
-        lt: new Date(fechaDate.setHours(23, 59, 59, 999))
+        gte: fechaDate,
+        lte: fechaFin
       }
-      console.log('📅 Filtro por fecha aplicado:', whereClause.fecha)
+      console.log('📅 Filtro por fecha aplicado:', { fecha, gte: fechaDate, lte: fechaFin })
     } else {
       console.log('📅 Sin filtro de fecha - mostrando todos los retiros')
     }
@@ -247,6 +248,16 @@ export async function GET(request: NextRequest) {
             usuario: true
           }
         },
+        apoderadoContacto: {
+          include: {
+            usuario: true
+          }
+        },
+        docenteReportador: {
+          include: {
+            usuario: true
+          }
+        },
         usuarioVerificador: {
           select: {
             nombre: true,
@@ -280,16 +291,23 @@ export async function GET(request: NextRequest) {
       let personaRecoge = ''
       let dniPersonaRecoge = retiro.dniVerificado || ''
       
-      // 1. Primero intentar desde la relación apoderadoRetira
+      // 1. Primero intentar desde la relación apoderadoRetira (quien retira físicamente)
       if (retiro.apoderadoRetira?.usuario) {
         personaRecoge = `${retiro.apoderadoRetira.usuario.nombre || ''} ${retiro.apoderadoRetira.usuario.apellido || ''}`.trim()
-        // Si el apoderado tiene DNI, usarlo
         if (retiro.apoderadoRetira.usuario.dni) {
           dniPersonaRecoge = dniPersonaRecoge || retiro.apoderadoRetira.usuario.dni
         }
       }
       
-      // 2. Si no hay apoderado, extraer de observaciones
+      // 2. Si no hay apoderadoRetira, intentar con apoderadoContacto
+      if (!personaRecoge && retiro.apoderadoContacto?.usuario) {
+        personaRecoge = `${retiro.apoderadoContacto.usuario.nombre || ''} ${retiro.apoderadoContacto.usuario.apellido || ''}`.trim()
+        if (retiro.apoderadoContacto.usuario.dni) {
+          dniPersonaRecoge = dniPersonaRecoge || retiro.apoderadoContacto.usuario.dni
+        }
+      }
+      
+      // 3. Si no hay apoderado, extraer de observaciones
       if (!personaRecoge) {
         const extraido = extraerPersonaRecoge(retiro.observaciones)
         personaRecoge = extraido.personaRecoge
@@ -309,7 +327,7 @@ export async function GET(request: NextRequest) {
         observaciones: observacionesLimpias,
         personaRecoge: personaRecoge,
         dniPersonaRecoge: dniPersonaRecoge,
-        estado: retiro.estadoRetiro?.nombre || 'PENDIENTE',
+        estado: retiro.estadoRetiro?.codigo || 'PENDIENTE',
         autorizado: retiro.estadoRetiro?.codigo === 'AUTORIZADO',
         fechaAutorizacion: retiro.updatedAt?.toISOString() || '',
         observacionesAutorizacion: retiro.observaciones || '',
@@ -432,8 +450,18 @@ export async function POST(request: NextRequest) {
     
     console.log(`🏷️ Estado del retiro: ${estadoRetiro.nombre} (${estadoRetiro.codigo})`)
 
-    // Validar y parsear fecha
-    const fechaRetiro = fecha ? new Date(fecha) : new Date()
+    // Validar y parsear fecha - Crear fecha en zona horaria de Perú (UTC-5)
+    let fechaRetiro: Date
+    if (fecha) {
+      // Parsear la fecha manualmente para evitar problemas de zona horaria
+      const [year, month, day] = fecha.split('-').map(Number)
+      // Crear fecha con hora del mediodía en UTC para que al convertir a cualquier zona horaria siga siendo el mismo día
+      fechaRetiro = new Date(Date.UTC(year, month - 1, day, 17, 0, 0)) // 17:00 UTC = 12:00 Perú
+      console.log(`📅 Fecha recibida: ${fecha}, Fecha parseada: ${fechaRetiro.toISOString()}, Fecha local: ${fechaRetiro.toLocaleDateString('es-PE')}`)
+    } else {
+      fechaRetiro = new Date()
+    }
+    
     if (isNaN(fechaRetiro.getTime())) {
       return NextResponse.json(
         { error: 'Fecha inválida proporcionada' },
@@ -453,18 +481,66 @@ export async function POST(request: NextRequest) {
     const horaRetiroDate = new Date()
     horaRetiroDate.setHours(horas, minutos, 0, 0)
 
-    // Obtener el grado-sección del estudiante si no se proporciona
+    // Obtener información completa del estudiante
+    const estudiante = await prisma.estudiante.findUnique({
+      where: { idEstudiante: parseInt(estudianteId) },
+      include: { 
+        gradoSeccion: true,
+        usuario: true
+      }
+    })
+    
+    if (!estudiante) {
+      return NextResponse.json(
+        { error: 'Estudiante no encontrado' },
+        { status: 404 }
+      )
+    }
+    
+    // VALIDACIÓN 1: Verificar que el estudiante pertenezca a la misma IE
+    const estudianteIeId = estudiante.idIe || estudiante.usuario?.idIe
+    if (estudianteIeId && estudianteIeId !== ieId) {
+      console.log(`❌ Estudiante IE: ${estudianteIeId}, Usuario IE: ${ieId}`)
+      return NextResponse.json(
+        { error: 'El estudiante no pertenece a su institución educativa' },
+        { status: 403 }
+      )
+    }
+    
     let gradoSeccionId = idGradoSeccion ? parseInt(idGradoSeccion) : null
     
-    if (!gradoSeccionId) {
-      const estudiante = await prisma.estudiante.findUnique({
-        where: { idEstudiante: parseInt(estudianteId) },
-        include: { gradoSeccion: true }
+    if (!gradoSeccionId && estudiante?.gradoSeccion) {
+      gradoSeccionId = estudiante.gradoSeccion.idGradoSeccion
+      console.log(`🎯 Grado-sección obtenido del estudiante: ${gradoSeccionId}`)
+    }
+    
+    // VALIDACIÓN 2: Si es docente, verificar que el estudiante pertenezca a su aula asignada
+    if (userId) {
+      const usuarioCreador = await prisma.usuario.findUnique({
+        where: { idUsuario: userId },
+        include: {
+          roles: { include: { rol: true } },
+          docente: {
+            include: {
+              docenteAulas: true
+            }
+          }
+        }
       })
       
-      if (estudiante?.gradoSeccion) {
-        gradoSeccionId = estudiante.gradoSeccion.idGradoSeccion
-        console.log(`🎯 Grado-sección obtenido del estudiante: ${gradoSeccionId}`)
+      const rolCreador = usuarioCreador?.roles[0]?.rol?.nombre
+      
+      if (rolCreador === 'DOCENTE' && usuarioCreador?.docente) {
+        const aulasDocente = usuarioCreador.docente.docenteAulas.map(da => da.idGradoSeccion)
+        
+        // Verificar si el estudiante está en alguna de las aulas del docente
+        if (aulasDocente.length > 0 && gradoSeccionId && !aulasDocente.includes(gradoSeccionId)) {
+          console.log(`❌ Docente aulas: ${aulasDocente.join(', ')}, Estudiante aula: ${gradoSeccionId}`)
+          return NextResponse.json(
+            { error: 'El estudiante no pertenece a ninguna de sus aulas asignadas' },
+            { status: 403 }
+          )
+        }
       }
     }
     
@@ -481,6 +557,38 @@ export async function POST(request: NextRequest) {
       horaContactoDate = new Date()
     }
     
+    // Obtener información del creador para determinar si es docente
+    let reportadoPorDocenteId: number | null = null
+    let creadorRolTemp = 'DESCONOCIDO'
+    
+    if (userId) {
+      const creadorTemp = await prisma.usuario.findUnique({
+        where: { idUsuario: userId },
+        include: {
+          roles: { include: { rol: true } },
+          docente: true // Incluir relación con docente
+        }
+      })
+      
+      if (creadorTemp) {
+        creadorRolTemp = creadorTemp.roles[0]?.rol?.nombre || 'USUARIO'
+        
+        // Si es docente, obtener su ID de docente
+        if ((creadorRolTemp === 'DOCENTE' || creadorRolTemp === 'AUXILIAR') && creadorTemp.docente) {
+          reportadoPorDocenteId = creadorTemp.docente.idDocente
+          console.log(`👨‍🏫 Retiro reportado por docente ID: ${reportadoPorDocenteId}`)
+        }
+      }
+    }
+    
+    // Determinar el apoderado contactado
+    // Si es docente creando el retiro, el apoderado que retira es el contactado
+    let apoderadoContactadoId = apoderadoContactado ? parseInt(apoderadoContactado) : null
+    if (!apoderadoContactadoId && apoderadoQueRetira && (creadorRolTemp === 'DOCENTE' || creadorRolTemp === 'AUXILIAR')) {
+      apoderadoContactadoId = parseInt(apoderadoQueRetira)
+      console.log(`📞 Apoderado contactado (desde apoderadoQueRetira): ${apoderadoContactadoId}`)
+    }
+    
     // Usar transacción para crear retiro y actualizar asistencia
     const resultado = await prisma.$transaction(async (tx) => {
       // Crear el retiro
@@ -492,15 +600,16 @@ export async function POST(request: NextRequest) {
           fecha: fechaRetiro,
           hora: horaRetiroDate,
           idTipoRetiro: tipoRetiro.idTipoRetiro,
-          origen: origen || (esAdministrativo ? 'PANEL_ADMINISTRATIVO' : 'SOLICITUD_APODERADO'),
-          apoderadoContactado: apoderadoContactado ? parseInt(apoderadoContactado) : null,
+          origen: origen || (esAdministrativo ? 'PANEL_ADMINISTRATIVO' : (reportadoPorDocenteId ? 'SOLICITUD_DOCENTE' : 'SOLICITUD_APODERADO')),
+          reportadoPorDocente: reportadoPorDocenteId,
+          apoderadoContactado: apoderadoContactadoId,
           horaContacto: horaContactoDate,
           medioContacto: medioContacto || (esAdministrativo ? 'PRESENCIAL' : null),
           apoderadoQueRetira: apoderadoQueRetira ? parseInt(apoderadoQueRetira) : null,
           dniVerificado: dniPersonaRecoge || null,
           verificadoPor: verificadoPor ? parseInt(verificadoPor) : (esAdministrativo && userId ? userId : null),
           idEstadoRetiro: estadoRetiro.idEstadoRetiro,
-          observaciones: observaciones || null // Solo observaciones, sin concatenar persona
+          observaciones: observaciones || null
         }
       })
       
@@ -543,7 +652,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Obtener información del creador
-    let creadorInfo: { id: number; nombre: string; apellido: string; rol: string; email: string | undefined } | null = null
+    let creadorInfo: { id: number; nombre: string; apellido: string; rol: string; email: string | undefined; telefono: string | undefined } | null = null
     let creadorRol = 'DESCONOCIDO'
     if (userId) {
       const creador = await prisma.usuario.findUnique({
@@ -560,9 +669,11 @@ export async function POST(request: NextRequest) {
           nombre: creador.nombre || '',
           apellido: creador.apellido || '',
           rol: creador.roles[0]?.rol?.nombre || 'USUARIO',
-          email: creador.email || undefined
+          email: creador.email || undefined,
+          telefono: creador.telefono || undefined
         }
         creadorRol = creador.roles[0]?.rol?.nombre || 'USUARIO'
+        console.log(`👤 Creador del retiro: ${creadorInfo.nombre} ${creadorInfo.apellido} (${creadorRol}) - Tel: ${creadorInfo.telefono || 'No registrado'}`)
       }
     }
 

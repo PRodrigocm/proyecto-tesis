@@ -43,11 +43,42 @@ export const downloadFile = (blob: Blob, filename: string) => {
 }
 
 export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
+  // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+  const fechaStr = dateString.split('T')[0]
+  const [year, month, day] = fechaStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day) // Crear fecha local
   return date.toLocaleDateString('es-ES', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
+  })
+}
+
+/**
+ * Formatea una fecha ISO a formato legible sin problemas de zona horaria
+ * @param dateString - Fecha en formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ) o YYYY-MM-DD
+ * @returns Fecha formateada como DD/MM/YYYY
+ */
+export const formatDateSafe = (dateString: string): string => {
+  const fechaStr = dateString.split('T')[0]
+  const [year, month, day] = fechaStr.split('-')
+  return `${day}/${month}/${year}`
+}
+
+/**
+ * Formatea una fecha ISO a formato largo sin problemas de zona horaria
+ * @param dateString - Fecha en formato ISO
+ * @returns Fecha formateada como "lunes, 06 de diciembre de 2025"
+ */
+export const formatDateLong = (dateString: string): string => {
+  const fechaStr = dateString.split('T')[0]
+  const [year, month, day] = fechaStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   })
 }
 

@@ -173,30 +173,84 @@ export default function RetirosPage() {
 
       {/* Filters mejorados */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-2 mb-4">
-          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <h3 className="font-semibold text-slate-700">Filtros de búsqueda</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <h3 className="font-semibold text-slate-700">Filtros de búsqueda</h3>
+          </div>
+          {(filters.fecha || filters.grado || filters.estado !== 'TODOS' || filters.searchTerm) && (
+            <button
+              onClick={() => {
+                updateFilters({ fecha: '', grado: '', estado: 'TODOS', searchTerm: '' })
+                setSelectedGrado('')
+                setSelectedSeccion('')
+              }}
+              className="text-xs text-slate-500 hover:text-red-500 flex items-center gap-1 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Limpiar filtros
+            </button>
+          )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="fecha" className="block text-sm font-medium text-slate-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* Búsqueda */}
+          <div className="lg:col-span-2 space-y-1.5">
+            <label htmlFor="search" className="block text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Buscar estudiante
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="search"
+                value={filters.searchTerm}
+                onChange={(e) => updateFilters({ searchTerm: e.target.value })}
+                placeholder="Nombre, DNI..."
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+          
+          {/* Fecha */}
+          <div className="space-y-1.5">
+            <label htmlFor="fecha" className="block text-xs font-medium text-slate-500 uppercase tracking-wide">
               Fecha
             </label>
-            <input
-              type="date"
-              id="fecha"
-              value={filters.fecha}
-              onChange={(e) => updateFilters({ fecha: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
-            />
+            <div className="relative">
+              <input
+                type="date"
+                id="fecha"
+                value={filters.fecha}
+                onChange={(e) => updateFilters({ fecha: e.target.value })}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
+              />
+              {filters.fecha && (
+                <button
+                  onClick={() => updateFilters({ fecha: '' })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Grado y Sección
+          
+          {/* Grado */}
+          <div className="space-y-1.5">
+            <label htmlFor="grado" className="block text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Grado
             </label>
-            <div className="flex gap-2">
+            <div className="relative">
               <select
                 id="grado"
                 value={selectedGrado}
@@ -206,75 +260,125 @@ export default function RetirosPage() {
                   updateFilters({ grado: e.target.value })
                 }}
                 disabled={loadingGrados}
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all appearance-none cursor-pointer pr-10"
               >
-                <option value="">Grado</option>
+                <option value="">Todos</option>
                 {gradosDB.map((grado, index) => (
                   <option key={grado.idGrado || `grado-${index}`} value={grado.nombre}>
-                    {grado.nombre}°
+                    {grado.nombre}° Grado
                   </option>
                 ))}
               </select>
-              <select
-                id="seccion"
-                value={selectedSeccion}
-                onChange={(e) => setSelectedSeccion(e.target.value)}
-                disabled={loadingSecciones}
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
-              >
-                <option value="">Sección</option>
-                {seccionesDB.map((seccion, index) => (
-                  <option key={seccion.idSeccion || `seccion-${index}`} value={seccion.nombre}>
-                    {seccion.nombre}
-                  </option>
-                ))}
-              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="estudiante" className="block text-sm font-medium text-slate-700">
-              Estudiante
-            </label>
-            <select
-              id="estudiante"
-              disabled={loadingEstudiantes}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 disabled:bg-slate-100 transition-all"
-            >
-              <option value="">Todos</option>
-              {estudiantesFiltrados.map((estudiante) => (
-                <option key={estudiante.id} value={estudiante.id}>
-                  {estudiante.nombre} {estudiante.apellido}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="estado" className="block text-sm font-medium text-slate-700">
+          
+          {/* Estado */}
+          <div className="space-y-1.5">
+            <label htmlFor="estado" className="block text-xs font-medium text-slate-500 uppercase tracking-wide">
               Estado
             </label>
-            <select
-              id="estado"
-              value={filters.estado}
-              onChange={(e) => updateFilters({ estado: e.target.value as any })}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all"
-            >
-              <option value="TODOS">Todos los Estados</option>
-              <option value="PENDIENTE">Pendientes</option>
-              <option value="AUTORIZADO">Autorizados</option>
-              <option value="RECHAZADO">Rechazados</option>
-            </select>
+            <div className="relative">
+              <select
+                id="estado"
+                value={filters.estado}
+                onChange={(e) => updateFilters({ estado: e.target.value as any })}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 transition-all appearance-none cursor-pointer pr-10"
+              >
+                <option value="TODOS">Todos</option>
+                <option value="PENDIENTE">Pendientes</option>
+                <option value="AUTORIZADO">Autorizados</option>
+                <option value="RECHAZADO">Rechazados</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
+          
+          {/* Botón Actualizar */}
           <div className="flex items-end">
             <button
               onClick={loadRetiros}
-              className="w-full px-4 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all font-medium flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Actualizar
+              Buscar
             </button>
           </div>
+        </div>
+        
+        {/* Filtros activos */}
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+          {filters.fecha && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {new Date(filters.fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+              <button onClick={() => updateFilters({ fecha: '' })} className="hover:text-indigo-900 ml-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+          {filters.searchTerm && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              "{filters.searchTerm}"
+              <button onClick={() => updateFilters({ searchTerm: '' })} className="hover:text-blue-900 ml-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+          {selectedGrado && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              {selectedGrado}° Grado
+              <button onClick={() => { setSelectedGrado(''); updateFilters({ grado: '' }) }} className="hover:text-purple-900 ml-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+          {filters.estado !== 'TODOS' && (
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+              filters.estado === 'PENDIENTE' ? 'bg-amber-50 text-amber-700' :
+              filters.estado === 'AUTORIZADO' ? 'bg-green-50 text-green-700' :
+              'bg-red-50 text-red-700'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                filters.estado === 'PENDIENTE' ? 'bg-amber-500' :
+                filters.estado === 'AUTORIZADO' ? 'bg-green-500' :
+                'bg-red-500'
+              }`}></span>
+              {filters.estado}
+              <button onClick={() => updateFilters({ estado: 'TODOS' })} className="hover:opacity-70 ml-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+          {!filters.fecha && !filters.searchTerm && !selectedGrado && filters.estado === 'TODOS' && (
+            <span className="text-xs text-slate-400 italic">Mostrando todos los retiros</span>
+          )}
         </div>
       </div>
 

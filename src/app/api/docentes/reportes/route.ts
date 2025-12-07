@@ -65,38 +65,53 @@ export async function GET(request: NextRequest) {
 
     console.log('📅 Rango de fechas:', { startDate, endDate })
 
+    // Obtener información del usuario y su IE
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario: decoded.userId || decoded.idUsuario }
+    })
+    
+    if (!usuario || !usuario.idIe) {
+      return NextResponse.json({ error: 'Usuario sin IE asignada' }, { status: 400 })
+    }
+    
+    const ieId = usuario.idIe
+
     // Buscar docente si no es administrador
     let docenteId: number | null = null
+    let docenteAulas: number[] = []
+    
     if (decoded.rol === 'DOCENTE') {
       const docente = await prisma.docente.findFirst({
-        where: { idUsuario: decoded.idUsuario }
+        where: { idUsuario: decoded.userId || decoded.idUsuario },
+        include: {
+          docenteAulas: true
+        }
       })
       if (!docente) {
         return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 })
       }
       docenteId = docente.idDocente
+      docenteAulas = docente.docenteAulas.map(da => da.idGradoSeccion)
     }
 
     // Obtener estudiantes según el rol y filtros
-    let whereClause: any = {}
+    let whereClause: any = {
+      // SIEMPRE filtrar por IE del usuario
+      OR: [
+        { idIe: ieId },
+        { usuario: { idIe: ieId } }
+      ],
+      usuario: { estado: 'ACTIVO' }
+    }
     
-    if (docenteId) {
-      // Para docentes: solo estudiantes de sus clases
-      whereClause = {
-        gradoSeccion: {
-          horariosClase: {
-            some: {
-              idDocente: docenteId
-            }
-          }
-        }
-      }
+    if (docenteId && docenteAulas.length > 0) {
+      // Para docentes: solo estudiantes de sus clases asignadas
+      whereClause.idGradoSeccion = { in: docenteAulas }
     }
 
     // Aplicar filtros adicionales
     if (grado || seccion) {
       whereClause.gradoSeccion = {
-        ...whereClause.gradoSeccion,
         ...(grado && { grado: { nombre: grado } }),
         ...(seccion && { seccion: { nombre: seccion } })
       }
@@ -161,6 +176,23 @@ export async function GET(request: NextRequest) {
           orderBy: {
             fecha: 'asc'
           }
+        },
+        justificaciones: {
+          where: {
+            OR: [
+              {
+                fechaInicio: { lte: endDate },
+                fechaFin: { gte: startDate }
+              }
+            ]
+          },
+          include: {
+            tipoJustificacion: true,
+            estadoJustificacion: true
+          },
+          orderBy: {
+            fechaInicio: 'asc'
+          }
         }
       },
       orderBy: [
@@ -174,31 +206,62 @@ export async function GET(request: NextRequest) {
     // Obtener estadísticas generales
     const totalEstudiantes = estudiantes.length
     const totalAsistencias = estudiantes.reduce((acc, est) => acc + est.asistencias.length, 0)
-    const totalRetiros = estudiantes.reduce((acc, est) => acc + est.retiros.length, 0)
+    const totalRetiros = estudiantes.reduce((acc, est) => 
+      acc + est.retiros.filter(r => r.estadoRetiro?.codigo === 'AUTORIZADO').length, 0)
+    const totalJustificaciones = estudiantes.reduce((acc, est) => 
+      acc + est.justificaciones.filter(j => j.estadoJustificacion?.codigo === 'APROBADA').length, 0)
 
     // Calcular estadísticas por estado de asistencia
     const estadisticasAsistencia = {
       presente: 0,
       tardanza: 0,
       inasistencia: 0,
-      justificada: 0
+      justificada: 0,
+      retiro: 0
     }
 
     estudiantes.forEach(estudiante => {
       estudiante.asistencias.forEach(asistencia => {
-        const codigo = asistencia.estadoAsistencia?.codigo?.toLowerCase()
-        if (codigo === 'presente') estadisticasAsistencia.presente++
-        else if (codigo === 'tardanza') estadisticasAsistencia.tardanza++
-        else if (codigo === 'inasistencia') estadisticasAsistencia.inasistencia++
-        else if (codigo === 'justificada') estadisticasAsistencia.justificada++
+        const codigo = asistencia.estadoAsistencia?.codigo?.toUpperCase()
+        if (codigo === 'PRESENTE') estadisticasAsistencia.presente++
+        else if (codigo === 'TARDANZA') estadisticasAsistencia.tardanza++
+        else if (codigo === 'INASISTENCIA' || codigo === 'AUSENTE') estadisticasAsistencia.inasistencia++
+        else if (codigo === 'JUSTIFICADA' || codigo === 'JUSTIFICADO') estadisticasAsistencia.justificada++
+        else if (codigo === 'RETIRO' || codigo === 'RETIRADO') estadisticasAsistencia.retiro++
       })
     })
 
-    // Calcular porcentajes
+    // Calcular días hábiles en el rango (lunes a viernes)
+    let diasHabiles = 0
+    const currentDate = new Date(startDate)
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay()
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // No domingo ni sábado
+        diasHabiles++
+      }
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    // Calcular porcentajes basados en días hábiles * estudiantes
+    const totalPosiblesAsistencias = diasHabiles * totalEstudiantes
+    const asistenciasEfectivas = estadisticasAsistencia.presente + estadisticasAsistencia.tardanza + estadisticasAsistencia.retiro + estadisticasAsistencia.justificada
+    
     const porcentajes = {
-      asistencia: totalAsistencias > 0 ? ((estadisticasAsistencia.presente + estadisticasAsistencia.tardanza) / totalAsistencias * 100).toFixed(2) : '0',
-      tardanzas: totalAsistencias > 0 ? (estadisticasAsistencia.tardanza / totalAsistencias * 100).toFixed(2) : '0',
-      inasistencias: totalAsistencias > 0 ? (estadisticasAsistencia.inasistencia / totalAsistencias * 100).toFixed(2) : '0'
+      asistencia: totalPosiblesAsistencias > 0 
+        ? ((asistenciasEfectivas / totalPosiblesAsistencias) * 100).toFixed(2) 
+        : '0',
+      tardanzas: totalAsistencias > 0 
+        ? ((estadisticasAsistencia.tardanza / totalAsistencias) * 100).toFixed(2) 
+        : '0',
+      inasistencias: totalPosiblesAsistencias > 0 
+        ? ((estadisticasAsistencia.inasistencia / totalPosiblesAsistencias) * 100).toFixed(2) 
+        : '0',
+      justificadas: totalAsistencias > 0 
+        ? ((estadisticasAsistencia.justificada / totalAsistencias) * 100).toFixed(2) 
+        : '0',
+      retiros: totalAsistencias > 0 
+        ? ((estadisticasAsistencia.retiro / totalAsistencias) * 100).toFixed(2) 
+        : '0'
     }
 
     // Obtener información del docente/institución para el reporte
@@ -252,6 +315,9 @@ export async function GET(request: NextRequest) {
         totalEstudiantes,
         totalAsistencias,
         totalRetiros,
+        totalJustificaciones,
+        diasHabiles,
+        totalPosiblesAsistencias,
         porcentajes,
         estadisticasAsistencia
       },
@@ -267,9 +333,19 @@ export async function GET(request: NextRequest) {
           totalAsistencias: estudiante.asistencias.length,
           presente: estudiante.asistencias.filter(a => a.estadoAsistencia?.codigo === 'PRESENTE').length,
           tardanza: estudiante.asistencias.filter(a => a.estadoAsistencia?.codigo === 'TARDANZA').length,
-          inasistencia: estudiante.asistencias.filter(a => a.estadoAsistencia?.codigo === 'INASISTENCIA').length,
-          justificada: estudiante.asistencias.filter(a => a.estadoAsistencia?.codigo === 'JUSTIFICADA').length,
-          totalRetiros: estudiante.retiros.length
+          inasistencia: estudiante.asistencias.filter(a => 
+            a.estadoAsistencia?.codigo === 'INASISTENCIA' || a.estadoAsistencia?.codigo === 'AUSENTE').length,
+          justificada: estudiante.asistencias.filter(a => 
+            a.estadoAsistencia?.codigo === 'JUSTIFICADA' || a.estadoAsistencia?.codigo === 'JUSTIFICADO').length,
+          retiro: estudiante.asistencias.filter(a => 
+            a.estadoAsistencia?.codigo === 'RETIRO' || a.estadoAsistencia?.codigo === 'RETIRADO').length,
+          totalRetiros: estudiante.retiros.filter(r => r.estadoRetiro?.codigo === 'AUTORIZADO').length,
+          totalJustificaciones: estudiante.justificaciones.filter(j => j.estadoJustificacion?.codigo === 'APROBADA').length,
+          porcentajeAsistencia: diasHabiles > 0 
+            ? (((estudiante.asistencias.filter(a => 
+                ['PRESENTE', 'TARDANZA', 'RETIRO', 'RETIRADO', 'JUSTIFICADA', 'JUSTIFICADO'].includes(a.estadoAsistencia?.codigo || '')
+              ).length) / diasHabiles) * 100).toFixed(2)
+            : '0'
         },
         asistencias: estudiante.asistencias.map(asistencia => ({
           fecha: asistencia.fecha.toISOString().split('T')[0],

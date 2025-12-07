@@ -23,6 +23,7 @@ interface CreadorInfo {
   apellido: string
   rol: string
   email?: string
+  telefono?: string
 }
 
 /**
@@ -158,7 +159,7 @@ export async function notificarRetiroCreadoPorApoderado(
   const apoderadoNombre = `${apoderado.nombre} ${apoderado.apellido}`
 
   try {
-    // Obtener el docente tutor del aula del estudiante
+    // Obtener el estudiante y su grado-sección
     const estudiante = await prisma.estudiante.findFirst({
       where: { 
         usuario: { 
@@ -171,18 +172,47 @@ export async function notificarRetiroCreadoPorApoderado(
       }
     })
 
-    // Buscar docentes de la IE para notificar
-    const docentes = await prisma.docente.findMany({
-      where: {
-        usuario: {
-          idIe: data.ieId
+    // Buscar docentes tutores del aula del estudiante primero
+    let docentes: any[] = []
+    
+    if (estudiante?.idGradoSeccion) {
+      // Buscar docentes asignados al aula del estudiante (tutores)
+      const docentesAula = await prisma.docenteAula.findMany({
+        where: {
+          idGradoSeccion: estudiante.idGradoSeccion,
+          tipoAsignacion: {
+            nombre: { contains: 'Tutor' }
+          }
+        },
+        include: {
+          docente: {
+            include: {
+              usuario: true
+            }
+          }
         }
-      },
-      include: {
-        usuario: true
-      },
-      take: 5 // Limitar a 5 docentes
-    })
+      })
+      
+      docentes = docentesAula.map(da => da.docente).filter(d => d?.usuario)
+      console.log(`📚 Docentes tutores del aula encontrados: ${docentes.length}`)
+    }
+    
+    // Si no hay tutores específicos, buscar docentes de la IE
+    if (docentes.length === 0) {
+      const docentesIE = await prisma.docente.findMany({
+        where: {
+          usuario: {
+            idIe: data.ieId
+          }
+        },
+        include: {
+          usuario: true
+        },
+        take: 3 // Limitar a 3 docentes
+      })
+      docentes = docentesIE
+      console.log(`📚 Docentes de la IE encontrados: ${docentes.length}`)
+    }
 
     // Notificar a los docentes
     for (const docente of docentes) {
@@ -317,12 +347,20 @@ export async function notificarRetiroCreadoPorDocente(
 
         // Email
         if (apoderado.email) {
+          // Construir mensaje con información del docente
+          let mensajeContacto = `El docente ${docenteNombre} ha solicitado un retiro para su hijo/a ${nombreCompleto}.`
+          mensajeContacto += ` Por favor, acérquese a la institución para confirmar el retiro.`
+          
+          if (docente.telefono) {
+            mensajeContacto += ` También puede comunicarse con el docente al número: ${docente.telefono}.`
+          }
+          
           const emailEnviado = await enviarEmail(
             apoderado.email,
             `⚠️ Solicitud de Retiro para ${nombreCompleto}`,
             generarEmailRetiroHTML(data, 'solicitud', {
               titulo: 'Solicitud de Retiro Pendiente',
-              mensaje: `El docente ${docenteNombre} ha solicitado un retiro para su hijo/a ${nombreCompleto}. Por favor, ingrese al sistema para aprobar o rechazar esta solicitud.`,
+              mensaje: mensajeContacto,
               color: '#f59e0b',
               emoji: '⚠️'
             })

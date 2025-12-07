@@ -26,6 +26,19 @@ interface TipoAsignacion {
   nombre: string
 }
 
+// Interfaz para asignación de aula
+interface AulaAsignacion {
+  id: string
+  idDocenteAula?: number
+  gradoId: string
+  seccionId: string
+  tipoAsignacionId: string
+  gradoNombre?: string
+  seccionNombre?: string
+  tipoNombre?: string
+  isNew?: boolean
+}
+
 interface EditDocenteModalProps {
   isOpen: boolean
   onClose: () => void
@@ -44,7 +57,12 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
     dni: '',
     email: '',
     telefono: '',
-    especialidad: '',
+    especialidad: ''
+  })
+  
+  // Estado para múltiples asignaciones
+  const [asignaciones, setAsignaciones] = useState<AulaAsignacion[]>([])
+  const [nuevaAsignacion, setNuevaAsignacion] = useState({
     gradoId: '',
     seccionId: '',
     tipoAsignacionId: ''
@@ -59,14 +77,14 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         dni: docente.dni || '',
         email: docente.email || '',
         telefono: docente.telefono || '',
-        especialidad: docente.especialidad || '',
-        gradoId: '', // Se llenará después de cargar grados
-        seccionId: '', // Se llenará después de cargar secciones
-        tipoAsignacionId: '' // Se llenará después de cargar tipos
+        especialidad: docente.especialidad || ''
       })
+      setNuevaAsignacion({ gradoId: '', seccionId: '', tipoAsignacionId: '' })
       
       // Load grados, secciones and tipos de asignación
       loadInitialData()
+      // Cargar asignaciones actuales del docente
+      loadDocenteAsignaciones()
     }
   }, [docente, isOpen])
 
@@ -75,34 +93,8 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
     await loadTiposAsignacion()
   }
 
-  // Precargar valores cuando se cargan los datos
-  useEffect(() => {
-    if (docente && grados.length > 0) {
-      const gradoEncontrado = grados.find(g => g.nombre === docente.grado)
-      if (gradoEncontrado) {
-        setFormData(prev => ({ ...prev, gradoId: gradoEncontrado.idGrado.toString() }))
-        loadSecciones(gradoEncontrado.idGrado.toString())
-      }
-    }
-  }, [docente, grados])
-
-  useEffect(() => {
-    if (docente && secciones.length > 0) {
-      const seccionEncontrada = secciones.find(s => s.nombre === docente.seccion)
-      if (seccionEncontrada) {
-        setFormData(prev => ({ ...prev, seccionId: seccionEncontrada.idSeccion.toString() }))
-      }
-    }
-  }, [docente, secciones])
-
-  useEffect(() => {
-    if (docente && tiposAsignacion.length > 0) {
-      // Necesitamos obtener el tipo de asignación del docente desde la API
-      loadDocenteAsignacion()
-    }
-  }, [docente, tiposAsignacion])
-
-  const loadDocenteAsignacion = async () => {
+  // Cargar asignaciones actuales del docente
+  const loadDocenteAsignaciones = async () => {
     if (!docente) return
     
     try {
@@ -115,17 +107,83 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         const data = await response.json()
         const docenteData = data.data
         
-        // Si el docente tiene tipo de asignación, precargar el valor
-        if (docenteData.tipoAsignacion && docenteData.tipoAsignacion.idTipoAsignacion) {
-          setFormData(prev => ({ 
-            ...prev, 
-            tipoAsignacionId: docenteData.tipoAsignacion.idTipoAsignacion.toString() 
+        // Cargar las asignaciones existentes (la API devuelve 'asignaciones')
+        if (docenteData.asignaciones && Array.isArray(docenteData.asignaciones)) {
+          const asignacionesCargadas: AulaAsignacion[] = docenteData.asignaciones.map((da: any) => ({
+            id: da.idDocenteAula.toString(),
+            idDocenteAula: da.idDocenteAula,
+            gradoId: da.grado?.idGrado?.toString() || '',
+            seccionId: da.seccion?.idSeccion?.toString() || '',
+            tipoAsignacionId: da.tipoAsignacion?.idTipoAsignacion?.toString() || '',
+            gradoNombre: da.grado?.nombre || '',
+            seccionNombre: da.seccion?.nombre || '',
+            tipoNombre: da.tipoAsignacion?.nombre || '',
+            isNew: false
           }))
+          setAsignaciones(asignacionesCargadas)
         }
       }
     } catch (error) {
-      console.error('Error loading docente asignacion:', error)
+      console.error('Error loading docente asignaciones:', error)
     }
+  }
+
+  // Manejar cambio de grado en nueva asignación
+  const handleNuevaAsignacionGradoChange = (gradoId: string) => {
+    setNuevaAsignacion({
+      ...nuevaAsignacion,
+      gradoId,
+      seccionId: ''
+    })
+    if (gradoId) {
+      loadSecciones(gradoId)
+    } else {
+      setSecciones([])
+    }
+  }
+
+  // Agregar nueva asignación
+  const agregarAsignacion = () => {
+    if (!nuevaAsignacion.gradoId || !nuevaAsignacion.seccionId || !nuevaAsignacion.tipoAsignacionId) {
+      alert('Por favor, complete todos los campos de la asignación')
+      return
+    }
+
+    // Verificar que no exista ya esta combinación
+    const existe = asignaciones.some(
+      a => a.gradoId === nuevaAsignacion.gradoId && 
+           a.seccionId === nuevaAsignacion.seccionId &&
+           a.tipoAsignacionId === nuevaAsignacion.tipoAsignacionId
+    )
+
+    if (existe) {
+      alert('Esta asignación ya existe')
+      return
+    }
+
+    const grado = grados.find(g => g.idGrado.toString() === nuevaAsignacion.gradoId)
+    const seccion = secciones.find(s => s.idSeccion.toString() === nuevaAsignacion.seccionId)
+    const tipo = tiposAsignacion.find(t => t.idTipoAsignacion.toString() === nuevaAsignacion.tipoAsignacionId)
+
+    const nuevaAsignacionCompleta: AulaAsignacion = {
+      id: `new-${Date.now()}`,
+      gradoId: nuevaAsignacion.gradoId,
+      seccionId: nuevaAsignacion.seccionId,
+      tipoAsignacionId: nuevaAsignacion.tipoAsignacionId,
+      gradoNombre: grado?.nombre || '',
+      seccionNombre: seccion?.nombre || '',
+      tipoNombre: tipo?.nombre || '',
+      isNew: true
+    }
+
+    setAsignaciones([...asignaciones, nuevaAsignacionCompleta])
+    setNuevaAsignacion({ gradoId: '', seccionId: '', tipoAsignacionId: '' })
+    setSecciones([])
+  }
+
+  // Eliminar asignación
+  const eliminarAsignacion = (id: string) => {
+    setAsignaciones(asignaciones.filter(a => a.id !== id))
   }
 
   const loadGrados = async () => {
@@ -182,16 +240,6 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
     }
   }
 
-  // Load secciones when grado changes
-  useEffect(() => {
-    if (formData.gradoId) {
-      loadSecciones(formData.gradoId)
-    } else {
-      setSecciones([])
-      setFormData(prev => ({ ...prev, seccionId: '' }))
-    }
-  }, [formData.gradoId])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -216,9 +264,13 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         },
         body: JSON.stringify({
           ...formData,
-          gradoId: formData.gradoId ? parseInt(formData.gradoId) : null,
-          seccionId: formData.seccionId ? parseInt(formData.seccionId) : null,
-          tipoAsignacionId: formData.tipoAsignacionId ? parseInt(formData.tipoAsignacionId) : null
+          asignaciones: asignaciones.map(a => ({
+            id: a.idDocenteAula || null,
+            gradoId: a.gradoId,
+            seccionId: a.seccionId,
+            tipoAsignacionId: a.tipoAsignacionId,
+            isNew: a.isNew || false
+          }))
         })
       })
 
@@ -286,70 +338,116 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
 
           {/* Información Académica */}
           <FormSection number={2} title="Información Académica">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className={labelClass}>Especialidad <span className="text-red-500">*</span></label>
-                <input type="text" name="especialidad" value={formData.especialidad} onChange={handleInputChange} required className={inputClass} placeholder="Ej: Matemáticas" />
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelClass}>Tipo de Asignación</label>
-                <div className="relative">
-                  <select name="tipoAsignacionId" value={formData.tipoAsignacionId} onChange={handleInputChange} className={selectClass}>
-                    <option value="">Seleccionar tipo...</option>
-                    {tiposAsignacion.map((tipo) => (
-                      <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>{tipo.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelClass}>Grado</label>
-                <div className="relative">
-                  <select name="gradoId" value={formData.gradoId} onChange={handleInputChange} className={selectClass}>
-                    <option value="">Seleccionar grado...</option>
-                    {grados.map((grado) => (
-                      <option key={grado.idGrado} value={grado.idGrado}>{grado.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelClass}>Sección</label>
-                <div className="relative">
-                  <select name="seccionId" value={formData.seccionId} onChange={handleInputChange} disabled={!formData.gradoId} className={`${selectClass} disabled:bg-slate-100`}>
-                    <option value="">Seleccionar sección...</option>
-                    {secciones.map((seccion) => (
-                      <option key={seccion.idSeccion} value={seccion.idSeccion}>{seccion.nombre}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className={labelClass}>Especialidad <span className="text-red-500">*</span></label>
+              <input type="text" name="especialidad" value={formData.especialidad} onChange={handleInputChange} required className={inputClass} placeholder="Ej: Matemáticas" />
             </div>
           </FormSection>
 
-          {/* Asignaciones Actuales */}
-          {docente.materias && docente.materias.length > 0 && (
-            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-              <h4 className="text-sm font-semibold text-indigo-900 mb-3">Asignaciones Actuales</h4>
-              <div className="flex flex-wrap gap-2">
-                {docente.materias.map((materia, index) => (
-                  <span key={index} className="px-3 py-1.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-700">
-                    {materia.nombre}
-                  </span>
+          {/* Asignación de Aulas (Múltiple) */}
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Asignación de Aulas
+            </h4>
+            
+            {/* Lista de asignaciones actuales */}
+            {asignaciones.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-medium text-blue-700 mb-2">Aulas asignadas ({asignaciones.length}):</p>
+                {asignaciones.map((asig) => (
+                  <div key={asig.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-700">
+                        {asig.gradoNombre}° {asig.seccionNombre} - {asig.tipoNombre}
+                      </span>
+                      {asig.isNew && (
+                        <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">Nueva</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => eliminarAsignacion(asig.id)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 ))}
               </div>
-              <p className="text-xs text-indigo-600 mt-3">Al asignar un nuevo grado y sección, se reemplazarán las asignaciones actuales.</p>
+            )}
+
+            {asignaciones.length === 0 && (
+              <p className="text-sm text-slate-500 mb-4">No hay aulas asignadas. Agregue una o más asignaciones.</p>
+            )}
+
+            {/* Formulario para agregar nueva asignación */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Grado</label>
+                <select
+                  value={nuevaAsignacion.gradoId}
+                  onChange={(e) => handleNuevaAsignacionGradoChange(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">Seleccionar...</option>
+                  {grados.map((grado) => (
+                    <option key={grado.idGrado} value={grado.idGrado}>{grado.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sección</label>
+                <select
+                  value={nuevaAsignacion.seccionId}
+                  onChange={(e) => setNuevaAsignacion({ ...nuevaAsignacion, seccionId: e.target.value })}
+                  className={selectClass}
+                  disabled={!nuevaAsignacion.gradoId}
+                >
+                  <option value="">Seleccionar...</option>
+                  {secciones.map((seccion) => (
+                    <option key={seccion.idSeccion} value={seccion.idSeccion}>{seccion.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
+                <select
+                  value={nuevaAsignacion.tipoAsignacionId}
+                  onChange={(e) => setNuevaAsignacion({ ...nuevaAsignacion, tipoAsignacionId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Seleccionar...</option>
+                  {tiposAsignacion.map((tipo) => (
+                    <option key={tipo.idTipoAsignacion} value={tipo.idTipoAsignacion}>{tipo.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={agregarAsignacion}
+                  className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Agregar
+                </button>
+              </div>
             </div>
-          )}
+            
+            <p className="text-xs text-blue-600 mt-3">
+              💡 Puede asignar el docente a múltiples grados y secciones.
+            </p>
+          </div>
 
           {/* Información del Sistema */}
           <div className="p-4 bg-slate-100 rounded-xl">

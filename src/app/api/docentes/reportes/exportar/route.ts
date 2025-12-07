@@ -101,90 +101,185 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Función para generar PDF con formato similar al auxiliar
+// Función para generar PDF profesional
 async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
   const { metadatos, resumenEjecutivo, estudiantes } = datos
   
   // Crear documento PDF en orientación vertical para la portada
   const doc = new jsPDF('portrait', 'mm', 'a4')
   
+  // Obtener mes y año del período
+  const fechaInicio = new Date(metadatos.fechaInicio)
+  const mesNombre = fechaInicio.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  
   // ===== PÁGINA 1: PORTADA Y RESUMEN =====
   doc.setFont('helvetica')
   
+  // Encabezado institucional
+  doc.setFillColor(0, 102, 153) // Azul institucional
+  doc.rect(0, 0, 210, 45, 'F')
+  
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text(metadatos.institucion.nombre?.toUpperCase() || 'INSTITUCIÓN EDUCATIVA', 105, 18, { align: 'center' })
+  
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  if (metadatos.institucion.direccion) {
+    doc.text(metadatos.institucion.direccion, 105, 26, { align: 'center' })
+  }
+  if (metadatos.institucion.telefono || metadatos.institucion.email) {
+    const contacto = [metadatos.institucion.telefono, metadatos.institucion.email].filter(Boolean).join(' | ')
+    doc.text(contacto, 105, 33, { align: 'center' })
+  }
+  if (metadatos.institucion.codigo) {
+    doc.text(`Código Modular: ${metadatos.institucion.codigo}`, 105, 40, { align: 'center' })
+  }
+  
+  doc.setTextColor(0, 0, 0)
+  
   // Título principal
+  let yPos = 60
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
-  doc.text('REPORTE DE ASISTENCIAS', 105, 30, { align: 'center' })
+  doc.text('REPORTE MENSUAL DE ASISTENCIAS', 105, yPos, { align: 'center' })
+  yPos += 10
   doc.setFontSize(14)
-  doc.text(metadatos.tipoReporte.toUpperCase(), 105, 40, { align: 'center' })
+  doc.setTextColor(0, 102, 153)
+  doc.text(mesNombre.toUpperCase(), 105, yPos, { align: 'center' })
+  doc.setTextColor(0, 0, 0)
   
   // Línea decorativa
-  doc.setDrawColor(46, 125, 50)
-  doc.setLineWidth(1)
-  doc.line(20, 45, 190, 45)
+  yPos += 8
+  doc.setDrawColor(0, 102, 153)
+  doc.setLineWidth(0.5)
+  doc.line(40, yPos, 170, yPos)
   
-  // Información institucional
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'normal')
-  let yPos = 55
-  doc.text(metadatos.institucion.nombre, 105, yPos, { align: 'center' })
-  yPos += 7
-  if (metadatos.institucion.direccion) {
-    doc.setFontSize(10)
-    doc.text(metadatos.institucion.direccion, 105, yPos, { align: 'center' })
-    yPos += 6
-  }
-  
-  // Información del generador
-  yPos += 10
-  doc.setFontSize(10)
-  doc.text(`Generado por: ${metadatos.generadoPor.nombre}`, 20, yPos)
-  yPos += 6
-  if (metadatos.generadoPor.especialidad) {
-    doc.text(`Especialidad: ${metadatos.generadoPor.especialidad}`, 20, yPos)
-    yPos += 6
-  }
-  doc.text(`Fecha de generación: ${new Date(metadatos.fechaGeneracion).toLocaleDateString('es-ES')}`, 20, yPos)
-  yPos += 6
-  doc.text(`Período: ${new Date(metadatos.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(metadatos.fechaFin).toLocaleDateString('es-ES')}`, 20, yPos)
-  
-  // Resumen ejecutivo
+  // Ficha del responsable
   yPos += 15
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text('RESUMEN EJECUTIVO', 20, yPos)
+  doc.setFillColor(245, 245, 245)
+  doc.roundedRect(20, yPos, 170, 45, 3, 3, 'F')
   
   yPos += 8
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('DATOS DEL RESPONSABLE', 105, yPos, { align: 'center' })
   
-  // Tabla de estadísticas
+  yPos += 10
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  
+  // Columna izquierda
+  doc.setFont('helvetica', 'bold')
+  doc.text('Generado por:', 25, yPos)
+  doc.setFont('helvetica', 'normal')
+  doc.text(metadatos.generadoPor.nombre || 'N/A', 70, yPos)
+  
+  // Columna derecha
+  doc.setFont('helvetica', 'bold')
+  doc.text('Cargo:', 115, yPos)
+  doc.setFont('helvetica', 'normal')
+  doc.text(metadatos.generadoPor.especialidad || 'Docente', 140, yPos)
+  
+  yPos += 8
+  doc.setFont('helvetica', 'bold')
+  doc.text('Fecha de generación:', 25, yPos)
+  doc.setFont('helvetica', 'normal')
+  doc.text(new Date(metadatos.fechaGeneracion).toLocaleDateString('es-ES', { 
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+  }), 70, yPos)
+  
+  yPos += 8
+  doc.setFont('helvetica', 'bold')
+  doc.text('Período evaluado:', 25, yPos)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`${new Date(metadatos.fechaInicio).toLocaleDateString('es-ES')} al ${new Date(metadatos.fechaFin).toLocaleDateString('es-ES')}`, 70, yPos)
+  
+  // Resumen ejecutivo
+  yPos += 25
+  doc.setFillColor(0, 102, 153)
+  doc.rect(20, yPos, 170, 8, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('RESUMEN EJECUTIVO', 105, yPos + 5.5, { align: 'center' })
+  doc.setTextColor(0, 0, 0)
+  
+  yPos += 15
+  
+  // Calcular totales
+  const totalRetiros = resumenEjecutivo.totalRetiros || 0
+  const totalJustificaciones = resumenEjecutivo.totalJustificaciones || 0
+  const diasHabiles = resumenEjecutivo.diasHabiles || 0
+  const retiro = resumenEjecutivo.estadisticasAsistencia?.retiro || 0
+  
+  // Tabla de estadísticas mejorada
   const estadisticas = [
-    ['Total de estudiantes evaluados', resumenEjecutivo.totalEstudiantes.toString()],
-    ['Total de registros de asistencia', resumenEjecutivo.totalAsistencias.toString()],
-    ['Total de retiros registrados', resumenEjecutivo.totalRetiros.toString()],
-    ['Presentes', `${resumenEjecutivo.estadisticasAsistencia.presente} (${resumenEjecutivo.porcentajes.asistencia}%)`],
-    ['Tardanzas', `${resumenEjecutivo.estadisticasAsistencia.tardanza} (${resumenEjecutivo.porcentajes.tardanzas}%)`],
-    ['Inasistencias', `${resumenEjecutivo.estadisticasAsistencia.inasistencia} (${resumenEjecutivo.porcentajes.inasistencias}%)`],
-    ['Justificadas', resumenEjecutivo.estadisticasAsistencia.justificada.toString()]
+    ['Estudiantes evaluados', resumenEjecutivo.totalEstudiantes?.toString() || '0'],
+    ['Días hábiles del período', diasHabiles.toString()],
+    ['Total registros de asistencia', resumenEjecutivo.totalAsistencias?.toString() || '0'],
+    ['Asistencias (Presente)', `${resumenEjecutivo.estadisticasAsistencia?.presente || 0}`],
+    ['Tardanzas', `${resumenEjecutivo.estadisticasAsistencia?.tardanza || 0} (${resumenEjecutivo.porcentajes?.tardanzas || 0}%)`],
+    ['Inasistencias', `${resumenEjecutivo.estadisticasAsistencia?.inasistencia || 0} (${resumenEjecutivo.porcentajes?.inasistencias || 0}%)`],
+    ['Justificadas', `${resumenEjecutivo.estadisticasAsistencia?.justificada || 0} (${resumenEjecutivo.porcentajes?.justificadas || 0}%)`],
+    ['Retiros autorizados', `${retiro} (${resumenEjecutivo.porcentajes?.retiros || 0}%)`],
+    ['PORCENTAJE DE ASISTENCIA EFECTIVA', `${resumenEjecutivo.porcentajes?.asistencia || 0}%`]
   ]
   
   autoTable(doc, {
     startY: yPos,
-    head: [['Métrica', 'Valor']],
+    head: [['Indicador', 'Valor']],
     body: estadisticas,
     theme: 'striped',
-    styles: { fontSize: 9, font: 'helvetica' },
-    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 9, font: 'helvetica', cellPadding: 3 },
+    headStyles: { fillColor: [0, 102, 153], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
-      0: { cellWidth: 100 },
-      1: { cellWidth: 50, halign: 'center' }
+      0: { cellWidth: 110 },
+      1: { cellWidth: 50, halign: 'center', fontStyle: 'bold' }
+    },
+    didParseCell: function(data) {
+      // Resaltar la última fila (porcentaje total)
+      if (data.row.index === estadisticas.length - 1) {
+        data.cell.styles.fillColor = [0, 102, 153]
+        data.cell.styles.textColor = [255, 255, 255]
+        data.cell.styles.fontStyle = 'bold'
+      }
     }
   })
+  
+  // Interpretación del resumen
+  yPos = (doc as any).lastAutoTable.finalY + 10
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'italic')
+  doc.setTextColor(80, 80, 80)
+  
+  const porcentajeAsistencia = parseFloat(resumenEjecutivo.porcentajes?.asistencia || '0')
+  let interpretacion = ''
+  if (porcentajeAsistencia >= 90) {
+    interpretacion = 'El nivel de asistencia es EXCELENTE. Los estudiantes muestran un alto compromiso con su formación académica.'
+  } else if (porcentajeAsistencia >= 75) {
+    interpretacion = 'El nivel de asistencia es BUENO. Se recomienda mantener el seguimiento para mejorar los indicadores.'
+  } else if (porcentajeAsistencia >= 60) {
+    interpretacion = 'El nivel de asistencia es REGULAR. Se sugiere implementar estrategias de seguimiento y comunicación con los apoderados.'
+  } else {
+    interpretacion = 'El nivel de asistencia requiere ATENCIÓN URGENTE. Es necesario coordinar con los apoderados y la dirección.'
+  }
+  
+  const interpretacionLines = doc.splitTextToSize(interpretacion, 160)
+  interpretacionLines.forEach((line: string) => {
+    doc.text(line, 25, yPos)
+    yPos += 5
+  })
+  doc.setTextColor(0, 0, 0)
   
   // ===== PÁGINAS DE DETALLE: TABLAS EN LANDSCAPE =====
   if (estudiantes.length > 0) {
     // Agrupar estudiantes por grado y sección
     const aulaGroups = estudiantes.reduce((groups: any, estudiante: any) => {
-      const aulaKey = `${estudiante.grado}° ${estudiante.seccion}`
+      // Evitar doble símbolo de grado (1°° -> 1°)
+      const gradoLimpio = String(estudiante.grado || '').replace(/°+/g, '')
+      const aulaKey = `${gradoLimpio}° ${estudiante.seccion}`
       if (!groups[aulaKey]) {
         groups[aulaKey] = {
           grado: estudiante.grado,
@@ -227,52 +322,105 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
         : ''
       doc.text(`${mesNombre} • ${fechasPeriodo.length} días laborables`, 15, 22)
       
-      // Headers: Apellidos y nombre + todas las fechas del mes (L, M, X, J, V, S, D)
-      const headers = ['Apellidos y nombre']
+      // Headers: Apellidos y nombre + todas las fechas del mes + Totales
+      // Formato: letra arriba, número abajo (usando salto de línea)
+      const headers = ['Apellidos y Nombre']
       fechasPeriodo.forEach(fecha => {
         const dias = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
         const dia = dias[fecha.getDay()]
-        const numero = fecha.getDate().toString().padStart(2, '0')
-        headers.push(`${dia}${numero}`)
+        const numero = fecha.getDate().toString()
+        headers.push(`${dia}\n${numero}`)
       })
+      // Agregar columnas de totales
+      headers.push('P', 'T', 'F', 'J', 'R', '%')
       
-      // Datos de estudiantes
+      // Datos de estudiantes con totales
       const estudiantesData = aula.estudiantes.map((estudiante: any) => {
         const fila = [`${estudiante.apellido}, ${estudiante.nombre}`]
+        
+        // Contadores para totales
+        let totalP = 0, totalT = 0, totalF = 0, totalJ = 0, totalR = 0
         
         fechasPeriodo.forEach(fecha => {
           const fechaStr = fecha.toISOString().split('T')[0]
           const asistencia = estudiante.asistencias?.find(
-            (a: any) => a.fecha?.split('T')[0] === fechaStr
+            (a: any) => a.fecha?.split('T')[0] === fechaStr || a.fecha === fechaStr
           )
           
-          if (asistencia) {
-            switch (asistencia.estado?.toUpperCase()) {
-              case 'PRESENTE': fila.push('X'); break
-              case 'TARDANZA': fila.push('T'); break
+          // También buscar retiros autorizados
+          const retiro = estudiante.retiros?.find(
+            (r: any) => (r.fecha?.split('T')[0] === fechaStr || r.fecha === fechaStr) && 
+                        (r.estado === 'AUTORIZADO' || r.estado === 'Autorizado')
+          )
+          
+          if (retiro) {
+            fila.push('R')
+            totalR++
+          } else if (asistencia) {
+            const codigo = (asistencia.codigo || asistencia.estado || '').toUpperCase()
+            switch (codigo) {
+              case 'PRESENTE': 
+                fila.push('P')
+                totalP++
+                break
+              case 'TARDANZA': 
+                fila.push('T')
+                totalT++
+                break
               case 'AUSENTE':
-              case 'INASISTENCIA': fila.push('F'); break
+              case 'INASISTENCIA': 
+                fila.push('F')
+                totalF++
+                break
               case 'JUSTIFICADA':
-              case 'JUSTIFICADO': fila.push('J'); break
-              default: fila.push('-')
+              case 'JUSTIFICADO': 
+                fila.push('J')
+                totalJ++
+                break
+              case 'RETIRO':
+              case 'RETIRADO':
+                fila.push('R')
+                totalR++
+                break
+              default: 
+                fila.push('-')
             }
           } else {
             fila.push('-')
           }
         })
         
+        // Agregar totales al final
+        const totalRegistros = totalP + totalT + totalF + totalJ + totalR
+        const porcentaje = totalRegistros > 0 
+          ? Math.round(((totalP + totalT + totalJ + totalR) / fechasPeriodo.length) * 100)
+          : 0
+        
+        fila.push(totalP.toString(), totalT.toString(), totalF.toString(), totalJ.toString(), totalR.toString(), `${porcentaje}%`)
+        
         return fila
       })
       
       // Calcular ancho de columnas dinámicamente
       const pageWidth = 277 // A4 landscape width in mm minus margins
-      const nombreColWidth = 50
-      const fechaColWidth = Math.min(8, (pageWidth - nombreColWidth) / fechasPeriodo.length)
+      const nombreColWidth = 45
+      const totalesColWidth = 8
+      const numTotales = 6 // P, T, F, J, R, %
+      const espacioFechas = pageWidth - nombreColWidth - (totalesColWidth * numTotales)
+      const fechaColWidth = Math.min(7, espacioFechas / fechasPeriodo.length)
       
       const columnStyles: any = { 0: { cellWidth: nombreColWidth, fontStyle: 'bold' } }
       fechasPeriodo.forEach((_, idx) => {
         columnStyles[idx + 1] = { cellWidth: fechaColWidth, halign: 'center' }
       })
+      // Estilos para columnas de totales
+      const totalStartIdx = fechasPeriodo.length + 1
+      columnStyles[totalStartIdx] = { cellWidth: totalesColWidth, halign: 'center', fillColor: [200, 230, 201] } // P - verde claro
+      columnStyles[totalStartIdx + 1] = { cellWidth: totalesColWidth, halign: 'center', fillColor: [255, 243, 224] } // T - naranja claro
+      columnStyles[totalStartIdx + 2] = { cellWidth: totalesColWidth, halign: 'center', fillColor: [255, 205, 210] } // F - rojo claro
+      columnStyles[totalStartIdx + 3] = { cellWidth: totalesColWidth, halign: 'center', fillColor: [187, 222, 251] } // J - azul claro
+      columnStyles[totalStartIdx + 4] = { cellWidth: totalesColWidth, halign: 'center', fillColor: [225, 190, 231] } // R - púrpura claro
+      columnStyles[totalStartIdx + 5] = { cellWidth: 10, halign: 'center', fillColor: [224, 224, 224], fontStyle: 'bold' } // %
       
       // Tabla de asistencia
       autoTable(doc, {
@@ -281,24 +429,27 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
         body: estudiantesData,
         theme: 'grid',
         styles: { 
-          fontSize: 7, 
+          fontSize: 6, 
           cellPadding: 1,
           font: 'helvetica',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          valign: 'middle'
         },
         headStyles: { 
-          fillColor: [46, 125, 50], 
+          fillColor: [0, 102, 153], 
           textColor: 255, 
           fontSize: 6,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle',
+          minCellHeight: 12
         },
         columnStyles,
         didParseCell: function(data) {
           // Colorear celdas según el estado
-          if (data.section === 'body' && data.column.index > 0) {
+          if (data.section === 'body' && data.column.index > 0 && data.column.index <= fechasPeriodo.length) {
             const value = data.cell.text[0]
-            if (value === 'X') {
+            if (value === 'P') {
               data.cell.styles.textColor = [46, 125, 50] // Verde
               data.cell.styles.fontStyle = 'bold'
             } else if (value === 'T') {
@@ -310,6 +461,9 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
             } else if (value === 'J') {
               data.cell.styles.textColor = [33, 150, 243] // Azul
               data.cell.styles.fontStyle = 'bold'
+            } else if (value === 'R') {
+              data.cell.styles.textColor = [156, 39, 176] // Púrpura
+              data.cell.styles.fontStyle = 'bold'
             } else {
               data.cell.styles.textColor = [200, 200, 200] // Gris claro
             }
@@ -317,12 +471,64 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
         }
       })
       
-      // Leyenda al final de la tabla
-      const finalY = (doc as any).lastAutoTable.finalY + 5
+      // Leyenda mejorada al final de la tabla
+      const finalY = (doc as any).lastAutoTable.finalY + 8
       doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('LEYENDA:', 15, finalY)
+      
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(100, 100, 100)
-      doc.text('Leyenda: X=Presente, T=Tardanza, F=Falta, J=Justificada', 15, finalY)
+      doc.setFontSize(7)
+      
+      // Leyenda en formato horizontal con colores
+      let legendX = 35
+      const legendY = finalY
+      
+      // P - Presente
+      doc.setFillColor(200, 230, 201)
+      doc.rect(legendX, legendY - 3, 4, 4, 'F')
+      doc.setTextColor(46, 125, 50)
+      doc.text('P', legendX + 1, legendY)
+      doc.setTextColor(0, 0, 0)
+      doc.text('= Presente', legendX + 6, legendY)
+      legendX += 30
+      
+      // T - Tardanza
+      doc.setFillColor(255, 243, 224)
+      doc.rect(legendX, legendY - 3, 4, 4, 'F')
+      doc.setTextColor(255, 152, 0)
+      doc.text('T', legendX + 1, legendY)
+      doc.setTextColor(0, 0, 0)
+      doc.text('= Tardanza', legendX + 6, legendY)
+      legendX += 30
+      
+      // F - Falta
+      doc.setFillColor(255, 205, 210)
+      doc.rect(legendX, legendY - 3, 4, 4, 'F')
+      doc.setTextColor(244, 67, 54)
+      doc.text('F', legendX + 1, legendY)
+      doc.setTextColor(0, 0, 0)
+      doc.text('= Falta', legendX + 6, legendY)
+      legendX += 25
+      
+      // J - Justificada
+      doc.setFillColor(187, 222, 251)
+      doc.rect(legendX, legendY - 3, 4, 4, 'F')
+      doc.setTextColor(33, 150, 243)
+      doc.text('J', legendX + 1, legendY)
+      doc.setTextColor(0, 0, 0)
+      doc.text('= Justificada', legendX + 6, legendY)
+      legendX += 32
+      
+      // R - Retiro
+      doc.setFillColor(225, 190, 231)
+      doc.rect(legendX, legendY - 3, 4, 4, 'F')
+      doc.setTextColor(156, 39, 176)
+      doc.text('R', legendX + 1, legendY)
+      doc.setTextColor(0, 0, 0)
+      doc.text('= Retiro', legendX + 6, legendY)
+      
       doc.setTextColor(0, 0, 0)
     })
   }
@@ -520,7 +726,7 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
     }
   }
   
-  // Pie de página con número de página
+  // Pie de página profesional con número de página
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
@@ -530,16 +736,27 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
     const pageHeight = doc.internal.pageSize.getHeight()
     const isLandscape = pageWidth > pageHeight
     
+    // Posición del pie según orientación
+    const footerY = isLandscape ? 200 : 285
+    
+    // Línea separadora del pie
+    doc.setDrawColor(0, 102, 153)
+    doc.setLineWidth(0.3)
+    doc.line(15, footerY - 5, pageWidth - 15, footerY - 5)
+    
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(100, 100, 100)
     
-    // Posición del pie según orientación
-    const footerY = isLandscape ? 200 : 285
-    const footerX = 15
+    // Nombre de la institución a la izquierda
+    doc.text(metadatos.institucion.nombre || 'Institución Educativa', 15, footerY)
     
-    doc.text(`Página ${i} de ${pageCount}`, footerX, footerY)
-    doc.text(`${metadatos.institucion.nombre}`, pageWidth - 15, footerY, { align: 'right' })
+    // Número de página centrado
+    doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, footerY, { align: 'center' })
+    
+    // Fecha de generación a la derecha
+    const fechaGen = new Date(metadatos.fechaGeneracion).toLocaleDateString('es-ES')
+    doc.text(`Generado: ${fechaGen}`, pageWidth - 15, footerY, { align: 'right' })
     
     doc.setTextColor(0, 0, 0)
   }
