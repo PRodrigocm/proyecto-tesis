@@ -113,10 +113,7 @@ export async function GET(request: NextRequest) {
         const asistenciaIE = await prisma.asistenciaIE.findFirst({
           where: {
             idEstudiante: estudiante.idEstudiante,
-            fecha: {
-              gte: fechaBusqueda,
-              lt: new Date(fechaBusqueda.getTime() + 24 * 60 * 60 * 1000)
-            }
+            fecha: fechaBusqueda
           },
           orderBy: {
             createdAt: 'desc'
@@ -127,10 +124,7 @@ export async function GET(request: NextRequest) {
         const retiroAutorizado = await prisma.retiro.findFirst({
           where: {
             idEstudiante: estudiante.idEstudiante,
-            fecha: {
-              gte: fechaBusqueda,
-              lt: new Date(fechaBusqueda.getTime() + 24 * 60 * 60 * 1000)
-            },
+            fecha: fechaBusqueda,
             estadoRetiro: {
               codigo: 'AUTORIZADO'
             }
