@@ -70,34 +70,17 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Obtener fecha actual
-    const ahora = new Date()
-    const fechaHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+    // Obtener hora UTC real (para guardar en BD)
+    const ahoraUTC = new Date()
+    // Calcular fecha de hoy en Perú (UTC-5) para la fecha de asistencia
+    const horaPeruParaCalculo = new Date(ahoraUTC.getTime() - (5 * 60 * 60 * 1000))
+    const fechaHoy = new Date(horaPeruParaCalculo.getFullYear(), horaPeruParaCalculo.getMonth(), horaPeruParaCalculo.getDate())
 
-    // Obtener configuración de horarios de la IE para validar hora de salida
-    const configuracion = await prisma.configuracionIE.findUnique({
-      where: { idIe: userInfo.idIe || 1 }
-    })
-    const horaSalidaConfig = configuracion?.horaSalida || '13:00'
-    
-    // Validar que no se haya pasado la hora de salida
-    const horaActualStr = ahora.toLocaleTimeString('es-PE', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/Lima'
-    })
-    
-    if (horaActualStr > horaSalidaConfig) {
-      return NextResponse.json(
-        { 
-          error: 'No se puede registrar asistencia después de la hora de salida',
-          horaSalida: horaSalidaConfig,
-          horaActual: horaActualStr
-        },
-        { status: 400 }
-      )
-    }
+    // NOTA: Se eliminó la validación de hora de salida que bloqueaba el registro
+    // El registro de asistencia debe poder hacerse en cualquier momento
+    // La validación de entrada/salida se hace en el frontend
+    const horaPeruFormateada = ahoraUTC.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: true })
+    console.log(`⏰ Registrando asistencia a las ${horaPeruFormateada} (hora Perú)`)
 
     // Función para formatear hora en zona horaria local (Lima/Peru)
     const formatearHora = (fecha: Date): string => {
@@ -132,7 +115,7 @@ export async function POST(request: NextRequest) {
         asistenciaIE = await prisma.asistenciaIE.update({
           where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
           data: {
-            horaIngreso: ahora,
+            horaIngreso: ahoraUTC, // Guardar hora UTC real
             estado: 'INGRESADO',
             registradoIngresoPor: userId
           }
@@ -145,7 +128,7 @@ export async function POST(request: NextRequest) {
             idEstudiante: estudiante.idEstudiante,
             idIe: userInfo.idIe || 1,
             fecha: fechaHoy,
-            horaIngreso: ahora,
+            horaIngreso: ahoraUTC, // Guardar hora UTC real
             estado: 'INGRESADO',
             registradoIngresoPor: userId
           }
@@ -164,7 +147,7 @@ export async function POST(request: NextRequest) {
         asistenciaIE = await prisma.asistenciaIE.update({
           where: { idAsistenciaIE: asistenciaExistente.idAsistenciaIE },
           data: {
-            horaSalida: ahora,
+            horaSalida: ahoraUTC, // Guardar hora UTC real
             estado: 'RETIRADO',
             registradoSalidaPor: userId
           }
@@ -177,7 +160,7 @@ export async function POST(request: NextRequest) {
             idEstudiante: estudiante.idEstudiante,
             idIe: userInfo.idIe || 1,
             fecha: fechaHoy,
-            horaSalida: ahora,
+            horaSalida: ahoraUTC, // Guardar hora UTC real
             estado: 'RETIRADO',
             registradoSalidaPor: userId
           }
@@ -201,7 +184,7 @@ export async function POST(request: NextRequest) {
         seccion: estudiante.gradoSeccion?.seccion?.nombre,
         codigoQR: estudiante.codigoQR,
         accion: tipoAccion,
-        hora: formatearHora(ahora)
+        hora: formatearHora(ahoraUTC)
       },
       asistenciaIE: {
         id: asistenciaIE.idAsistenciaIE,
@@ -209,7 +192,7 @@ export async function POST(request: NextRequest) {
         horaSalida: asistenciaIE.horaSalida ? formatearHora(asistenciaIE.horaSalida) : null,
         estado: asistenciaIE.estado
       },
-      timestamp: ahora.toISOString()
+      timestamp: ahoraUTC.toISOString()
     })
 
   } catch (error: unknown) {

@@ -302,6 +302,12 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
       return
     }
     
+    // Verificar que haya al menos una asignación
+    if (asignaciones.length === 0) {
+      alert('⚠️ Debe agregar al menos una asignación de aula.\n\nSeleccione Grado, Sección y Tipo, luego haga clic en "Agregar Aula".')
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -546,7 +552,7 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              Asignación de Aulas (Opcional - Puede asignar múltiples)
+              Asignación de Aulas (Requerido)
             </h4>
             
             {/* Lista de asignaciones actuales */}
@@ -634,13 +640,20 @@ export default function CreateDocenteModal({ isOpen, onClose, onSuccess }: Creat
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Agregar
+                  Agregar Aula
                 </button>
               </div>
             </div>
             
+{asignaciones.length === 0 && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-700 font-medium">
+                  ⚠️ Debe agregar al menos una asignación. Seleccione Grado, Sección y Tipo, luego haga clic en "Agregar Aula".
+                </p>
+              </div>
+            )}
             <p className="text-xs text-blue-600 mt-3">
-              💡 Puede asignar el docente a múltiples grados y secciones. Esto permite que varios docentes compartan la misma aula.
+              💡 Puede asignar el docente a múltiples grados y secciones.
             </p>
           </div>
 

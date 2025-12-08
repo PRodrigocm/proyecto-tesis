@@ -2,6 +2,43 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 
+// Función para normalizar estados de asistencia a valores estándar
+function normalizeEstado(estado: string): string {
+  const estadoUpper = estado?.toUpperCase()?.trim() || 'SIN_REGISTRAR'
+  
+  // Mapeo de estados posibles a estados estándar
+  const estadoMap: Record<string, string> = {
+    // Presente
+    'PRESENTE': 'PRESENTE',
+    'INGRESADO': 'PRESENTE',
+    'P': 'PRESENTE',
+    // Tardanza
+    'TARDANZA': 'TARDANZA',
+    'TARDE': 'TARDANZA',
+    'T': 'TARDANZA',
+    // Ausente
+    'AUSENTE': 'AUSENTE',
+    'INASISTENCIA': 'AUSENTE',
+    'FALTA': 'AUSENTE',
+    'A': 'AUSENTE',
+    'F': 'AUSENTE',
+    // Retirado
+    'RETIRADO': 'RETIRADO',
+    'RETIRO': 'RETIRADO',
+    'R': 'RETIRADO',
+    // Justificado
+    'JUSTIFICADO': 'JUSTIFICADO',
+    'JUSTIFICADA': 'JUSTIFICADO',
+    'J': 'JUSTIFICADO',
+    // Sin registrar
+    'SIN_REGISTRAR': 'SIN_REGISTRAR',
+    'PENDIENTE': 'SIN_REGISTRAR',
+    '': 'SIN_REGISTRAR'
+  }
+  
+  return estadoMap[estadoUpper] || estadoUpper
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
@@ -23,8 +60,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Construir filtro de estudiantes
+    // Buscar por idIe del estudiante O por idIe del usuario asociado
     const whereClause: any = {
-      idIe: ieId
+      OR: [
+        { idIe: ieId },
+        { usuario: { idIe: ieId } }
+      ],
+      usuario: {
+        estado: 'ACTIVO'
+      }
     }
 
     if (gradoId) {
@@ -51,8 +95,16 @@ export async function GET(request: NextRequest) {
             seccion: true
           }
         }
-      }
+      },
+      orderBy: [
+        { gradoSeccion: { grado: { nombre: 'asc' } } },
+        { gradoSeccion: { seccion: { nombre: 'asc' } } },
+        { usuario: { apellido: 'asc' } },
+        { usuario: { nombre: 'asc' } }
+      ]
     })
+    
+    console.log(`📊 Asistencia: Encontrados ${estudiantes.length} estudiantes para IE ${ieId}, fecha ${fecha}`)
 
     // Fecha para buscar asistencias
     // Parsear la fecha correctamente para evitar problemas de zona horaria
@@ -111,7 +163,9 @@ export async function GET(request: NextRequest) {
 
       // PRIMERO: Verificar asistencia en aula (Asistencia) - tiene prioridad
       if (asistencia) {
-        estado = asistencia.estadoAsistencia?.codigo || asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE'
+        // Normalizar el código del estado
+        const codigoRaw = asistencia.estadoAsistencia?.codigo || asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE'
+        estado = normalizeEstado(codigoRaw)
         if (asistencia.horaRegistro) {
           horaEntrada = new Date(asistencia.horaRegistro).toLocaleTimeString('es-PE', { 
             hour: '2-digit', 
@@ -124,13 +178,7 @@ export async function GET(request: NextRequest) {
       else if (asistenciaIE) {
         // Si tiene asistencia IE pero no de aula, mostrar el estado de IE
         const estadoIE = asistenciaIE.estado
-        if (estadoIE === 'TARDANZA') {
-          estado = 'TARDANZA'
-        } else if (estadoIE === 'INGRESADO' || estadoIE === 'PRESENTE') {
-          estado = 'PRESENTE'
-        } else {
-          estado = estadoIE || 'PRESENTE'
-        }
+        estado = normalizeEstado(estadoIE || 'PRESENTE')
       }
       // Si no hay ninguna asistencia, queda como SIN_REGISTRAR
 

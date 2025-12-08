@@ -70,7 +70,11 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
 
   // Reset form when modal opens/closes or docente changes
   useEffect(() => {
-    if (docente && isOpen) {
+    const cargarDatosDocente = async () => {
+      if (!docente || !isOpen) return
+      
+      console.log('🔄 Modal abierto para docente:', docente.id)
+      
       setFormData({
         nombre: docente.nombre || '',
         apellido: docente.apellido || '',
@@ -80,12 +84,51 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         especialidad: docente.especialidad || ''
       })
       setNuevaAsignacion({ gradoId: '', seccionId: '', tipoAsignacionId: '' })
+      // Resetear asignaciones antes de cargar las nuevas
+      setAsignaciones([])
       
       // Load grados, secciones and tipos de asignación
-      loadInitialData()
-      // Cargar asignaciones actuales del docente
-      loadDocenteAsignaciones()
+      await loadInitialData()
+      
+      // Cargar asignaciones actuales del docente directamente aquí
+      try {
+        const token = localStorage.getItem('token')
+        console.log('📡 Cargando asignaciones para docente ID:', docente.id)
+        const response = await fetch(`/api/docentes/${docente.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const docenteData = data.data
+          
+          console.log('📋 Datos del docente cargados:', docenteData)
+          console.log('📋 Asignaciones desde API:', docenteData.asignaciones)
+          
+          if (docenteData.asignaciones && Array.isArray(docenteData.asignaciones)) {
+            const asignacionesCargadas: AulaAsignacion[] = docenteData.asignaciones.map((da: any) => ({
+              id: da.idDocenteAula.toString(),
+              idDocenteAula: da.idDocenteAula,
+              gradoId: da.grado?.idGrado?.toString() || '',
+              seccionId: da.seccion?.idSeccion?.toString() || '',
+              tipoAsignacionId: da.tipoAsignacion?.idTipoAsignacion?.toString() || '',
+              gradoNombre: da.grado?.nombre || '',
+              seccionNombre: da.seccion?.nombre || '',
+              tipoNombre: da.tipoAsignacion?.nombre || '',
+              isNew: false
+            }))
+            console.log('📋 Asignaciones mapeadas:', asignacionesCargadas)
+            setAsignaciones(asignacionesCargadas)
+          }
+        } else {
+          console.error('❌ Error cargando docente:', response.status)
+        }
+      } catch (error) {
+        console.error('Error loading docente asignaciones:', error)
+      }
     }
+    
+    cargarDatosDocente()
   }, [docente, isOpen])
 
   const loadInitialData = async () => {
@@ -107,6 +150,9 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         const data = await response.json()
         const docenteData = data.data
         
+        console.log('📋 Datos del docente cargados:', docenteData)
+        console.log('📋 Asignaciones desde API:', docenteData.asignaciones)
+        
         // Cargar las asignaciones existentes (la API devuelve 'asignaciones')
         if (docenteData.asignaciones && Array.isArray(docenteData.asignaciones)) {
           const asignacionesCargadas: AulaAsignacion[] = docenteData.asignaciones.map((da: any) => ({
@@ -120,6 +166,7 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
             tipoNombre: da.tipoAsignacion?.nombre || '',
             isNew: false
           }))
+          console.log('📋 Asignaciones mapeadas:', asignacionesCargadas)
           setAsignaciones(asignacionesCargadas)
         }
       }
@@ -252,7 +299,24 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
     e.preventDefault()
     if (!docente) return
 
+    // Verificar que haya al menos una asignación
+    if (asignaciones.length === 0) {
+      alert('⚠️ Debe agregar al menos una asignación de aula.\n\nSeleccione Grado, Sección y Tipo, luego haga clic en "Agregar".')
+      return
+    }
+
     setLoading(true)
+
+    const asignacionesParaEnviar = asignaciones.map(a => ({
+      id: a.idDocenteAula || null,
+      gradoId: a.gradoId,
+      seccionId: a.seccionId,
+      tipoAsignacionId: a.tipoAsignacionId,
+      isNew: a.isNew || false
+    }))
+    
+    console.log('📤 Enviando asignaciones:', asignacionesParaEnviar)
+    console.log('📤 Estado actual de asignaciones:', asignaciones)
 
     try {
       const token = localStorage.getItem('token')
@@ -264,13 +328,7 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
         },
         body: JSON.stringify({
           ...formData,
-          asignaciones: asignaciones.map(a => ({
-            id: a.idDocenteAula || null,
-            gradoId: a.gradoId,
-            seccionId: a.seccionId,
-            tipoAsignacionId: a.tipoAsignacionId,
-            isNew: a.isNew || false
-          }))
+          asignaciones: asignacionesParaEnviar
         })
       })
 
@@ -350,7 +408,7 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              Asignación de Aulas
+              Asignación de Aulas (Requerido)
             </h4>
             
             {/* Lista de asignaciones actuales */}
@@ -382,7 +440,11 @@ export default function EditDocenteModal({ isOpen, onClose, onSuccess, docente }
             )}
 
             {asignaciones.length === 0 && (
-              <p className="text-sm text-slate-500 mb-4">No hay aulas asignadas. Agregue una o más asignaciones.</p>
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-700 font-medium">
+                  ⚠️ Debe agregar al menos una asignación. Seleccione Grado, Sección y Tipo, luego haga clic en "Agregar".
+                </p>
+              </div>
             )}
 
             {/* Formulario para agregar nueva asignación */}

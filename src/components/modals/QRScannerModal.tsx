@@ -328,14 +328,12 @@ export default function QRScannerModal({
         }
         setEstudiantesEscaneados((prev: Estudiante[]) => [nuevoEscaneado, ...prev])
         
-        // Limpiar después de 4 segundos
+        // Limpiar después de 1.5 segundos (reducido para mejor UX)
         setTimeout(() => {
           setMostrarConfirmacion(false)
-          setTimeout(() => {
-            setEstudianteEscaneado(null)
-            setProcesandoEscaneo(false)
-          }, 1000)
-        }, 4000)
+          setEstudianteEscaneado(null)
+          setProcesandoEscaneo(false)
+        }, 1500)
         
       } else {
         let errorMsg = 'Error desconocido'
@@ -485,7 +483,12 @@ export default function QRScannerModal({
           <div className="mb-3 md:mb-6">
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setModoEscaneo('camara')}
+                onClick={async () => {
+                  if (modoEscaneo === 'manual') {
+                    await detenerEscaner()
+                  }
+                  setModoEscaneo('camara')
+                }}
                 className={`flex-1 md:flex-none px-3 md:px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                   modoEscaneo === 'camara'
                     ? 'bg-blue-600 text-white'
@@ -495,7 +498,10 @@ export default function QRScannerModal({
                 📷 Cámara
               </button>
               <button
-                onClick={() => setModoEscaneo('manual')}
+                onClick={async () => {
+                  await detenerEscaner()
+                  setModoEscaneo('manual')
+                }}
                 className={`flex-1 md:flex-none px-3 md:px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                   modoEscaneo === 'manual'
                     ? 'bg-blue-600 text-white'

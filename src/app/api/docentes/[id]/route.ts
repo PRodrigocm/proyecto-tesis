@@ -28,6 +28,8 @@ export async function GET(
       return NextResponse.json({ error: 'ID de docente inválido' }, { status: 400 })
     }
 
+    console.log('🔍 Buscando docente con ID:', docenteId)
+    
     // Buscar el docente con toda su información
     const docente = await prisma.docente.findUnique({
       where: { idDocente: docenteId },
@@ -50,6 +52,8 @@ export async function GET(
         }
       }
     })
+    
+    console.log('📋 DocenteAulas encontradas:', docente?.docenteAulas?.length || 0)
 
     if (!docente) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 })

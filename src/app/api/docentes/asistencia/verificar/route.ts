@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { notificarEntradaSalida } from '@/lib/notifications'
 
 /**
  * POST - Verificar/Aprobar asistencia precargada por auxiliar
@@ -121,14 +122,24 @@ export async function POST(request: NextRequest) {
           const tolerancia = horarioClase.toleranciaMin || 15
           const horaIngresoDate = new Date(horaIngreso)
 
-          // Usar hora local para comparación
-          const horaIngresoMinutos = horaIngresoDate.getHours() * 60 + horaIngresoDate.getMinutes()
-          const horaInicioMinutos = horaInicioClase.getHours() * 60 + horaInicioClase.getMinutes()
+          // El horario de clase está guardado en UTC, usar getUTCHours/getUTCMinutes
+          const horaInicioMinutos = horaInicioClase.getUTCHours() * 60 + horaInicioClase.getUTCMinutes()
+          
+          // La hora de ingreso está en UTC, convertir a hora de Perú para comparar
+          const horaIngresoPeruStr = horaIngresoDate.toLocaleTimeString('es-PE', { 
+            timeZone: 'America/Lima', 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          })
+          const [horaStr, minStr] = horaIngresoPeruStr.split(':')
+          const horaIngresoMinutos = parseInt(horaStr) * 60 + parseInt(minStr)
+          
           const limiteTardanza = horaInicioMinutos + tolerancia
 
           console.log('🕐 Comparación de horas:', {
-            horaIngreso: `${horaIngresoDate.getHours()}:${horaIngresoDate.getMinutes()}`,
-            horaInicioClase: `${horaInicioClase.getHours()}:${horaInicioClase.getMinutes()}`,
+            horaIngreso: horaIngresoPeruStr,
+            horaInicioClase: `${horaInicioClase.getUTCHours()}:${String(horaInicioClase.getUTCMinutes()).padStart(2, '0')}`,
             horaIngresoMinutos,
             horaInicioMinutos,
             tolerancia,
@@ -231,6 +242,79 @@ export async function POST(request: NextRequest) {
     })
 
     console.log(`✅ Docente aprobó verificación: estudiante=${estudianteId}, estado=${estadoCodigo}`)
+
+    // ENVIAR NOTIFICACIÓN AL APODERADO (ASÍNCRONO - no bloquea la respuesta)
+    setImmediate(async () => {
+      try {
+        // Obtener datos del estudiante
+        const estudiante = await prisma.estudiante.findUnique({
+          where: { idEstudiante: parseInt(estudianteId) },
+          include: {
+            usuario: true,
+            gradoSeccion: {
+              include: {
+                grado: true,
+                seccion: true
+              }
+            }
+          }
+        })
+
+        if (!estudiante) {
+          console.log('⚠️ No se encontró estudiante para notificación')
+          return
+        }
+
+        // Buscar apoderado
+        const apoderado = await prisma.apoderado.findFirst({
+          where: {
+            estudiantes: {
+              some: {
+                idEstudiante: parseInt(estudianteId)
+              }
+            }
+          },
+          include: {
+            usuario: true
+          }
+        })
+
+        if (apoderado && apoderado.usuario.email) {
+          console.log(`📧 Enviando notificación de verificación al apoderado...`)
+          
+          // Formatear hora de ingreso del auxiliar para mostrar
+          const horaIngresoFormateada = asistenciaIE.horaIngreso 
+            ? new Date(asistenciaIE.horaIngreso).toLocaleTimeString('es-PE', { 
+                timeZone: 'America/Lima',
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+              })
+            : 'N/A'
+
+          await notificarEntradaSalida({
+            estudianteNombre: estudiante.usuario.nombre || '',
+            estudianteApellido: estudiante.usuario.apellido || '',
+            estudianteDNI: estudiante.usuario.dni,
+            grado: estudiante.gradoSeccion?.grado?.nombre || '',
+            seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+            accion: 'entrada',
+            hora: asistenciaIE.horaIngreso?.toISOString() || horaActual.toISOString(),
+            fecha: fechaAsistencia.toISOString(),
+            emailApoderado: apoderado.usuario.email,
+            telefonoApoderado: apoderado.usuario.telefono || '',
+            textoPersonalizado: estadoCodigo === 'PRESENTE' 
+              ? `✅ PRESENTE EN EL AULA - Ingreso: ${horaIngresoFormateada}` 
+              : `⚠️ TARDANZA EN EL AULA - Ingreso: ${horaIngresoFormateada}`
+          })
+          console.log(`📧 Notificación de verificación enviada exitosamente`)
+        } else {
+          console.log('⚠️ No se encontró apoderado o email para notificación')
+        }
+      } catch (notifError) {
+        console.error(`⚠️ Error al enviar notificación (no crítico):`, notifError)
+      }
+    })
 
     return NextResponse.json({
       success: true,

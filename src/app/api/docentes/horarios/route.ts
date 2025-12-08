@@ -101,9 +101,24 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Docente encontrado:', docente.idDocente)
 
+    // Obtener los grados-secciones asignados al docente
+    const docenteAulas = await prisma.docenteAula.findMany({
+      where: { idDocente: docente.idDocente },
+      select: { idGradoSeccion: true }
+    })
+    
+    const gradoSeccionIds = docenteAulas.map(da => da.idGradoSeccion)
+    console.log('📋 Grados-Secciones asignados:', gradoSeccionIds)
+
+    // Buscar horarios donde:
+    // 1. El docente está asignado directamente (idDocente)
+    // 2. O el horario es de un grado-sección asignado al docente
     const horariosClase = await prisma.horarioClase.findMany({
       where: {
-        idDocente: docente.idDocente
+        OR: [
+          { idDocente: docente.idDocente },
+          { idGradoSeccion: { in: gradoSeccionIds } }
+        ]
       },
       include: {
         gradoSeccion: {

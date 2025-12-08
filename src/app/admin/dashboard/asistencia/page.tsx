@@ -33,7 +33,7 @@ interface Estudiante {
   aula?: string
   nivel?: string
   codigoQR?: string
-  estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' | 'SIN_REGISTRAR'
+  estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' | 'JUSTIFICADO' | 'SIN_REGISTRAR'
   horaEntrada?: string
   horaSalida?: string
   asistenciaAula?: boolean
@@ -50,7 +50,7 @@ interface EstudianteEscaneado {
   accion: string
   hora: string
   codigo?: string
-  estado?: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA'
+  estado?: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' | 'JUSTIFICADO'
   duplicado?: boolean
   mensajeDuplicado?: string
 }
@@ -76,6 +76,8 @@ export default function AdminAsistenciaPage() {
     tardanzas: 0,
     ausentes: 0,
     retirados: 0,
+    justificados: 0,
+    sinRegistrar: 0,
     total: 0
   })
 
@@ -201,6 +203,8 @@ export default function AdminAsistenciaPage() {
       tardanzas: data.filter(e => e.estado === 'TARDANZA').length,
       ausentes: data.filter(e => e.estado === 'AUSENTE').length,
       retirados: data.filter(e => e.estado === 'RETIRADO').length,
+      justificados: data.filter(e => e.estado === 'JUSTIFICADO').length,
+      sinRegistrar: data.filter(e => e.estado === 'SIN_REGISTRAR').length,
       total: data.length
     })
   }
@@ -242,6 +246,8 @@ export default function AdminAsistenciaPage() {
       'TARDANZA': 'bg-yellow-100 text-yellow-800',
       'AUSENTE': 'bg-red-100 text-red-800',
       'RETIRADO': 'bg-blue-100 text-blue-800',
+      'JUSTIFICADO': 'bg-purple-100 text-purple-800',
+      'INASISTENCIA': 'bg-red-100 text-red-800',
       'SIN_REGISTRAR': 'bg-gray-100 text-gray-800'
     }
     return badges[estado] || 'bg-gray-100 text-gray-800'
@@ -253,6 +259,8 @@ export default function AdminAsistenciaPage() {
       'TARDANZA': 'Tardanza',
       'AUSENTE': 'Ausente',
       'RETIRADO': 'Retirado',
+      'JUSTIFICADO': 'Justificado',
+      'INASISTENCIA': 'Inasistencia',
       'SIN_REGISTRAR': 'Sin registrar'
     }
     return labels[estado] || estado
@@ -389,6 +397,8 @@ export default function AdminAsistenciaPage() {
               <option value="TARDANZA">Tardanza</option>
               <option value="AUSENTE">Ausente</option>
               <option value="RETIRADO">Retirado</option>
+              <option value="JUSTIFICADO">Justificado</option>
+              <option value="SIN_REGISTRAR">Sin registrar</option>
             </select>
           </div>
           <div>

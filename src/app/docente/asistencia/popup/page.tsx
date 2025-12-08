@@ -11,8 +11,10 @@ interface Estudiante {
   apellido: string
   dni: string
   codigo: string
-  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar'
+  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar' | 'inasistencia' | 'justificada' | 'retirado'
   horaLlegada?: string
+  pendienteVerificacion?: boolean
+  horaIngresoIE?: string
 }
 
 function TomarAsistenciaPopupContent() {

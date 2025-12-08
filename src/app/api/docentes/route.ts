@@ -300,6 +300,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { nombre, apellido, dni, email, telefono, especialidad, asignaciones } = body
 
+    console.log('📝 PUT /api/docentes - Body recibido:', JSON.stringify(body, null, 2))
+    console.log('📋 Asignaciones recibidas:', asignaciones)
+
     if (!docenteId) {
       return NextResponse.json(
         { error: 'Docente ID is required' },

@@ -46,19 +46,7 @@ export async function POST(request: NextRequest) {
     })
     const horaSalidaConfig = configuracion?.horaSalida || '13:00'
     
-    // Validar que no se haya pasado la hora de salida
-    const ahora = new Date()
-    const horaActualStr = ahora.toTimeString().slice(0, 5) // HH:MM
-    if (horaActualStr > horaSalidaConfig) {
-      return NextResponse.json(
-        { 
-          error: 'No se puede registrar asistencia después de la hora de salida',
-          horaSalida: horaSalidaConfig,
-          horaActual: horaActualStr
-        },
-        { status: 400 }
-      )
-    }
+    console.log(`⏰ Hora de salida configurada: ${horaSalidaConfig}`)
 
     let guardados = 0
     let errores = 0
@@ -122,12 +110,17 @@ export async function POST(request: NextRequest) {
           }
         })
 
-        // Convertir hora string (HH:MM) a Date
-        let horaRegistro = new Date()
+        // Usar hora UTC real para el registro
+        const ahoraUTC = new Date()
+        let horaRegistro = ahoraUTC
+        
+        // Si se proporciona una hora espec\u00edfica (HH:MM), crear fecha con esa hora en UTC
+        // La hora proporcionada se asume que es hora de Per\u00fa, as\u00ed que sumamos 5 horas para convertir a UTC
         if (est.hora && typeof est.hora === 'string') {
           const [horas, minutos] = est.hora.split(':').map(Number)
           horaRegistro = new Date(fechaAsistencia)
-          horaRegistro.setHours(horas, minutos, 0, 0)
+          // Sumar 5 horas para convertir hora Per\u00fa a UTC
+          horaRegistro.setUTCHours(horas + 5, minutos, 0, 0)
         }
 
         // Si ya existe asistencia, actualizar según la acción

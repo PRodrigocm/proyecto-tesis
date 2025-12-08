@@ -14,8 +14,10 @@ interface Estudiante {
   apellido: string
   dni: string
   codigo: string
-  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar'
+  estado: 'presente' | 'tardanza' | 'pendiente' | 'sin_registrar' | 'inasistencia' | 'justificada' | 'retirado'
   horaLlegada?: string
+  pendienteVerificacion?: boolean
+  horaIngresoIE?: string
 }
 
 interface TomarAsistenciaPopupProps {
@@ -144,17 +146,24 @@ export default function TomarAsistenciaPopup({
       return
     }
     
-    // Verificar si el estudiante ya tiene asistencia registrada
-    const estudianteYaRegistrado = estudiantes.find(
-      est => est.codigo === codigoLimpio && (est.estado === 'presente' || est.estado === 'tardanza')
-    )
+    // Verificar si el estudiante ya tiene asistencia registrada POR EL DOCENTE
+    // NOTA: Si tiene pendienteVerificacion=true (asistencia del auxiliar), permitir escanear
+    const estudianteEncontrado = estudiantes.find(est => est.codigo === codigoLimpio)
+    const estudianteYaRegistrado = estudianteEncontrado && 
+      (estudianteEncontrado.estado === 'presente' || estudianteEncontrado.estado === 'tardanza') &&
+      !estudianteEncontrado.pendienteVerificacion // Permitir si es asistencia del auxiliar
     
     if (estudianteYaRegistrado) {
-      console.log(`⏭️ Estudiante ${estudianteYaRegistrado.nombre} ${estudianteYaRegistrado.apellido} ya tiene asistencia registrada, ignorando...`)
+      console.log(`\u23ed\ufe0f Estudiante ${estudianteEncontrado?.nombre} ya tiene asistencia del DOCENTE, ignorando...`)
       // Marcar como procesado para no volver a intentar
       codigosProcesadosRef.current.add(codigoLimpio)
       setContadorProcesados(codigosProcesadosRef.current.size)
       return
+    }
+    
+    // Si tiene asistencia del auxiliar (pendienteVerificacion), permitir que el docente la confirme
+    if (estudianteEncontrado?.pendienteVerificacion) {
+      console.log(`\ud83d\udcdd Estudiante ${estudianteEncontrado.nombre} tiene asistencia del AUXILIAR, el docente la confirmar\u00e1`)
     }
     
     const ultimoCooldown = codigosCooldownRef.current.get(codigoLimpio)
@@ -211,7 +220,7 @@ export default function TomarAsistenciaPopup({
         onSave(estudiantes)
         console.log('✅ onSave ejecutado')
         
-        // Mostrar confirmación
+        // Mostrar confirmación - usar timezone de Perú para mostrar hora correcta
         setEstudianteEscaneado({ 
           id: data.estudiante.id,
           nombre: data.estudiante.nombre,
@@ -219,21 +228,20 @@ export default function TomarAsistenciaPopup({
           dni: data.estudiante.dni,
           codigo: data.estudiante.codigo,
           estado: data.asistencia.estado.toLowerCase() as 'presente' | 'tardanza',
-          horaLlegada: new Date(data.asistencia.horaRegistro).toLocaleTimeString('es-ES', { 
+          horaLlegada: new Date(data.asistencia.horaRegistro).toLocaleTimeString('es-PE', { 
             hour: '2-digit', 
-            minute: '2-digit' 
+            minute: '2-digit',
+            timeZone: 'America/Lima'
           })
         })
         setMostrarConfirmacion(true)
         
-        // Ocultar confirmación
+        // Ocultar confirmación (reducido de 4s a 1.5s para mejor UX)
         setTimeout(() => {
           setMostrarConfirmacion(false)
-          setTimeout(() => {
-            setEstudianteEscaneado(null)
-            setProcesandoEscaneo(false)
-          }, 1000)
-        }, 4000)
+          setEstudianteEscaneado(null)
+          setProcesandoEscaneo(false)
+        }, 1500)
         
       } else {
         // El body ya fue leído en 'data', usarlo directamente
@@ -338,12 +346,12 @@ export default function TomarAsistenciaPopup({
     }
   }, [claseSeleccionada, fechaSeleccionada])
 
-  // Auto-refresh cada 3 segundos para actualizar tarjetas en tiempo real
+  // Auto-refresh cada 10 segundos (reducido de 3s para mejor rendimiento)
   // También verifica si debe marcar inasistencias automáticas
   useEffect(() => {
     if (!claseSeleccionada || !fechaSeleccionada) return
 
-    console.log('🔄 Auto-refresh activado (cada 3s)')
+    console.log('🔄 Auto-refresh activado (cada 10s)')
     let inasistenciasMarcadas = false // Flag para evitar llamar múltiples veces
     
     const verificarYRefrescar = async () => {
@@ -418,9 +426,9 @@ export default function TomarAsistenciaPopup({
       }
     }
     
-    // Ejecutar inmediatamente y luego cada 3 segundos
+    // Ejecutar inmediatamente y luego cada 10 segundos (reducido de 3s)
     verificarYRefrescar()
-    const interval = setInterval(verificarYRefrescar, 3000)
+    const interval = setInterval(verificarYRefrescar, 10000)
 
     return () => {
       console.log('🛑 Auto-refresh detenido')
@@ -481,7 +489,13 @@ export default function TomarAsistenciaPopup({
             <div className="mb-2 sticky top-0 bg-white z-20 pb-2 -mx-3 px-3 pt-2 border-b border-gray-200">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setModoEscaneo('camara')}
+                  onClick={async () => {
+                    // Detener scanner antes de cambiar a modo cámara
+                    await detenerEscaner()
+                    setModoEscaneo('camara')
+                    // Re-detectar cámaras para asegurar que el select funcione
+                    setTimeout(() => detectarCamaras(), 100)
+                  }}
                   className={`flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm ${
                     modoEscaneo === 'camara' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
                   }`}
@@ -489,7 +503,11 @@ export default function TomarAsistenciaPopup({
                   📷 Escanear QR
                 </button>
                 <button
-                  onClick={() => setModoEscaneo('manual')}
+                  onClick={async () => {
+                    // Detener scanner al cambiar a modo manual
+                    await detenerEscaner()
+                    setModoEscaneo('manual')
+                  }}
                   className={`flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm ${
                     modoEscaneo === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
                   }`}
