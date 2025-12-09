@@ -85,12 +85,25 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Verificar si hay un retiro autorizado para hoy
+    const retiroAutorizado = await prisma.retiro.findFirst({
+      where: {
+        idEstudiante: estudiante.idEstudiante,
+        fecha: fechaHoy,
+        estadoRetiro: {
+          codigo: 'AUTORIZADO'
+        }
+      }
+    })
+
     // Registrar salida en AsistenciaIE
+    // El estado solo cambia a RETIRADO si hay un retiro autorizado
+    // Si no hay retiro, mantiene el estado actual (PRESENTE o TARDANZA)
     const asistenciaActualizada = await prisma.asistenciaIE.update({
       where: { idAsistenciaIE: asistenciaHoy.idAsistenciaIE },
       data: {
         horaSalida: ahora,
-        estado: 'RETIRADO',
+        estado: retiroAutorizado ? 'RETIRADO' : asistenciaHoy.estado,
         registradoSalidaPor: userInfo.idUsuario
       }
     })

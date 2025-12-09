@@ -89,21 +89,33 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => ({
-      id: asistencia.idAsistenciaIE.toString(),
-      fecha: asistencia.fecha.toISOString().split('T')[0],
-      horaEntrada: asistencia.horaIngreso?.toTimeString().slice(0, 5),
-      horaSalida: asistencia.horaSalida?.toTimeString().slice(0, 5),
-      estado: asistencia.estado,
-      estudiante: {
-        id: asistencia.estudiante.idEstudiante.toString(),
-        nombre: asistencia.estudiante.usuario.nombre,
-        apellido: asistencia.estudiante.usuario.apellido,
-        dni: asistencia.estudiante.usuario.dni,
-        grado: asistencia.estudiante.gradoSeccion?.grado.nombre,
-        seccion: asistencia.estudiante.gradoSeccion?.seccion.nombre
+    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => {
+      // Determinar estado basado en entrada y salida
+      let estado = 'PRESENTE'
+      if (asistencia.horaIngreso && asistencia.horaSalida) {
+        estado = 'COMPLETO'
+      } else if (asistencia.horaIngreso && !asistencia.horaSalida) {
+        estado = 'FALTA_SALIDA'
+      } else if (!asistencia.horaIngreso) {
+        estado = 'AUSENTE'
       }
-    }))
+      
+      return {
+        id: asistencia.idAsistenciaIE.toString(),
+        fecha: asistencia.fecha.toISOString().split('T')[0],
+        horaEntrada: asistencia.horaIngreso?.toTimeString().slice(0, 5),
+        horaSalida: asistencia.horaSalida?.toTimeString().slice(0, 5),
+        estado: estado,
+        estudiante: {
+          id: asistencia.estudiante.idEstudiante.toString(),
+          nombre: asistencia.estudiante.usuario.nombre,
+          apellido: asistencia.estudiante.usuario.apellido,
+          dni: asistencia.estudiante.usuario.dni,
+          grado: asistencia.estudiante.gradoSeccion?.grado.nombre,
+          seccion: asistencia.estudiante.gradoSeccion?.seccion.nombre
+        }
+      }
+    })
 
     return NextResponse.json({
       success: true,

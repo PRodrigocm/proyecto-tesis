@@ -16,7 +16,7 @@ export default function ApoderadoLayout({
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
 
-  // Cargar datos del usuario
+  // Cargar datos del usuario y verificar autenticación
   useEffect(() => {
     setMounted(true)
     
@@ -25,42 +25,60 @@ export default function ApoderadoLayout({
         const storedUser = localStorage.getItem('user')
         const token = localStorage.getItem('token')
         
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser)
-            console.log('👤 Usuario cargado en layout apoderado:', parsedUser)
-            setUser(parsedUser)
-            
-            // Si faltan datos importantes, intentar cargar desde el servidor
-            if ((!parsedUser.nombre || !parsedUser.apellido || !parsedUser.ie?.nombre) && token) {
-              try {
-                const response = await fetch('/api/auth/me', {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                })
-                
-                if (response.ok) {
-                  const userData = await response.json()
-                  console.log('👤 Datos actualizados del servidor:', userData)
-                  
-                  // Actualizar localStorage con datos completos
-                  localStorage.setItem('user', JSON.stringify(userData.user))
-                  setUser(userData.user)
-                }
-              } catch (error) {
-                console.log('⚠️ No se pudieron cargar datos adicionales del servidor:', error)
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing user data:', error)
+        // Redirigir al login si no hay token o usuario
+        if (!token || !storedUser) {
+          router.push('/login')
+          return
+        }
+        
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          
+          // Verificar que el rol sea APODERADO
+          if (parsedUser.rol !== 'APODERADO') {
+            router.push('/login')
+            return
           }
+          
+          console.log('👤 Usuario cargado en layout apoderado:', parsedUser)
+          setUser(parsedUser)
+          
+          // Si faltan datos importantes, intentar cargar desde el servidor
+          if ((!parsedUser.nombre || !parsedUser.apellido || !parsedUser.ie?.nombre) && token) {
+            try {
+              const response = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              })
+              
+              if (response.ok) {
+                const userData = await response.json()
+                console.log('👤 Datos actualizados del servidor:', userData)
+                
+                // Actualizar localStorage con datos completos
+                localStorage.setItem('user', JSON.stringify(userData.user))
+                setUser(userData.user)
+              } else if (response.status === 401) {
+                // Token inválido o expirado
+                localStorage.removeItem('token')
+                localStorage.removeItem('user')
+                router.push('/login')
+                return
+              }
+            } catch (error) {
+              console.log('⚠️ No se pudieron cargar datos adicionales del servidor:', error)
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error)
+          router.push('/login')
         }
       }
     }
     
     loadUserData()
-  }, [])
+  }, [router])
 
   const navigation = [
     {
@@ -239,21 +257,9 @@ export default function ApoderadoLayout({
             </svg>
           </button>
           
-          <div className="flex-1 px-4 flex justify-between">
-            <div className="flex-1 flex">
-              <div className="w-full flex md:ml-0">
-                <div className="relative w-full text-gray-400 focus-within:text-gray-600">
-                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" suppressHydrationWarning>
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
+          <div className="flex-1 px-4 flex justify-end">
             <div className="flex justify-between h-16">
-              <div className="flex items-center">
+              <div className="hidden md:flex items-center mr-4">
                 <h1 className="text-xl font-semibold text-gray-900">
                   Portal Apoderado
                 </h1>

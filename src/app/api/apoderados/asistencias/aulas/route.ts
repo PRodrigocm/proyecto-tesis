@@ -92,25 +92,32 @@ export async function GET(request: NextRequest) {
     })
 
     // Formatear asistencias
-    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => ({
-      id: asistencia.idAsistencia.toString(),
-      fecha: asistencia.fecha.toISOString(),
-      hora: asistencia.horaRegistro?.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }) || 'N/A',
-      materia: asistencia.horarioClase?.materia || 'Sin especificar',
-      aula: asistencia.horarioClase?.aula || 'Sin especificar',
-      estado: asistencia.estadoAsistencia?.codigo || 'PENDIENTE',
-      estudiante: {
-        id: asistencia.estudiante.idEstudiante.toString(),
-        nombre: asistencia.estudiante.usuario.nombre || '',
-        apellido: asistencia.estudiante.usuario.apellido || '',
-        dni: asistencia.estudiante.usuario.dni,
-        grado: asistencia.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
-        seccion: asistencia.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
+    const asistenciasFormateadas = asistencias.map((asistencia: typeof asistencias[number]) => {
+      // Determinar el aula: usar la del horario, o construir desde grado-sección
+      const gradoNombre = asistencia.estudiante.gradoSeccion?.grado.nombre || ''
+      const seccionNombre = asistencia.estudiante.gradoSeccion?.seccion.nombre || ''
+      const aulaDefault = gradoNombre && seccionNombre ? `Aula ${gradoNombre}° ${seccionNombre}` : 'Sin especificar'
+      
+      return {
+        id: asistencia.idAsistencia.toString(),
+        fecha: asistencia.fecha.toISOString(),
+        hora: asistencia.horaRegistro?.toLocaleTimeString('es-ES', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }) || 'N/A',
+        materia: asistencia.horarioClase?.materia || 'Clase Regular',
+        aula: asistencia.horarioClase?.aula || aulaDefault,
+        estado: asistencia.estadoAsistencia?.codigo || 'PENDIENTE',
+        estudiante: {
+          id: asistencia.estudiante.idEstudiante.toString(),
+          nombre: asistencia.estudiante.usuario.nombre || '',
+          apellido: asistencia.estudiante.usuario.apellido || '',
+          dni: asistencia.estudiante.usuario.dni,
+          grado: gradoNombre || 'Sin grado',
+          seccion: seccionNombre || 'Sin sección'
+        }
       }
-    }))
+    })
 
     return NextResponse.json({
       success: true,

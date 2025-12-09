@@ -168,39 +168,36 @@ function calculateColumnWidths(headers: string[], data: string[][], totalWidth: 
   }
 }
 
-// Función para obtener introducciones en formato APA 7 para cada sección
+// Función para obtener introducciones formales para cada sección (sin referencias inventadas)
 function getIntroduccionSeccion(seccionNombre: string): string {
-  const fechaActual = new Date().toLocaleDateString('es-ES', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  })
-  
   switch (seccionNombre) {
     case 'ESTUDIANTES':
-      return `Esta sección presenta un análisis detallado del registro estudiantil de la institución educativa. Los datos incluyen información demográfica, académica y de estado de matrícula de cada estudiante (Ministerio de Educación, 2023). La información se presenta de manera sistemática para facilitar la toma de decisiones administrativas y pedagógicas, siguiendo los lineamientos establecidos por el Sistema de Información de Apoyo a la Gestión de la Institución Educativa (SIAGIE).`
+      return `Esta sección presenta el registro estudiantil de la institución educativa. Los datos incluyen información demográfica, académica y estado de matrícula de cada estudiante, organizados de manera sistemática para facilitar la gestión administrativa y pedagógica.`
       
     case 'RESUMEN EJECUTIVO':
-      return `El presente resumen ejecutivo proporciona una síntesis de los indicadores clave de desempeño institucional durante el período analizado. Según las directrices del Ministerio de Educación (2023), estos indicadores permiten evaluar la eficacia de los procesos educativos y administrativos. Los datos presentados constituyen una herramienta fundamental para la planificación estratégica y la mejora continua de la calidad educativa (UNESCO, 2022).`
+      return `El presente resumen proporciona una síntesis de los indicadores clave de desempeño institucional durante el período analizado. Estos indicadores permiten evaluar la eficacia de los procesos educativos y constituyen una herramienta para la planificación estratégica.`
+      
+    case 'ESTADÍSTICAS GENERALES':
+      return `Esta sección presenta las estadísticas generales de la institución educativa durante el período analizado, incluyendo información sobre estudiantes, docentes y apoderados.`
       
     case 'ASISTENCIAS':
-      return `El análisis de asistencia estudiantil constituye un indicador fundamental para evaluar el compromiso académico y identificar patrones de ausentismo que puedan afectar el rendimiento educativo (García & Martínez, 2023). Los datos de asistencia se registran diariamente y se procesan según los estándares establecidos por el Ministerio de Educación para garantizar la precisión y confiabilidad de la información (MINEDU, 2023).`
+      return `El análisis de asistencia estudiantil es un indicador fundamental para evaluar el compromiso académico e identificar patrones de ausentismo. Los datos se registran diariamente según los estándares del Ministerio de Educación.`
       
     case 'POR GRADO':
-      return `La segmentación de datos por grado académico permite un análisis granular del desempeño institucional y facilita la identificación de tendencias específicas por nivel educativo (López et al., 2023). Esta metodología de análisis por cohortes académicas es reconocida como una práctica estándar en la gestión educativa moderna y proporciona insights valiosos para la toma de decisiones pedagógicas (Hernández & Torres, 2022).`
+      return `La segmentación de datos por grado académico permite un análisis detallado del desempeño institucional y facilita la identificación de tendencias específicas por nivel educativo.`
       
     case 'RETIROS DE LA SEMANA':
     case 'RETIROS':
-      return `El seguimiento de retiros estudiantiles es un componente crítico del sistema de gestión educativa que permite monitorear la retención estudiantil y identificar factores que influyen en la deserción escolar (Rodríguez & Silva, 2023). Los datos de retiros se documentan siguiendo protocolos establecidos para garantizar la seguridad estudiantil y el cumplimiento de las normativas educativas vigentes (MINEDU, 2023).`
+      return `El seguimiento de retiros estudiantiles permite monitorear la asistencia y garantizar la seguridad de los estudiantes. Los datos se documentan siguiendo los protocolos institucionales establecidos.`
       
     case 'DOCENTES':
-      return `La gestión del recurso humano docente constituye un pilar fundamental en la calidad educativa institucional. Los datos presentados incluyen información sobre asignaciones académicas, especialidades y distribución de carga horaria, elementos esenciales para la planificación pedagógica efectiva (Ministerio de Educación, 2023). La información docente se mantiene actualizada conforme a los requerimientos del Marco de Buen Desempeño Docente (MBDD).`
+      return `Esta sección presenta información sobre el personal docente de la institución, incluyendo asignaciones académicas y distribución por grado y sección.`
       
     case 'APODERADOS':
-      return `El registro de apoderados y representantes legales es fundamental para mantener la comunicación efectiva entre la institución educativa y las familias. Los datos incluyen información de contacto y relaciones familiares verificadas, siguiendo los protocolos de protección de datos personales establecidos por la Ley de Protección de Datos Personales N° 29733 (Congreso de la República, 2011).`
+      return `El registro de apoderados y representantes legales es fundamental para mantener la comunicación efectiva entre la institución educativa y las familias.`
       
     default:
-      return `La siguiente sección presenta información relevante para la gestión educativa institucional. Los datos han sido procesados y organizados siguiendo estándares de calidad y metodologías reconocidas en el ámbito educativo (Ministerio de Educación, 2023). La información se presenta de manera estructurada para facilitar su análisis e interpretación por parte de los usuarios del sistema.`
+      return `La siguiente sección presenta información relevante para la gestión educativa institucional, organizada de manera estructurada para facilitar su análisis.`
   }
 }
 
@@ -1060,27 +1057,27 @@ async function generateReporteGeneralData(ieId: number, fechaInicio: Date, fecha
     console.log('📊 Construyendo reporte general...')
     
     const reporteGeneral = [
-      // Resumen ejecutivo
+      // Estadísticas generales (sin duplicar el resumen ejecutivo de la página 2)
       {
-        Categoría: 'RESUMEN EJECUTIVO',
+        Categoría: 'ESTADÍSTICAS GENERALES',
         Descripción: 'Estadísticas generales del período',
         Valor: '',
         Detalle: `Período: ${fechaInicio.toLocaleDateString('es-ES')} - ${fechaFin.toLocaleDateString('es-ES')}`
       },
       {
-        Categoría: 'Estudiantes',
+        Categoría: 'ESTADÍSTICAS GENERALES',
         Descripción: 'Total de estudiantes',
         Valor: totalEstudiantes.toString(),
         Detalle: `Activos: ${estudiantesActivos} | Inactivos: ${totalEstudiantes - estudiantesActivos}`
       },
       {
-        Categoría: 'Docentes',
+        Categoría: 'ESTADÍSTICAS GENERALES',
         Descripción: 'Total de docentes activos',
         Valor: totalDocentes.toString(),
         Detalle: 'Personal docente en servicio'
       },
       {
-        Categoría: 'Apoderados',
+        Categoría: 'ESTADÍSTICAS GENERALES',
         Descripción: 'Total de apoderados registrados',
         Valor: totalApoderados.toString(),
         Detalle: 'Padres y tutores activos'
@@ -1605,10 +1602,10 @@ function generateExcelReport(data: any[], title: string, colegioInfo?: any, usua
   }
 }
 
-// Función para generar reporte PDF real con formato institucional
+// Función para generar reporte PDF real con formato institucional MINEDU
 async function generatePDFReport(data: any[], title: string, colegioInfo?: any, usuarioInfo?: any): Promise<Buffer> {
   try {
-    console.log('📄 Generando archivo PDF con formato institucional...')
+    console.log('📄 Generando archivo PDF con formato institucional MINEDU...')
     
     // Verificar si jsPDF está disponible
     if (!jsPDF) {
@@ -1618,71 +1615,233 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
     
     // Crear nuevo documento PDF
     const doc = new jsPDF()
+    let pageNumber = 1
+    const totalPages = Math.ceil(data.length / 25) + 2 // Estimación de páginas
     
-    // PÁGINA 1: PORTADA EN FORMATO APA 7
-    if (colegioInfo && usuarioInfo) {
-      // Título principal centrado
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      const titleWidth = doc.getTextWidth(title.toUpperCase())
-      doc.text(title.toUpperCase(), (210 - titleWidth) / 2, 40)
+    // Función para agregar encabezado institucional simplificado
+    const addHeader = (isPortada = false) => {
+      // Línea superior decorativa
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(1.5)
+      doc.line(10, 10, 200, 10)
       
-      // Subtítulo institucional centrado
+      // Nombre de la institución (una sola línea)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 51, 102)
+      doc.text(colegioInfo?.nombre || 'INSTITUCIÓN EDUCATIVA', 10, 18)
+      
+      // Código modular a la derecha
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(80, 80, 80)
+      const codigoText = `Código: ${colegioInfo?.codigoQR || 'N/A'}`
+      doc.text(codigoText, 200 - doc.getTextWidth(codigoText), 18)
+      
+      // Línea separadora
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(0.5)
+      doc.line(10, 22, 200, 22)
+      
+      doc.setTextColor(0, 0, 0)
+    }
+    
+    // Función para agregar pie de página
+    const addFooter = (pageNum: number) => {
+      const y = 285
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(0.5)
+      doc.line(10, y - 5, 200, y - 5)
+      
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Documento generado por Sistema de Gestión Educativa - MINEDU', 10, y)
+      doc.text(`Página ${pageNum}`, 180, y)
+      doc.setTextColor(0, 0, 0)
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PÁGINA 1: PORTADA INSTITUCIONAL
+    // ═══════════════════════════════════════════════════════════════
+    if (colegioInfo && usuarioInfo) {
+      addHeader(true)
+      
+      // Título del reporte centrado
+      doc.setFontSize(22)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 51, 102)
+      const titleLines = doc.splitTextToSize(title.toUpperCase(), 170)
+      let yPos = 70
+      titleLines.forEach((line: string) => {
+        const titleWidth = doc.getTextWidth(line)
+        doc.text(line, (210 - titleWidth) / 2, yPos)
+        yPos += 10
+      })
+      
+      // Subtítulo
       doc.setFontSize(14)
       doc.setFont('helvetica', 'normal')
-      const subtitulo = `${colegioInfo.nombre}`
-      const subtituloWidth = doc.getTextWidth(subtitulo)
-      doc.text(subtitulo, (210 - subtituloWidth) / 2, 55)
+      doc.setTextColor(80, 80, 80)
+      const subtitulo = 'INFORME INSTITUCIONAL'
+      const subWidth = doc.getTextWidth(subtitulo)
+      doc.text(subtitulo, (210 - subWidth) / 2, yPos + 10)
       
-      // Información institucional
+      // Línea decorativa
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(1)
+      doc.line(60, yPos + 20, 150, yPos + 20)
+      
+      // Período del reporte
+      const fechaActual = new Date()
+      const mesActual = fechaActual.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
       doc.setFontSize(12)
+      doc.setTextColor(0, 0, 0)
+      const periodoText = `Período: ${mesActual.charAt(0).toUpperCase() + mesActual.slice(1)}`
+      const periodoWidth = doc.getTextWidth(periodoText)
+      doc.text(periodoText, (210 - periodoWidth) / 2, yPos + 35)
+      
+      // Cuadro de información institucional
+      doc.setFillColor(245, 247, 250)
+      doc.roundedRect(20, 130, 170, 60, 3, 3, 'F')
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(0.5)
+      doc.roundedRect(20, 130, 170, 60, 3, 3, 'S')
+      
+      doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text('INFORMACIÓN INSTITUCIONAL', 20, 80)
+      doc.setTextColor(0, 51, 102)
+      doc.text('DATOS INSTITUCIONALES', 25, 142)
       
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Institución Educativa: ${colegioInfo.nombre}`, 20, 95)
-      doc.text(`Código Modular: ${colegioInfo.codigoQR}`, 20, 105)
-      doc.text(`Modalidad Educativa: ${colegioInfo.modalidad}`, 20, 115)
-      doc.text(`Dirección: ${colegioInfo.direccion}`, 20, 125)
-      doc.text(`Teléfono: ${colegioInfo.telefono}`, 20, 135)
-      doc.text(`Correo Electrónico: ${colegioInfo.email}`, 20, 145)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Institución Educativa: ${colegioInfo.nombre}`, 25, 155)
+      doc.text(`Código Modular: ${colegioInfo.codigoQR}`, 25, 163)
+      doc.text(`Modalidad: ${colegioInfo.modalidad}`, 25, 171)
+      doc.text(`Dirección: ${colegioInfo.direccion}`, 25, 179)
       
-      // Información del reporte
-      doc.setFontSize(12)
+      // Cuadro de información del reporte
+      doc.setFillColor(245, 247, 250)
+      doc.roundedRect(20, 200, 170, 50, 3, 3, 'F')
+      doc.setDrawColor(0, 51, 102)
+      doc.roundedRect(20, 200, 170, 50, 3, 3, 'S')
+      
+      doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text('INFORMACIÓN DEL REPORTE', 20, 165)
+      doc.setTextColor(0, 51, 102)
+      doc.text('INFORMACIÓN DEL REPORTE', 25, 212)
       
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
       const fechaCompleta = new Date().toLocaleDateString('es-ES', { 
+        weekday: 'long',
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
       })
-      doc.text(`Elaborado por: ${usuarioInfo.nombre}`, 20, 180)
-      doc.text(`Cargo/Función: ${usuarioInfo.roles}`, 20, 190)
-      doc.text(`Fecha de elaboración: ${fechaCompleta}`, 20, 200)
-      doc.text(`Hora de generación: ${new Date().toLocaleTimeString('es-ES')}`, 20, 210)
-      
-      // Resumen del reporte
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('RESUMEN EJECUTIVO', 20, 225)
       
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Total de registros procesados: ${data.length}`, 20, 240)
-      doc.text(`Tipo de análisis: ${title}`, 20, 250)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Elaborado por: ${usuarioInfo.nombre}`, 25, 225)
+      doc.text(`Cargo: ${usuarioInfo.roles}`, 25, 233)
+      doc.text(`Fecha: ${fechaCompleta}`, 25, 241)
       
-      // Nota metodológica
-      doc.setFontSize(9)
+      // Nota al pie de portada
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'italic')
-      doc.text('Nota: Este documento ha sido elaborado siguiendo las directrices del Ministerio de Educación', 20, 270)
-      doc.text('y cumple con los estándares de calidad para reportes institucionales.', 20, 280)
+      doc.setTextColor(100, 100, 100)
+      const nota = 'Este documento ha sido elaborado siguiendo los lineamientos del Ministerio de Educación del Perú (MINEDU) y cumple con los estándares de calidad para reportes institucionales educativos.'
+      const notaLines = doc.splitTextToSize(nota, 170)
+      let notaY = 260
+      notaLines.forEach((line: string) => {
+        doc.text(line, 20, notaY)
+        notaY += 5
+      })
+      
+      addFooter(pageNumber)
+      pageNumber++
+      
+      // ═══════════════════════════════════════════════════════════════
+      // PÁGINA 2: ÍNDICE Y RESUMEN EJECUTIVO (sin encabezado completo)
+      // ═══════════════════════════════════════════════════════════════
+      doc.addPage()
+      
+      // Solo línea decorativa superior (sin encabezado completo para evitar superposición)
+      doc.setDrawColor(0, 51, 102)
+      doc.setLineWidth(2)
+      doc.line(10, 10, 200, 10)
+      
+      // Título de índice
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 51, 102)
+      doc.text('ÍNDICE DE CONTENIDOS', 20, 25)
+      
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      
+      const indice = [
+        { titulo: '1. Portada', pagina: '1' },
+        { titulo: '2. Índice de Contenidos', pagina: '2' },
+        { titulo: '3. Resumen Ejecutivo', pagina: '2' },
+        { titulo: '4. Información Institucional', pagina: '3' },
+        { titulo: '5. Datos del Reporte', pagina: '3+' },
+        { titulo: '6. Análisis por Grado/Sección', pagina: '3+' },
+        { titulo: '7. Conclusiones y Recomendaciones', pagina: 'Final' }
+      ]
+      
+      let indiceY = 40
+      indice.forEach(item => {
+        doc.text(item.titulo, 25, indiceY)
+        doc.text(item.pagina, 180, indiceY)
+        // Línea punteada
+        doc.setLineDashPattern([1, 1], 0)
+        doc.line(25 + doc.getTextWidth(item.titulo) + 5, indiceY - 1, 175, indiceY - 1)
+        doc.setLineDashPattern([], 0)
+        indiceY += 8
+      })
+      
+      // Resumen Ejecutivo
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 51, 102)
+      doc.text('RESUMEN EJECUTIVO', 20, indiceY + 15)
+      
+      // Línea decorativa bajo el título
+      doc.setLineWidth(0.5)
+      doc.line(20, indiceY + 18, 80, indiceY + 18)
+      
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      
+      const resumenY = indiceY + 28
+      const resumenTexto = `El presente informe presenta un análisis detallado de los indicadores educativos de la institución durante el período evaluado. Se han procesado un total de ${data.length} registros que permiten evaluar el desempeño institucional en términos de asistencia, puntualidad y gestión estudiantil.`
+      const resumenLines = doc.splitTextToSize(resumenTexto, 170)
+      let resY = resumenY
+      resumenLines.forEach((line: string) => {
+        doc.text(line, 20, resY)
+        resY += 6
+      })
+      
+      // Indicadores clave
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Indicadores Globales:', 20, resY + 8)
+      
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`• Total de registros analizados: ${data.length}`, 25, resY + 18)
+      doc.text(`• Tipo de reporte: ${title}`, 25, resY + 26)
+      doc.text(`• Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, 25, resY + 34)
+      
+      addFooter(pageNumber)
+      pageNumber++
       
       // Nueva página para los datos
       doc.addPage()
+      addHeader()
     }
     
     if (!data || data.length === 0) {
@@ -1706,9 +1865,9 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       // Preparar datos para la tabla
       const tableData = data.map(item => headers.map(header => item[header] || ''))
       
-      // Configuración de la tabla
+      // Configuración de la tabla (startY después del encabezado simplificado)
       const tableConfig = {
-        startY: 20,
+        startY: 30,
         head: [headers],
         body: tableData,
         margin: { left: 10, right: 10 },
@@ -1760,7 +1919,7 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
         (doc as any).autoTable(tableConfig)
       } else {
         // Fallback: generar tabla como texto simple
-        generateTableFallback(doc, tableData, headers, 20)
+        generateTableFallback(doc, tableData, headers, 30)
       }
       
       // Agregar leyenda al final
@@ -1785,7 +1944,7 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       secciones.get(seccion)?.push(item)
     })
 
-    let yPosition = 20
+    let yPosition = 30 // Después del encabezado institucional simplificado
     
     // Generar contenido por secciones con tablas
     secciones.forEach((items, seccionNombre) => {
@@ -1794,7 +1953,8 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       // Verificar si necesitamos nueva página
       if (yPosition > 220) {
         doc.addPage()
-        yPosition = 20
+        addHeader()
+        yPosition = 30 // Después del encabezado simplificado
       }
       
       // Título de sección
@@ -2113,7 +2273,133 @@ async function generatePDFReport(data: any[], title: string, colegioInfo?: any, 
       }
     })
     
-    console.log('✅ PDF con formato institucional generado exitosamente')
+    // ═══════════════════════════════════════════════════════════════
+    // PÁGINA FINAL: CONCLUSIONES, RECOMENDACIONES Y FIRMAS
+    // ═══════════════════════════════════════════════════════════════
+    doc.addPage()
+    
+    // Encabezado de página final
+    doc.setDrawColor(0, 51, 102)
+    doc.setLineWidth(2)
+    doc.line(10, 10, 200, 10)
+    
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 51, 102)
+    doc.text('CONCLUSIONES Y RECOMENDACIONES', 20, 25)
+    
+    // Línea decorativa
+    doc.setLineWidth(0.5)
+    doc.line(20, 30, 100, 30)
+    
+    // Conclusiones
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text('I. CONCLUSIONES', 20, 45)
+    
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    
+    const conclusiones = [
+      `1. Se ha procesado un total de ${data.length} registros correspondientes al período analizado.`,
+      '2. Los indicadores de asistencia reflejan el compromiso de la comunidad educativa.',
+      '3. Se recomienda mantener el seguimiento continuo de los indicadores presentados.',
+      '4. Los datos permiten identificar áreas de mejora en la gestión institucional.'
+    ]
+    
+    let conclusionY = 55
+    conclusiones.forEach(conclusion => {
+      const lines = doc.splitTextToSize(conclusion, 170)
+      lines.forEach((line: string) => {
+        doc.text(line, 25, conclusionY)
+        conclusionY += 6
+      })
+      conclusionY += 2
+    })
+    
+    // Recomendaciones
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('II. RECOMENDACIONES', 20, conclusionY + 10)
+    
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    
+    const recomendaciones = [
+      '1. Implementar estrategias de seguimiento para estudiantes con baja asistencia.',
+      '2. Fortalecer la comunicación con los padres de familia sobre el desempeño estudiantil.',
+      '3. Continuar con el registro sistemático de la información para futuros análisis.',
+      '4. Socializar los resultados con el equipo docente para la toma de decisiones.'
+    ]
+    
+    let recomendacionY = conclusionY + 22
+    recomendaciones.forEach(recomendacion => {
+      const lines = doc.splitTextToSize(recomendacion, 170)
+      lines.forEach((line: string) => {
+        doc.text(line, 25, recomendacionY)
+        recomendacionY += 6
+      })
+      recomendacionY += 2
+    })
+    
+    // Sección de firmas
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('III. FIRMAS Y VALIDACIÓN', 20, recomendacionY + 15)
+    
+    // Cuadros de firma
+    const firmaY = recomendacionY + 35
+    
+    // Firma del Administrador
+    doc.setDrawColor(0, 51, 102)
+    doc.setLineWidth(0.5)
+    doc.line(25, firmaY + 25, 85, firmaY + 25)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ADMINISTRADOR DEL SISTEMA', 30, firmaY + 32)
+    doc.setFont('helvetica', 'normal')
+    doc.text(usuarioInfo?.nombre || 'Nombre del Administrador', 35, firmaY + 38)
+    
+    // Firma del Director
+    doc.line(125, firmaY + 25, 185, firmaY + 25)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DIRECTOR(A) DE LA I.E.', 140, firmaY + 32)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Firma y Sello', 150, firmaY + 38)
+    
+    // Sello institucional (placeholder)
+    doc.setFillColor(245, 247, 250)
+    doc.setDrawColor(0, 51, 102)
+    doc.circle(105, firmaY + 55, 15, 'FD')
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 51, 102)
+    doc.text('SELLO', 101, firmaY + 53)
+    doc.text('I.E.', 103, firmaY + 58)
+    doc.setTextColor(0, 0, 0)
+    
+    // Nota final
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(100, 100, 100)
+    const notaFinal = 'Este documento tiene carácter oficial y ha sido generado por el Sistema de Gestión Educativa siguiendo los lineamientos del Ministerio de Educación del Perú (MINEDU). La información contenida es de uso exclusivo de la institución educativa.'
+    const notaLines = doc.splitTextToSize(notaFinal, 170)
+    let notaFinalY = firmaY + 80
+    notaLines.forEach((line: string) => {
+      doc.text(line, 20, notaFinalY)
+      notaFinalY += 5
+    })
+    
+    // Pie de página final
+    doc.setDrawColor(0, 51, 102)
+    doc.setLineWidth(0.5)
+    doc.line(10, 280, 200, 280)
+    doc.setFontSize(8)
+    doc.text('Documento generado por Sistema de Gestión Educativa - MINEDU', 10, 285)
+    doc.text(`Generado: ${new Date().toLocaleString('es-PE')}`, 150, 285)
+    
+    console.log('✅ PDF con formato institucional MINEDU generado exitosamente')
     return Buffer.from(doc.output('arraybuffer'))
     
   } catch (error) {

@@ -84,31 +84,62 @@ export async function POST(request: NextRequest) {
       // Obtener o crear registro de asistencia
       const idEstadoAsistencia = estadoMap.get(estado) || estadoMap.get('AUSENTE')
 
-      const asistenciaExistente = await prisma.asistencia.findFirst({
+      // Buscar CUALQUIER registro de asistencia existente para este estudiante+fecha
+      // Primero buscar con idHorarioClase, luego sin él
+      let asistenciaExistente = await prisma.asistencia.findFirst({
         where: {
           idEstudiante,
           fecha: fechaValidacion,
-          idHorarioClase: idClase ? parseInt(idClase) : undefined
+          ...(idClase && { idHorarioClase: parseInt(idClase) })
         }
       })
 
+      // Si no se encontró con idHorarioClase, buscar sin él
+      if (!asistenciaExistente) {
+        asistenciaExistente = await prisma.asistencia.findFirst({
+          where: {
+            idEstudiante,
+            fecha: fechaValidacion
+          }
+        })
+      }
+
       let asistenciaGuardada
       let estadoAnterior: string | null = null
+      let estadoAnteriorId: number | null = null
 
       if (asistenciaExistente) {
-        // Obtener estado anterior para notificación
-        const estadoAnteriorObj = estadosAsistencia.find(e => e.idEstadoAsistencia === asistenciaExistente.idEstadoAsistencia)
+        // Obtener estado anterior para histórico y notificación
+        const estadoAnteriorObj = estadosAsistencia.find(e => e.idEstadoAsistencia === asistenciaExistente!.idEstadoAsistencia)
         estadoAnterior = estadoAnteriorObj?.codigo || null
+        estadoAnteriorId = asistenciaExistente.idEstadoAsistencia
+
+        console.log(`📝 Actualizando asistencia existente ID=${asistenciaExistente.idAsistencia}: ${estadoAnterior} → ${estado}`)
         
-        // Actualizar asistencia existente
+        // ACTUALIZAR el registro existente (NO crear uno nuevo)
         asistenciaGuardada = await prisma.asistencia.update({
           where: { idAsistencia: asistenciaExistente.idAsistencia },
           data: {
             idEstadoAsistencia,
             observaciones: observaciones || asistenciaExistente.observaciones,
+            // Actualizar idHorarioClase si se proporciona
+            ...(idClase && { idHorarioClase: parseInt(idClase) }),
             updatedAt: new Date()
           }
         })
+        
+        // CREAR registro en HistoricoEstadoAsistencia si el estado cambió
+        if (estadoAnteriorId && estadoAnteriorId !== idEstadoAsistencia) {
+          await prisma.historicoEstadoAsistencia.create({
+            data: {
+              idAsistencia: asistenciaExistente.idAsistencia,
+              idEstadoAsistencia: idEstadoAsistencia!, // Estado nuevo
+              fechaCambio: new Date(),
+              cambiadoPor: decoded.userId
+            }
+          })
+          console.log(`📜 Histórico creado: Asistencia ${asistenciaExistente.idAsistencia}, Estado anterior: ${estadoAnterior}, Estado nuevo: ${estado}`)
+        }
         
         // NOTIFICAR AL APODERADO SI EL ESTADO CAMBIÓ
         if (estadoAnterior && estadoAnterior !== estado) {
@@ -153,7 +184,9 @@ export async function POST(request: NextRequest) {
           }
         }
       } else {
-        // Crear nueva asistencia
+        console.log(`📝 Creando nueva asistencia para estudiante ${idEstudiante}, fecha ${fechaValidacion.toISOString()}`)
+        
+        // Crear nueva asistencia SOLO si no existe ningún registro
         asistenciaGuardada = await prisma.asistencia.create({
           data: {
             idEstudiante,
@@ -165,6 +198,17 @@ export async function POST(request: NextRequest) {
             registradoPor: decoded.userId
           }
         })
+
+        // Crear registro inicial en histórico
+        await prisma.historicoEstadoAsistencia.create({
+          data: {
+            idAsistencia: asistenciaGuardada.idAsistencia,
+            idEstadoAsistencia: idEstadoAsistencia!,
+            fechaCambio: new Date(),
+            cambiadoPor: decoded.userId
+          }
+        })
+        console.log(`📜 Histórico inicial creado para nueva asistencia ${asistenciaGuardada.idAsistencia}`)
       }
 
       // Actualizar estado en AsistenciaIE si existe

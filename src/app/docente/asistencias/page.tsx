@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TomarAsistenciaButton from '@/components/docente/TomarAsistenciaButton'
+import { obtenerDiasNoLectivos, puedeRegistrarAsistencia, DiaNoLectivo } from '@/lib/feriados-utils'
 
 export default function DocenteAsistencias() {
   const router = useRouter()
@@ -19,6 +20,11 @@ export default function DocenteAsistencias() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [hayClaseHoy, setHayClaseHoy] = useState(true) // Por defecto asumimos que sí hay clase
   const [verificandoId, setVerificandoId] = useState<number | null>(null) // ID del estudiante que se está verificando
+  
+  // Estado para días no lectivos (feriados)
+  const [diasNoLectivos, setDiasNoLectivos] = useState<Map<string, DiaNoLectivo>>(new Map())
+  const [esDiaFeriado, setEsDiaFeriado] = useState(false)
+  const [motivoFeriado, setMotivoFeriado] = useState<string | null>(null)
 
   // Verificar si la fecha seleccionada es hoy (usando fecha local)
   const esFechaHoy = () => {
@@ -125,6 +131,26 @@ export default function DocenteAsistencias() {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     }
   }, [])
+
+  // Cargar días no lectivos cuando se tenga el token
+  useEffect(() => {
+    const cargarDiasNoLectivos = async () => {
+      if (!token) return
+      
+      const año = new Date(fechaSeleccionada).getFullYear()
+      const dias = await obtenerDiasNoLectivos(año, token)
+      setDiasNoLectivos(dias)
+      
+      // Verificar si la fecha seleccionada es feriado
+      const verificacion = puedeRegistrarAsistencia(fechaSeleccionada, dias)
+      setEsDiaFeriado(!verificacion.permitido)
+      setMotivoFeriado(verificacion.motivo || null)
+      
+      console.log('📅 Verificación de feriado:', { fecha: fechaSeleccionada, esFeriado: !verificacion.permitido, motivo: verificacion.motivo })
+    }
+    
+    cargarDiasNoLectivos()
+  }, [token, fechaSeleccionada])
 
   // Verificar horario cuando cambie la clase o fecha
   useEffect(() => {
@@ -430,6 +456,12 @@ export default function DocenteAsistencias() {
   const handleGuardarAsistencia = async () => {
     if (!token || !claseSeleccionada) return
     
+    // Bloquear guardado en días feriados
+    if (esDiaFeriado) {
+      alert(`🚫 No se puede guardar asistencia.\n\nLa fecha seleccionada es un día no lectivo.\n${motivoFeriado ? `Motivo: ${motivoFeriado}` : ''}`)
+      return
+    }
+    
     try {
       setLoading(true)
       const estudiantesEditados = estudiantes.filter(e => e.editado)
@@ -477,12 +509,15 @@ export default function DocenteAsistencias() {
 
       if (exitosos > 0) {
         alert(`✅ ${exitosos} asistencia(s) guardada(s) correctamente${errores.length > 0 ? `\n\n❌ Errores:\n${errores.join('\n')}` : ''}`)
+        // Limpiar marca de editado de todos los estudiantes
+        setEstudiantes(prev => prev.map(est => ({ ...est, editado: false })))
       } else if (errores.length > 0) {
         alert(`❌ No se pudo guardar ninguna asistencia:\n${errores.join('\n')}`)
       }
       
       setModoEdicion(false)
-      loadEstudiantes() // Recargar para ver cambios
+      // Recargar para ver cambios desde la BD
+      await loadEstudiantes()
     } catch (error) {
       console.error('Error guardando asistencia:', error)
       alert('Error al guardar asistencia')
@@ -626,13 +661,13 @@ export default function DocenteAsistencias() {
             claseId={claseSeleccionada}
             fecha={fechaSeleccionada}
             onAsistenciaUpdated={handleTomarAsistenciaQR}
-            disabled={!claseSeleccionada || !esFechaHoy() || !hayClaseHoy}
+            disabled={!claseSeleccionada || !esFechaHoy() || !hayClaseHoy || esDiaFeriado}
           />
           <button
             onClick={() => setModoEdicion(!modoEdicion)}
-            disabled={!claseSeleccionada || estudiantes.length === 0}
+            disabled={!claseSeleccionada || estudiantes.length === 0 || esDiaFeriado}
             className={`flex-1 sm:flex-none inline-flex items-center justify-center rounded-md border border-transparent px-3 sm:px-4 py-2.5 sm:py-2 text-sm font-medium text-white shadow-sm min-h-[44px] ${
-              !claseSeleccionada || estudiantes.length === 0
+              !claseSeleccionada || estudiantes.length === 0 || esDiaFeriado
                 ? 'bg-gray-400 cursor-not-allowed'
                 : modoEdicion 
                   ? 'bg-red-600 hover:bg-red-700 active:bg-red-800' 
@@ -678,6 +713,32 @@ export default function DocenteAsistencias() {
                   Reintentar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de Día Feriado/No Lectivo */}
+      {esDiaFeriado && (
+        <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-sm">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-bold text-red-800">
+                🚫 No se puede registrar asistencia
+              </h3>
+              <p className="mt-1 text-sm text-red-700">
+                La fecha seleccionada ({new Date(fechaSeleccionada + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}) es un día no lectivo.
+              </p>
+              {motivoFeriado && (
+                <p className="mt-1 text-sm font-medium text-red-800">
+                  📅 Motivo: {motivoFeriado}
+                </p>
+              )}
             </div>
           </div>
         </div>

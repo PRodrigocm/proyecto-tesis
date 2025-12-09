@@ -744,6 +744,12 @@ export default function TomarAsistenciaPopup({
                   <span className="text-xs text-green-600 font-medium">✓ {estudiantes.filter(e => e.estado === 'presente' || e.estado === 'tardanza').length}</span>
                   <span className="text-xs text-gray-400">|</span>
                   <span className="text-xs text-orange-600 font-medium">⏳ {estudiantes.filter(e => e.estado === 'pendiente' || e.estado === 'sin_registrar').length}</span>
+                  {estudiantes.filter(e => e.estado === 'retirado').length > 0 && (
+                    <>
+                      <span className="text-xs text-gray-400">|</span>
+                      <span className="text-xs text-purple-600 font-medium">🚪 {estudiantes.filter(e => e.estado === 'retirado').length}</span>
+                    </>
+                  )}
                 </div>
               </div>
               {/* Info de clase - Solo móvil */}
@@ -769,6 +775,12 @@ export default function TomarAsistenciaPopup({
                         ? 'bg-green-50 border-green-200'
                         : estudiante.estado === 'tardanza'
                         ? 'bg-yellow-50 border-yellow-200'
+                        : estudiante.estado === 'retirado'
+                        ? 'bg-purple-50 border-purple-200'
+                        : estudiante.estado === 'inasistencia'
+                        ? 'bg-red-50 border-red-200'
+                        : estudiante.estado === 'justificada'
+                        ? 'bg-blue-50 border-blue-200'
                         : 'bg-gray-50 border-gray-200 hover:bg-gray-100 active:bg-blue-50'
                     }`}
                     onClick={() => {
@@ -792,14 +804,26 @@ export default function TomarAsistenciaPopup({
                             ? 'bg-green-100 text-green-800'
                             : estudiante.estado === 'tardanza'
                             ? 'bg-yellow-100 text-yellow-800'
+                            : estudiante.estado === 'retirado'
+                            ? 'bg-purple-100 text-purple-800'
+                            : estudiante.estado === 'inasistencia'
+                            ? 'bg-red-100 text-red-800'
+                            : estudiante.estado === 'justificada'
+                            ? 'bg-blue-100 text-blue-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {estudiante.estado === 'presente' ? '✅' :
                            estudiante.estado === 'tardanza' ? '⏰' :
+                           estudiante.estado === 'retirado' ? '🚪' :
+                           estudiante.estado === 'inasistencia' ? '❌' :
+                           estudiante.estado === 'justificada' ? '📋' :
                            '⏳'}
                           <span className="hidden sm:inline ml-1">
                             {estudiante.estado === 'presente' ? 'Presente' :
                              estudiante.estado === 'tardanza' ? 'Tardanza' :
+                             estudiante.estado === 'retirado' ? 'Retirado' :
+                             estudiante.estado === 'inasistencia' ? 'Inasistencia' :
+                             estudiante.estado === 'justificada' ? 'Justificada' :
                              'Pendiente'}
                           </span>
                         </div>

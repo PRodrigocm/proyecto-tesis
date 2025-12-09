@@ -247,3 +247,112 @@ export async function PUT(request: NextRequest) {
     }, { status: 500 })
   }
 }
+
+/**
+ * DELETE - Eliminar todos los horarios de clases
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    // Verificar autenticación
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Token de autorización requerido' }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const user = verifyToken(token)
+    if (!user) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { deleteAll, idGradoSeccion } = body
+
+    const ieId = user.ieId || 1
+
+    if (deleteAll) {
+      // Eliminar TODOS los horarios de la IE
+      console.log('🗑️ Eliminando TODOS los horarios de la IE:', ieId)
+      
+      // Obtener todos los grados-secciones de la IE
+      const gradosSecciones = await prisma.gradoSeccion.findMany({
+        where: {
+          grado: {
+            nivel: {
+              idIe: ieId
+            }
+          }
+        },
+        select: { idGradoSeccion: true }
+      })
+
+      const idsGradoSeccion = gradosSecciones.map(gs => gs.idGradoSeccion)
+
+      // Eliminar todos los horarios de estos grados-secciones
+      const result = await prisma.horarioClase.deleteMany({
+        where: {
+          idGradoSeccion: {
+            in: idsGradoSeccion
+          }
+        }
+      })
+
+      console.log(`✅ ${result.count} horarios eliminados`)
+
+      return NextResponse.json({
+        success: true,
+        message: `Se eliminaron ${result.count} horarios de ${gradosSecciones.length} grados-secciones`,
+        data: {
+          horariosEliminados: result.count,
+          gradosSeccionesAfectados: gradosSecciones.length
+        }
+      })
+    } else if (idGradoSeccion) {
+      // Eliminar horarios de un grado-sección específico
+      console.log('🗑️ Eliminando horarios del grado-sección:', idGradoSeccion)
+      
+      const gradoSeccion = await prisma.gradoSeccion.findUnique({
+        where: { idGradoSeccion: parseInt(idGradoSeccion) },
+        include: {
+          grado: { include: { nivel: true } },
+          seccion: true
+        }
+      })
+
+      if (!gradoSeccion) {
+        return NextResponse.json({ error: 'Grado-sección no encontrado' }, { status: 404 })
+      }
+
+      // Verificar permisos
+      if (gradoSeccion.grado.nivel.idIe !== ieId) {
+        return NextResponse.json({ error: 'No tienes permisos para eliminar estos horarios' }, { status: 403 })
+      }
+
+      const result = await prisma.horarioClase.deleteMany({
+        where: { idGradoSeccion: parseInt(idGradoSeccion) }
+      })
+
+      console.log(`✅ ${result.count} horarios eliminados para ${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre}`)
+
+      return NextResponse.json({
+        success: true,
+        message: `Se eliminaron ${result.count} horarios de ${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre}`,
+        data: {
+          horariosEliminados: result.count,
+          gradoSeccion: `${gradoSeccion.grado.nombre}° ${gradoSeccion.seccion.nombre}`
+        }
+      })
+    } else {
+      return NextResponse.json({ 
+        error: 'Debe especificar deleteAll: true o idGradoSeccion' 
+      }, { status: 400 })
+    }
+
+  } catch (error) {
+    console.error('Error deleting horarios:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Error interno del servidor'
+    }, { status: 500 })
+  }
+}

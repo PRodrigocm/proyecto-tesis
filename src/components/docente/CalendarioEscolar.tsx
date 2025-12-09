@@ -19,6 +19,7 @@ interface CalendarioEscolarProps {
 
 export default function CalendarioEscolar({ className = '' }: CalendarioEscolarProps) {
   const [eventos, setEventos] = useState<EventoCalendario[]>([])
+  const [diasNoLectivos, setDiasNoLectivos] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [mesActual, setMesActual] = useState(new Date())
   const [vistaActual, setVistaActual] = useState<'mes' | 'lista'>('mes')
@@ -32,10 +33,10 @@ export default function CalendarioEscolar({ className = '' }: CalendarioEscolarP
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const mes = mesActual.getMonth() + 1
       const año = mesActual.getFullYear()
       
-      const response = await fetch(`/api/calendario?mes=${mes}&año=${año}&ieId=1`, {
+      // Usar la misma API que el admin (/api/calendario-escolar) para consistencia
+      const response = await fetch(`/api/calendario-escolar?year=${año}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -43,77 +44,54 @@ export default function CalendarioEscolar({ className = '' }: CalendarioEscolarP
 
       if (response.ok) {
         const data = await response.json()
-        console.log('✅ Eventos del calendario cargados:', data.data?.length || 0)
-        setEventos(data.data || [])
+        console.log('✅ Calendario escolar cargado:', data.data?.length || 0, 'días')
+        
+        // Transformar los datos del calendario escolar al formato de eventos
+        const eventosTransformados: EventoCalendario[] = []
+        const eventosAgrupados = new Map<string, any>()
+        
+        // Agrupar por idCalendario para no duplicar eventos
+        data.data?.forEach((item: any) => {
+          if (!item.esLectivo) { // Solo mostrar días no lectivos como eventos
+            const key = `${item.idCalendario}-${item.motivo}`
+            if (!eventosAgrupados.has(key)) {
+              eventosAgrupados.set(key, {
+                id: item.idCalendario?.toString() || item.fecha,
+                titulo: item.motivo || item.tipoDia || 'Día no lectivo',
+                descripcion: item.motivo || '',
+                fechaInicio: item.fecha,
+                fechaFin: item.fecha,
+                tipo: item.tipoDia === 'FERIADO' ? 'FERIADO' : 
+                      item.tipoDia === 'VACACIONES' ? 'SUSPENSION' : 
+                      item.tipoDia === 'SUSPENSION' ? 'SUSPENSION' : 'ESPECIAL',
+                color: item.tipoDia === 'FERIADO' ? '#EF4444' : 
+                       item.tipoDia === 'VACACIONES' ? '#3B82F6' : '#F59E0B',
+                esLectivo: false
+              })
+            }
+          }
+        })
+        
+        eventosAgrupados.forEach(evento => eventosTransformados.push(evento))
+        console.log('📅 Eventos transformados:', eventosTransformados.length)
+        setEventos(eventosTransformados)
+        
+        // Guardar set de días no lectivos para marcar en el calendario
+        const diasNoLectivosSet = new Set<string>()
+        data.data?.forEach((item: any) => {
+          if (!item.esLectivo) {
+            diasNoLectivosSet.add(item.fecha)
+          }
+        })
+        setDiasNoLectivos(diasNoLectivosSet)
+        console.log('🚫 Días no lectivos:', diasNoLectivosSet.size)
       } else {
         const errorText = await response.text()
-        console.error('❌ Error al cargar eventos del calendario:', response.status, errorText)
-        // Datos de ejemplo para desarrollo
-        setEventos([
-          {
-            id: '1',
-            titulo: 'Día del Maestro',
-            descripcion: 'Celebración del Día del Maestro',
-            fechaInicio: '2024-07-06',
-            fechaFin: '2024-07-06',
-            tipo: 'FERIADO',
-            color: '#EF4444',
-            esLectivo: false
-          },
-          {
-            id: '2',
-            titulo: 'Fiestas Patrias',
-            descripcion: 'Celebración de la Independencia del Perú',
-            fechaInicio: '2024-07-28',
-            fechaFin: '2024-07-29',
-            tipo: 'FERIADO',
-            color: '#EF4444',
-            esLectivo: false
-          },
-          {
-            id: '3',
-            titulo: 'Día de la Educación',
-            descripcion: 'Día Nacional de la Educación',
-            fechaInicio: '2024-09-08',
-            fechaFin: '2024-09-08',
-            tipo: 'ACADEMICO',
-            color: '#10B981',
-            esLectivo: true
-          },
-          {
-            id: '4',
-            titulo: 'Día de Todos los Santos',
-            descripcion: 'Feriado Nacional',
-            fechaInicio: '2024-11-01',
-            fechaFin: '2024-11-01',
-            tipo: 'FERIADO',
-            color: '#EF4444',
-            esLectivo: false
-          },
-          {
-            id: '5',
-            titulo: 'Inmaculada Concepción',
-            descripcion: 'Feriado Religioso',
-            fechaInicio: '2024-12-08',
-            fechaFin: '2024-12-08',
-            tipo: 'FERIADO',
-            color: '#EF4444',
-            esLectivo: false
-          },
-          {
-            id: '6',
-            titulo: 'Navidad',
-            descripcion: 'Celebración de Navidad',
-            fechaInicio: '2024-12-25',
-            fechaFin: '2024-12-25',
-            tipo: 'FERIADO',
-            color: '#EF4444',
-            esLectivo: false
-          }
-        ])
+        console.error('❌ Error al cargar calendario escolar:', response.status, errorText)
+        setEventos([])
       }
     } catch (error) {
-      console.error('❌ Error loading eventos:', error)
+      console.error('❌ Error loading calendario escolar:', error)
       setEventos([])
     } finally {
       setLoading(false)
@@ -188,10 +166,9 @@ export default function CalendarioEscolar({ className = '' }: CalendarioEscolarP
   }
 
   const esFeriado = (fecha: Date) => {
-    return eventos.some(evento => {
-      const fechaEvento = new Date(evento.fechaInicio)
-      return fechaEvento.toDateString() === fecha.toDateString() && !evento.esLectivo
-    })
+    // Usar el Set de días no lectivos para verificación más eficiente
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return diasNoLectivos.has(fechaStr)
   }
 
   const esFinDeSemana = (fecha: Date) => {

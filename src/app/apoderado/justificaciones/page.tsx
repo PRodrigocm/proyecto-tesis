@@ -9,6 +9,18 @@ import {
   type InasistenciaPendiente
 } from '@/services/apoderado.service'
 
+/**
+ * Parsea una fecha ISO string y la muestra correctamente sin problemas de zona horaria
+ * Evita que 2025-12-04T00:00:00.000Z se muestre como 3 de diciembre en Lima
+ */
+function parsearFechaLocal(fechaISO: string): Date {
+  // Extraer solo la parte de la fecha (YYYY-MM-DD)
+  const fechaStr = fechaISO.split('T')[0]
+  const [anio, mes, dia] = fechaStr.split('-').map(Number)
+  // Crear fecha a mediodía para evitar problemas de zona horaria
+  return new Date(anio, mes - 1, dia, 12, 0, 0)
+}
+
 interface JustificacionForm {
   inasistenciaId: string
   motivo: string
@@ -253,7 +265,7 @@ export default function JustificarInasistencias() {
                       </p>
                       <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
-                          📅 {new Date(inasistencia.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          📅 {parsearFechaLocal(inasistencia.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           🕐 {inasistencia.sesion || 'Sin especificar'}
@@ -308,7 +320,7 @@ export default function JustificarInasistencias() {
                       {selectedInasistencia.estudiante.apellido}, {selectedInasistencia.estudiante.nombre}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {selectedInasistencia.estudiante.grado}° {selectedInasistencia.estudiante.seccion} • {new Date(selectedInasistencia.fecha).toLocaleDateString('es-ES')}
+                      {selectedInasistencia.estudiante.grado}° {selectedInasistencia.estudiante.seccion} • {parsearFechaLocal(selectedInasistencia.fecha).toLocaleDateString('es-ES')}
                     </p>
                   </div>
                 </div>

@@ -16,22 +16,36 @@ export default function DocenteLayout({
   const pathname = usePathname()
   const router = useRouter()
 
-  // Cargar datos del usuario
+  // Cargar datos del usuario y verificar autenticación
   useEffect(() => {
     setMounted(true)
     
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser)
-          setUser(parsedUser)
-        } catch (error) {
-          console.error('Error parsing user data:', error)
+      const token = localStorage.getItem('token')
+      
+      // Redirigir al login si no hay token o usuario
+      if (!token || !storedUser) {
+        router.push('/login')
+        return
+      }
+      
+      try {
+        const parsedUser = JSON.parse(storedUser)
+        
+        // Verificar que el rol sea DOCENTE
+        if (parsedUser.rol !== 'DOCENTE') {
+          router.push('/login')
+          return
         }
+        
+        setUser(parsedUser)
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        router.push('/login')
       }
     }
-  }, [])
+  }, [router])
 
   const navigation = [
     {

@@ -60,8 +60,11 @@ export async function PUT(
     const finMinutos = finHora * 60 + finMin
 
     if (inicioMinutos >= finMinutos) {
+      console.log('❌ Error de validación: hora inicio >= hora fin')
+      console.log(`   Inicio: ${horaInicio} (${inicioMinutos} min)`)
+      console.log(`   Fin: ${horaFin} (${finMinutos} min)`)
       return NextResponse.json({ 
-        error: 'La hora de inicio debe ser menor que la hora de fin' 
+        error: `La hora de inicio (${horaInicio}) debe ser menor que la hora de fin (${horaFin})` 
       }, { status: 400 })
     }
 
@@ -104,6 +107,9 @@ export async function PUT(
       const docente = await prisma.docente.findFirst({
         where: {
           idUsuario: idUsuario
+        },
+        include: {
+          docenteAulas: true
         }
       })
       
@@ -116,10 +122,18 @@ export async function PUT(
       
       console.log('✅ Docente encontrado:', docente.idDocente)
       
+      // Obtener los grados-secciones asignados al docente
+      const gradosSeccionesAsignados = docente.docenteAulas.map(da => da.idGradoSeccion)
+      console.log('📋 Grados-Secciones asignados:', gradosSeccionesAsignados)
+      
+      // Buscar el horario que pertenezca al docente O a sus grados-secciones asignados
       horario = await prisma.horarioClase.findFirst({
         where: {
           idHorarioClase: parseInt(resolvedParams.id),
-          idDocente: docente.idDocente
+          OR: [
+            { idDocente: docente.idDocente },
+            { idGradoSeccion: { in: gradosSeccionesAsignados } }
+          ]
         },
         include: {
           docente: true,
@@ -131,6 +145,8 @@ export async function PUT(
           }
         }
       })
+      
+      console.log('🔍 Horario encontrado:', horario ? `ID ${horario.idHorarioClase}` : 'No encontrado')
     }
 
     if (!horario) {

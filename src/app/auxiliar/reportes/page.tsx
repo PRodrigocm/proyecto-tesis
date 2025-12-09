@@ -50,8 +50,8 @@ interface ReportData {
   }
 }
 
-// Función para obtener las fechas del rango (filtrando fines de semana según días laborables)
-const obtenerFechasDelRango = (fechaInicio: string, fechaFin: string, diasLaborables?: string[]): Date[] => {
+// Función para obtener las fechas del rango (filtrando fines de semana según días laborables y feriados)
+const obtenerFechasDelRango = (fechaInicio: string, fechaFin: string, diasLaborables?: string[], feriados?: string[]): Date[] => {
   const fechas: Date[] = []
   const inicio = new Date(fechaInicio)
   const fin = new Date(fechaFin)
@@ -70,6 +70,12 @@ const obtenerFechasDelRango = (fechaInicio: string, fechaFin: string, diasLabora
   for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
     const diaSemana = d.getDay()
     const nombreDia = diasSemanaMap[diaSemana]
+    const fechaStr = d.toISOString().split('T')[0]
+    
+    // Excluir feriados
+    if (feriados && feriados.includes(fechaStr)) {
+      continue
+    }
     
     // Si hay días laborables configurados, solo incluir esos días
     if (diasLaborables && diasLaborables.length > 0) {
@@ -124,6 +130,9 @@ export default function ReportesAuxiliar() {
   
   // Días laborables configurados
   const [diasLaborables, setDiasLaborables] = useState<string[]>(['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'])
+  
+  // Feriados del calendario escolar
+  const [feriados, setFeriados] = useState<string[]>([])
 
   useEffect(() => {
     const checkAuth = () => {
@@ -153,6 +162,7 @@ export default function ReportesAuxiliar() {
     loadGrados()
     loadSecciones()
     loadDiasLaborables()
+    loadFeriados()
   }, [router])
 
   // Cargar días laborables desde la configuración
@@ -171,6 +181,50 @@ export default function ReportesAuxiliar() {
       }
     } catch (error) {
       console.error('Error cargando días laborables:', error)
+    }
+  }
+
+  // Cargar feriados del calendario escolar
+  const loadFeriados = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const userString = localStorage.getItem('user')
+      
+      if (!userString) return
+      
+      const user = JSON.parse(userString)
+      const ieId = user.ie?.id || user.idIe || user.institucionId || 1
+      
+      // Obtener eventos del año actual
+      const año = new Date().getFullYear()
+      const feriadosDelAño: string[] = []
+      
+      // Cargar feriados de cada mes del año
+      for (let mes = 1; mes <= 12; mes++) {
+        const response = await fetch(`/api/calendario?mes=${mes}&año=${año}&ieId=${ieId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          const eventos = data.data || []
+          
+          // Filtrar solo feriados (no lectivos)
+          eventos.forEach((evento: any) => {
+            if (!evento.esLectivo || evento.tipo === 'FERIADO') {
+              const fechaEvento = new Date(evento.fechaInicio).toISOString().split('T')[0]
+              if (!feriadosDelAño.includes(fechaEvento)) {
+                feriadosDelAño.push(fechaEvento)
+              }
+            }
+          })
+        }
+      }
+      
+      setFeriados(feriadosDelAño)
+      console.log('📅 Feriados cargados:', feriadosDelAño.length)
+    } catch (error) {
+      console.error('Error cargando feriados:', error)
     }
   }
 
@@ -402,7 +456,7 @@ export default function ReportesAuxiliar() {
     ])
   }
 
-  // Generar fechas para la tabla de detalle (solo días laborables)
+  // Generar fechas para la tabla de detalle (solo días laborables, excluyendo feriados)
   const generarFechasTabla = () => {
     if (!fechaInicio || !fechaFin) {
       const hoy = new Date()
@@ -411,10 +465,11 @@ export default function ReportesAuxiliar() {
       return obtenerFechasDelRango(
         primerDia.toISOString().split('T')[0],
         ultimoDia.toISOString().split('T')[0],
-        diasLaborables
+        diasLaborables,
+        feriados
       )
     }
-    return obtenerFechasDelRango(fechaInicio, fechaFin, diasLaborables)
+    return obtenerFechasDelRango(fechaInicio, fechaFin, diasLaborables, feriados)
   }
 
   if (loading) {

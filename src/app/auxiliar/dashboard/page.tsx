@@ -15,6 +15,7 @@ import {
   QrCodeIcon,
   CalendarDaysIcon
 } from '@heroicons/react/24/outline'
+import CalendarioCompacto from '@/components/auxiliar/CalendarioCompacto'
 
 interface DashboardStats {
   estudiantesPresentes: number
@@ -272,33 +273,41 @@ export default function AuxiliarDashboard() {
         </div>
       </div>
 
-      {/* Menu Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {menuItems.map((item, index) => (
-          <Link
-            key={index}
-            href={item.href}
-            className="group bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-orange-200 transition-all duration-300"
-          >
-            <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg mb-4`}>
-              <item.icon className="h-6 w-6 text-white" aria-hidden="true" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
-              {item.title}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 line-clamp-2">
-              {item.description}
-            </p>
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-orange-600">
-                {item.stats !== null ? `${item.stats} ${item.statsLabel}` : item.statsLabel}
-              </span>
-              <svg className="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-        ))}
+      {/* Menu Grid y Calendario */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Menu Items - 3 columnas */}
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+          {menuItems.map((item, index) => (
+            <Link
+              key={index}
+              href={item.href}
+              className="group bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-orange-200 transition-all duration-300"
+            >
+              <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg mb-4`}>
+                <item.icon className="h-6 w-6 text-white" aria-hidden="true" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                {item.title}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                {item.description}
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-orange-600">
+                  {item.stats !== null ? `${item.stats} ${item.statsLabel}` : item.statsLabel}
+                </span>
+                <svg className="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Calendario - 1 columna */}
+        <div className="lg:col-span-1">
+          <CalendarioCompacto />
+        </div>
       </div>
     </div>
   )

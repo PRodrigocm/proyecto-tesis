@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline'
 import QRScannerModal from '@/components/modals/QRScannerModal'
 import SearchModal from '@/components/modals/SearchModal'
+import { verificarFeriado, puedeRegistrarAsistencia } from '@/lib/calendario-utils'
 
 interface Grado {
   id: string
@@ -81,6 +82,41 @@ export default function AsistenciaControl() {
   const [qrCode, setQrCode] = useState('')
   const [horaSalida, setHoraSalida] = useState<string | null>(null)
   const [entradaBloqueada, setEntradaBloqueada] = useState(false)
+  
+  // Estado para verificar si es feriado
+  const [esFeriadoHoy, setEsFeriadoHoy] = useState(false)
+  const [mensajeFeriado, setMensajeFeriado] = useState('')
+  const [loadingFeriado, setLoadingFeriado] = useState(true)
+
+  // Verificar si hoy es feriado
+  const verificarFeriadoHoy = async () => {
+    try {
+      setLoadingFeriado(true)
+      const token = localStorage.getItem('token')
+      const userStr = localStorage.getItem('user')
+      
+      let ieId = 1
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr)
+          ieId = user.ieId || user.ie?.id || 1
+        } catch {}
+      }
+
+      if (token) {
+        const hoy = new Date().toISOString().split('T')[0]
+        const diaInfo = await verificarFeriado(hoy, ieId, token)
+        const permiso = puedeRegistrarAsistencia(diaInfo)
+        
+        setEsFeriadoHoy(!permiso.permitido)
+        setMensajeFeriado(permiso.mensaje)
+      }
+    } catch (error) {
+      console.error('Error verificando feriado:', error)
+    } finally {
+      setLoadingFeriado(false)
+    }
+  }
 
   // Verificar si ya pasó la hora de salida
   const verificarHoraSalida = async () => {
@@ -139,6 +175,7 @@ export default function AsistenciaControl() {
     loadGrados()
     loadSecciones()
     verificarHoraSalida()
+    verificarFeriadoHoy()
     
     // Verificar cada minuto si ya pasó la hora de salida
     const interval = setInterval(verificarHoraSalida, 60000)
@@ -388,6 +425,22 @@ export default function AsistenciaControl() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Banner de feriado */}
+      {esFeriadoHoy && !loadingFeriado && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <span className="text-4xl">🚫</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-red-800 text-lg">Día No Lectivo - Registro Bloqueado</h3>
+              <p className="text-sm text-red-700">{mensajeFeriado}</p>
+              <p className="text-xs text-red-600 mt-1">No se permite registro de asistencia, escaneo QR ni modificaciones hoy.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -490,16 +543,23 @@ export default function AsistenciaControl() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
           onClick={() => {
+            if (esFeriadoHoy) {
+              alert('🚫 No se puede registrar asistencia en día feriado')
+              return
+            }
             if (entradaBloqueada) {
               // Si está bloqueada la entrada, forzar modo salida
               setAccionSeleccionada('salida')
             }
             setShowQRModal(true)
           }}
-          className={`group relative overflow-hidden p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
-            entradaBloqueada 
-              ? 'bg-gradient-to-br from-orange-500 to-amber-600' 
-              : 'bg-gradient-to-br from-green-500 to-emerald-600'
+          disabled={esFeriadoHoy}
+          className={`group relative overflow-hidden p-6 rounded-2xl shadow-lg transition-all duration-300 ${
+            esFeriadoHoy
+              ? 'bg-gray-400 cursor-not-allowed opacity-60'
+              : entradaBloqueada 
+                ? 'bg-gradient-to-br from-orange-500 to-amber-600 hover:shadow-xl hover:scale-[1.02]' 
+                : 'bg-gradient-to-br from-green-500 to-emerald-600 hover:shadow-xl hover:scale-[1.02]'
           }`}
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>

@@ -174,6 +174,49 @@ export default function HorarioClasesPage() {
     }
   }
 
+  const handleDeleteAllHorarios = async () => {
+    const confirmacion = window.confirm(
+      '⚠️ ¿Estás seguro de que deseas eliminar TODOS los horarios de clases?\n\n' +
+      'Esta acción eliminará todos los horarios de todos los grados y secciones.\n\n' +
+      'Esta acción NO se puede deshacer.'
+    )
+    
+    if (!confirmacion) return
+    
+    // Segunda confirmación para mayor seguridad
+    const confirmacionFinal = window.confirm(
+      '🚨 CONFIRMACIÓN FINAL\n\n' +
+      '¿Realmente deseas eliminar TODOS los horarios?\n\n' +
+      'Escribe "ELIMINAR" mentalmente y confirma.'
+    )
+    
+    if (!confirmacionFinal) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/horarios/clases', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ deleteAll: true })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        alert(`✅ ${data.message || 'Todos los horarios han sido eliminados exitosamente'}`)
+        await loadHorarios()
+      } else {
+        alert(`❌ Error: ${data.error || 'No se pudieron eliminar los horarios'}`)
+      }
+    } catch (error) {
+      console.error('💥 Error eliminando horarios:', error)
+      alert('❌ Error al conectar con el servidor')
+    }
+  }
+
 
   return (
     <div className="space-y-6">
@@ -214,6 +257,15 @@ export default function HorarioClasesPage() {
             >
               <PencilSquareIcon className="h-4 w-4 mr-2" />
               Editar Horarios
+            </button>
+            <button 
+              onClick={handleDeleteAllHorarios}
+              className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Eliminar Todos
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useHorarios, type Horario } from '@/hooks/useHorarios'
 import { formatTo12Hour, formatTo24Hour } from '@/utils/timeFormat'
+import { verificarFeriado, puedeRegistrarAsistencia } from '@/lib/calendario-utils'
 
 // Modal para editar tolerancia
 interface ToleranciaModalProps {
@@ -302,6 +303,45 @@ export default function HorariosDocente() {
   const [showHorarioModal, setShowHorarioModal] = useState(false)
   const [selectedHorario, setSelectedHorario] = useState<Horario | null>(null)
   const [vistaActual, setVistaActual] = useState<'lista' | 'calendario'>('lista')
+  
+  // Estado para verificar si hoy es feriado
+  const [esFeriadoHoy, setEsFeriadoHoy] = useState(false)
+  const [mensajeFeriado, setMensajeFeriado] = useState('')
+  const [loadingFeriado, setLoadingFeriado] = useState(true)
+
+  // Verificar si hoy es feriado al cargar
+  useEffect(() => {
+    const verificarHoy = async () => {
+      try {
+        setLoadingFeriado(true)
+        const token = localStorage.getItem('token')
+        const userStr = localStorage.getItem('user')
+        
+        let ieId = 1
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr)
+            ieId = user.ieId || user.ie?.id || 1
+          } catch {}
+        }
+
+        if (token) {
+          const hoy = new Date().toISOString().split('T')[0]
+          const diaInfo = await verificarFeriado(hoy, ieId, token)
+          const permiso = puedeRegistrarAsistencia(diaInfo)
+          
+          setEsFeriadoHoy(!permiso.permitido)
+          setMensajeFeriado(permiso.mensaje)
+        }
+      } catch (error) {
+        console.error('Error verificando feriado:', error)
+      } finally {
+        setLoadingFeriado(false)
+      }
+    }
+
+    verificarHoy()
+  }, [])
 
   // Cargar horarios al montar el componente
   useEffect(() => {
@@ -380,6 +420,22 @@ export default function HorariosDocente() {
 
   return (
     <div className="bg-white rounded-lg shadow-md">
+      {/* Banner de feriado */}
+      {esFeriadoHoy && !loadingFeriado && (
+        <div className="bg-red-50 border-b-2 border-red-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-red-800">Día No Lectivo</h3>
+              <p className="text-sm text-red-700">{mensajeFeriado}</p>
+              <p className="text-xs text-red-600 mt-1">No se permite registro de asistencia ni modificaciones de horarios hoy.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header con toggle de vista */}
       <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3 sm:mb-4">
@@ -550,13 +606,25 @@ export default function HorariosDocente() {
                     <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
                         onClick={() => handleEditHorario(horario)}
-                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors text-xs sm:text-sm min-h-[40px]"
+                        disabled={esFeriadoHoy}
+                        className={`flex-1 px-3 py-2 rounded-lg transition-colors text-xs sm:text-sm min-h-[40px] ${
+                          esFeriadoHoy 
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+                        }`}
+                        title={esFeriadoHoy ? 'No disponible en día feriado' : 'Editar horario'}
                       >
                         🕐 <span className="hidden sm:inline">Editar </span>Horario
                       </button>
                       <button
                         onClick={() => handleEditTolerancia(horario)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-xs sm:text-sm min-h-[40px]"
+                        disabled={esFeriadoHoy}
+                        className={`flex-1 px-3 py-2 rounded-lg transition-colors text-xs sm:text-sm min-h-[40px] ${
+                          esFeriadoHoy 
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                        }`}
+                        title={esFeriadoHoy ? 'No disponible en día feriado' : 'Ajustar tolerancia'}
                       >
                         ⏰ <span className="hidden sm:inline">Ajustar </span>Tolerancia
                       </button>

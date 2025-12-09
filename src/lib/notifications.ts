@@ -1,12 +1,25 @@
+import nodemailer from 'nodemailer'
+
 interface EmailAttachment {
   filename: string
   content: Buffer
   contentType?: string
 }
 
+// Crear transporter de nodemailer con Gmail SMTP
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
+    }
+  })
+}
+
 /**
- * Enviar email usando Pipedream (HTTP webhook que envía via Gmail)
- * Pipedream no tiene restricciones de SMTP como Railway
+ * Enviar email usando SMTP (Gmail)
+ * Configurar GMAIL_USER y GMAIL_APP_PASSWORD en variables de entorno
  */
 export async function enviarEmail(
   destinatario: string,
@@ -14,55 +27,40 @@ export async function enviarEmail(
   contenidoHTML: string
 ): Promise<boolean> {
   try {
-    const pipedreamUrl = process.env.PIPEDREAM_URL
+    console.log('🔍 Verificando configuración de SMTP:')
+    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
+    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
     
-    console.log('🔍 Verificando configuración de Pipedream:')
-    console.log('   PIPEDREAM_URL:', pipedreamUrl ? '✅ Configurado' : '❌ No configurado')
-    
-    if (!pipedreamUrl) {
-      console.error('❌ PIPEDREAM_URL no configurada en variables de entorno')
-      console.error('💡 Configura PIPEDREAM_URL con tu webhook de Pipedream')
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error('❌ Credenciales de Gmail no configuradas')
+      console.error('💡 Configura GMAIL_USER y GMAIL_APP_PASSWORD en variables de entorno')
       return false
     }
 
     console.log(`📧 Enviando a: ${destinatario}`)
     console.log(`📧 Asunto: ${asunto}`)
-    console.log('🚀 Enviando via Pipedream...')
+    console.log('🚀 Enviando via SMTP Gmail...')
     
-    const response = await fetch(pipedreamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        to: destinatario,
-        subject: asunto,
-        html: contenidoHTML,
-        body_type: 'html'
-      })
+    const transporter = createTransporter()
+    
+    const info = await transporter.sendMail({
+      from: `"Sistema Escolar" <${process.env.GMAIL_USER}>`,
+      to: destinatario,
+      subject: asunto,
+      html: contenidoHTML
     })
 
-    console.log('📬 Status HTTP:', response.status)
-    
-    if (response.ok) {
-      const result = await response.text()
-      console.log('✅ Email enviado via Pipedream')
-      console.log('📬 Respuesta:', result)
-      return true
-    } else {
-      const errorText = await response.text()
-      console.error('❌ Error de Pipedream:', response.status, errorText)
-      return false
-    }
+    console.log('✅ Email enviado via SMTP')
+    console.log('📬 Message ID:', info.messageId)
+    return true
   } catch (error: any) {
-    console.error('❌ Error enviando email via Pipedream:', error.message || error)
+    console.error('❌ Error enviando email via SMTP:', error.message || error)
     return false
   }
 }
 
 /**
- * Enviar email con adjuntos usando Pipedream
- * Los adjuntos se envían como base64
+ * Enviar email con adjuntos usando SMTP (Gmail)
  */
 export async function enviarEmailConAdjuntos(
   destinatario: string,
@@ -71,56 +69,44 @@ export async function enviarEmailConAdjuntos(
   adjuntos: EmailAttachment[]
 ): Promise<boolean> {
   try {
-    const pipedreamUrl = process.env.PIPEDREAM_URL
+    console.log('🔍 Verificando configuración de SMTP:')
+    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
+    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
     
-    console.log('🔍 Verificando configuración de Pipedream:')
-    console.log('   PIPEDREAM_URL:', pipedreamUrl ? '✅ Configurado' : '❌ No configurado')
-    
-    if (!pipedreamUrl) {
-      console.error('❌ PIPEDREAM_URL no configurada')
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error('❌ Credenciales de Gmail no configuradas')
       return false
     }
 
     console.log(`📧 Enviando a: ${destinatario}`)
     console.log(`📎 Adjuntos: ${adjuntos.length} archivos`)
     
-    // Convertir adjuntos a base64
-    const adjuntosBase64 = adjuntos.map(adj => ({
-      filename: adj.filename,
-      content: adj.content.toString('base64'),
-      contentType: adj.contentType || 'application/octet-stream'
-    }))
-
-    const response = await fetch(pipedreamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        to: destinatario,
-        subject: asunto,
-        html: contenidoHTML,
-        attachments: adjuntosBase64
-      })
+    const transporter = createTransporter()
+    
+    const info = await transporter.sendMail({
+      from: `"Sistema Escolar" <${process.env.GMAIL_USER}>`,
+      to: destinatario,
+      subject: asunto,
+      html: contenidoHTML,
+      attachments: adjuntos.map(adj => ({
+        filename: adj.filename,
+        content: adj.content,
+        contentType: adj.contentType
+      }))
     })
 
-    if (response.ok) {
-      console.log('✅ Email con adjuntos enviado via Pipedream')
-      return true
-    } else {
-      const errorText = await response.text()
-      console.error('❌ Error de Pipedream:', response.status, errorText)
-      return false
-    }
+    console.log('✅ Email con adjuntos enviado via SMTP')
+    console.log('📬 Message ID:', info.messageId)
+    return true
   } catch (error: any) {
-    console.error('❌ Error enviando email con adjuntos:', error.message || error)
+    console.error('❌ Error enviando email con adjuntos via SMTP:', error.message || error)
     return false
   }
 }
 
 /**
- * Enviar SMS usando SMSChef
- * API de SMS para Perú
+ * Enviar SMS usando TextBee
+ * API de SMS que usa tu propio dispositivo Android como gateway
  */
 export async function enviarSMS(
   telefono: string,
@@ -128,50 +114,54 @@ export async function enviarSMS(
 ): Promise<boolean> {
   try {
     // Debug: Verificar variables de entorno
-    console.log('🔍 Verificando credenciales de SMSChef:')
-    console.log('   SMSCHEF_API_KEY:', process.env.SMSCHEF_API_KEY ? '✅ Configurado' : '❌ No configurado')
-    console.log('   SMSCHEF_SENDER_ID:', process.env.SMSCHEF_SENDER_ID ? '✅ Configurado' : '❌ No configurado')
+    console.log('🔍 Verificando credenciales de TextBee:')
+    console.log('   API_TEXTBEE:', process.env.API_TEXTBEE ? '✅ Configurado' : '❌ No configurado')
+    console.log('   DEVICE_ID:', process.env.DEVICE_ID ? '✅ Configurado' : '❌ No configurado')
     
-    // Verificar si las credenciales de SMSChef están configuradas
-    if (!process.env.SMSCHEF_API_KEY) {
-      console.log('⚠️ Credenciales de SMSChef no configuradas. SMS no enviado.')
+    // Verificar si las credenciales de TextBee están configuradas
+    if (!process.env.API_TEXTBEE || !process.env.DEVICE_ID) {
+      console.log('⚠️ Credenciales de TextBee no configuradas. SMS no enviado.')
       return false
     }
 
-    // Formatear número de teléfono (solo números, sin +51)
+    // Formatear número de teléfono con código de país +51 para Perú
     let telefonoFormateado = telefono.trim().replace(/\D/g, '')
     
-    // Si empieza con 51, quitarlo (SMSChef espera solo el número local)
-    if (telefonoFormateado.startsWith('51')) {
-      telefonoFormateado = telefonoFormateado.substring(2)
+    // Si no empieza con 51, agregarlo
+    if (!telefonoFormateado.startsWith('51')) {
+      telefonoFormateado = '51' + telefonoFormateado
     }
     
-    // Validar que sea un número peruano válido (9 dígitos que empieza con 9)
-    if (telefonoFormateado.length !== 9 || !telefonoFormateado.startsWith('9')) {
-      console.log(`⚠️ Número de teléfono inválido: ${telefono}`)
+    // Agregar el + al inicio
+    telefonoFormateado = '+' + telefonoFormateado
+    
+    // Validar que sea un número peruano válido (+51 + 9 dígitos)
+    if (telefonoFormateado.length !== 12) {
+      console.log(`⚠️ Número de teléfono inválido: ${telefono} → ${telefonoFormateado}`)
       return false
     }
     
     console.log(`📱 Número formateado: ${telefono} → ${telefonoFormateado}`)
 
-    // Preparar datos para SMSChef
+    // Construir URL de la API de TextBee
+    const apiUrl = process.env.API_TEXTBEE_URL || 
+      `https://api.textbee.dev/api/v1/gateway/devices/${process.env.DEVICE_ID}/send-sms`
+
+    // Preparar datos para TextBee
     const requestBody = {
-      api_key: process.env.SMSCHEF_API_KEY,
-      sender_id: process.env.SMSCHEF_SENDER_ID || 'COLEGIO',
-      to: telefonoFormateado,
-      message: mensaje,
-      schedule: null // Enviar inmediatamente
+      recipients: [telefonoFormateado],
+      message: mensaje
     }
 
-    console.log('📱 Enviando SMS via SMSChef...')
-    console.log('📱 URL:', 'https://api.smschef.com/v1/sms/send')
+    console.log('📱 Enviando SMS via TextBee...')
+    console.log('📱 URL:', apiUrl)
     console.log('📱 Datos:', JSON.stringify(requestBody, null, 2))
 
-    const response = await fetch('https://api.smschef.com/v1/sms/send', {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'x-api-key': process.env.API_TEXTBEE!
       },
       body: JSON.stringify(requestBody)
     })
@@ -181,15 +171,15 @@ export async function enviarSMS(
     const result = await response.json()
     console.log('📱 Respuesta completa:', JSON.stringify(result, null, 2))
 
-    if (response.ok && result.success) {
-      console.log('✅ SMS enviado via SMSChef:', result.message_id || 'OK')
+    if (response.ok) {
+      console.log('✅ SMS enviado via TextBee')
       return true
     } else {
-      console.error('❌ Error en respuesta de SMSChef:', result)
+      console.error('❌ Error en respuesta de TextBee:', result)
       return false
     }
   } catch (error: any) {
-    console.error('❌ Error enviando SMS via SMSChef:')
+    console.error('❌ Error enviando SMS via TextBee:')
     console.error('   Tipo:', error.constructor.name)
     console.error('   Mensaje:', error.message)
     console.error('   Causa:', error.cause)
@@ -199,8 +189,8 @@ export async function enviarSMS(
     if (error.message.includes('fetch failed')) {
       console.error('💡 Posibles causas:')
       console.error('   1. Problema de conexión a internet')
-      console.error('   2. La API de SMSChef no está disponible')
-      console.error('   3. Problema con certificados SSL')
+      console.error('   2. La API de TextBee no está disponible')
+      console.error('   3. El dispositivo Android no está conectado')
       console.error('   4. Firewall bloqueando la conexión')
     }
     
@@ -414,8 +404,51 @@ Docente: ${docenteNombre} ${docenteApellido}
   return { emailEnviado, smsEnviado }
 }
 
+// Cache en memoria para evitar duplicados de notificaciones (por sesión del servidor)
+const notificacionesEnviadas = new Map<string, number>()
+const CACHE_DURACION_MS = 60000 // 1 minuto de cooldown entre notificaciones iguales
+
+/**
+ * Genera una clave única para identificar una notificación
+ */
+function generarClaveNotificacion(estudianteDNI: string, accion: string, fecha: string): string {
+  return `${estudianteDNI}-${accion}-${fecha}`
+}
+
+/**
+ * Verifica si una notificación ya fue enviada recientemente
+ */
+function yaSeEnvioNotificacion(clave: string): boolean {
+  const ultimoEnvio = notificacionesEnviadas.get(clave)
+  if (!ultimoEnvio) return false
+  
+  const ahora = Date.now()
+  if (ahora - ultimoEnvio < CACHE_DURACION_MS) {
+    console.log(`⚠️ Notificación duplicada detectada: ${clave}. Última hace ${Math.round((ahora - ultimoEnvio) / 1000)}s`)
+    return true
+  }
+  
+  return false
+}
+
+/**
+ * Registra que una notificación fue enviada
+ */
+function registrarNotificacionEnviada(clave: string): void {
+  notificacionesEnviadas.set(clave, Date.now())
+  
+  // Limpiar cache antiguo (más de 5 minutos)
+  const ahora = Date.now()
+  for (const [key, timestamp] of notificacionesEnviadas.entries()) {
+    if (ahora - timestamp > 300000) {
+      notificacionesEnviadas.delete(key)
+    }
+  }
+}
+
 /**
  * Notificar entrada/salida del estudiante al apoderado
+ * Incluye protección contra duplicados
  */
 export async function notificarEntradaSalida(data: {
   estudianteNombre: string
@@ -429,6 +462,7 @@ export async function notificarEntradaSalida(data: {
   emailApoderado: string
   telefonoApoderado: string
   textoPersonalizado?: string // Texto personalizado para asistencia de clase
+  skipDuplicateCheck?: boolean // Si es true, no verifica duplicados
 }): Promise<{ emailEnviado: boolean; smsEnviado: boolean }> {
   
   const {
@@ -442,8 +476,18 @@ export async function notificarEntradaSalida(data: {
     fecha,
     emailApoderado,
     telefonoApoderado,
-    textoPersonalizado
+    textoPersonalizado,
+    skipDuplicateCheck = false
   } = data
+
+  // Verificar si ya se envió esta notificación recientemente (evitar duplicados)
+  const fechaCorta = fecha.split('T')[0] // Solo la fecha sin hora
+  const claveNotificacion = generarClaveNotificacion(estudianteDNI, accion, fechaCorta)
+  
+  if (!skipDuplicateCheck && yaSeEnvioNotificacion(claveNotificacion)) {
+    console.log(`🚫 Notificación de ${accion} para ${estudianteNombre} ${estudianteApellido} ya fue enviada. Omitiendo duplicado.`)
+    return { emailEnviado: false, smsEnviado: false }
+  }
 
   // Formatear fecha y hora
   const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
@@ -581,13 +625,19 @@ Grado: ${grado}° ${seccion}
 - Sistema Escolar`
 
   // ENVIAR NOTIFICACIONES
-  console.log(`📧 Enviando notificaciones de ${accion}...`)
+  console.log(`📧 Enviando notificaciones de ${accion} para ${estudianteNombre} ${estudianteApellido}...`)
   
   const emailEnviado = await enviarEmail(emailApoderado, asuntoEmail, contenidoEmail)
   const smsEnviado = await enviarSMS(telefonoApoderado, mensajeSMS)
 
   console.log(`📧 Email: ${emailEnviado ? '✅ Enviado' : '❌ Falló'}`)
   console.log(`📱 SMS: ${smsEnviado ? '✅ Enviado' : '❌ Falló'}`)
+
+  // Registrar que la notificación fue enviada para evitar duplicados
+  if (emailEnviado || smsEnviado) {
+    registrarNotificacionEnviada(claveNotificacion)
+    console.log(`✅ Notificación registrada en cache: ${claveNotificacion}`)
+  }
 
   return { emailEnviado, smsEnviado }
 }
@@ -629,13 +679,31 @@ export async function notificarCambioAsistencia(data: {
     apoderadoUsuarioId
   } = data
 
-  // Formatear fecha
-  const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  // Formatear fecha - Parsear correctamente para evitar problemas de zona horaria
+  let fechaFormateada = fecha
+  try {
+    // Si la fecha viene en formato YYYY-MM-DD, parsear manualmente
+    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [anio, mes, dia] = fecha.split('-').map(Number)
+      const fechaLocal = new Date(anio, mes - 1, dia, 12, 0, 0) // Usar mediodía para evitar problemas de zona horaria
+      fechaFormateada = fechaLocal.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } else {
+      fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+  } catch (e) {
+    console.error('Error formateando fecha en notificarCambioAsistencia:', e)
+    fechaFormateada = fecha
+  }
 
   // Determinar emoji y colores según el nuevo estado
   let estadoEmoji = '📝'
@@ -829,13 +897,30 @@ export async function notificarInasistencia(data: {
     apoderadoUsuarioId
   } = data
 
-  // Formatear fecha
-  const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  // Formatear fecha - Parsear correctamente para evitar problemas de zona horaria
+  let fechaFormateada = fecha
+  try {
+    if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [anio, mes, dia] = fecha.split('-').map(Number)
+      const fechaLocal = new Date(anio, mes - 1, dia, 12, 0, 0)
+      fechaFormateada = fechaLocal.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } else {
+      fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+  } catch (e) {
+    console.error('Error formateando fecha en notificarInasistencia:', e)
+    fechaFormateada = fecha
+  }
 
   // CONTENIDO DEL EMAIL
   const asuntoEmail = `❌ Inasistencia Registrada - ${estudianteNombre} ${estudianteApellido}`

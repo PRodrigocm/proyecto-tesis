@@ -309,18 +309,71 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 8. CREAR ASISTENCIA EN AULA
-    const nuevaAsistencia = await prisma.asistencia.create({
-      data: {
+    // 8. BUSCAR O CREAR/ACTUALIZAR ASISTENCIA EN AULA
+    // Primero buscar si ya existe un registro para este estudiante+fecha
+    let asistenciaExistenteParaActualizar = await prisma.asistencia.findFirst({
+      where: {
         idEstudiante: estudiante.idEstudiante,
-        idHorarioClase: horarioClase.idHorarioClase,
-        fecha: fechaAsistencia,
-        horaRegistro: ahoraUTC, // Guardar hora UTC real
-        idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
-        observaciones: `Registrado por docente en ${horarioClase.materia || 'clase'} - ${estadoCodigo}`,
-        registradoPor: userInfo.userId
+        fecha: fechaAsistencia
       }
     })
+
+    let nuevaAsistencia
+    if (asistenciaExistenteParaActualizar) {
+      // ACTUALIZAR el registro existente en lugar de crear uno nuevo
+      const estadoAnteriorId = asistenciaExistenteParaActualizar.idEstadoAsistencia
+      
+      nuevaAsistencia = await prisma.asistencia.update({
+        where: { idAsistencia: asistenciaExistenteParaActualizar.idAsistencia },
+        data: {
+          idHorarioClase: horarioClase.idHorarioClase,
+          horaRegistro: ahoraUTC,
+          idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+          observaciones: `Actualizado por docente en ${horarioClase.materia || 'clase'} - ${estadoCodigo}`,
+          updatedAt: new Date()
+        }
+      })
+
+      // Crear registro en histórico si el estado cambió
+      if (estadoAnteriorId !== estadoAsistencia.idEstadoAsistencia) {
+        await prisma.historicoEstadoAsistencia.create({
+          data: {
+            idAsistencia: nuevaAsistencia.idAsistencia,
+            idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+            fechaCambio: new Date(),
+            cambiadoPor: userInfo.userId
+          }
+        })
+        console.log(`📜 Histórico creado para asistencia ${nuevaAsistencia.idAsistencia}`)
+      }
+
+      console.log(`📝 Asistencia ACTUALIZADA (no duplicada): ${nuevaAsistencia.idAsistencia}`)
+    } else {
+      // Crear nueva asistencia solo si no existe ningún registro
+      nuevaAsistencia = await prisma.asistencia.create({
+        data: {
+          idEstudiante: estudiante.idEstudiante,
+          idHorarioClase: horarioClase.idHorarioClase,
+          fecha: fechaAsistencia,
+          horaRegistro: ahoraUTC,
+          idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+          observaciones: `Registrado por docente en ${horarioClase.materia || 'clase'} - ${estadoCodigo}`,
+          registradoPor: userInfo.userId
+        }
+      })
+
+      // Crear registro inicial en histórico
+      await prisma.historicoEstadoAsistencia.create({
+        data: {
+          idAsistencia: nuevaAsistencia.idAsistencia,
+          idEstadoAsistencia: estadoAsistencia.idEstadoAsistencia,
+          fechaCambio: new Date(),
+          cambiadoPor: userInfo.userId
+        }
+      })
+
+      console.log(`📝 Asistencia CREADA: ${nuevaAsistencia.idAsistencia}`)
+    }
 
     // Formatear hora de Perú para mostrar
     const horaPeruFormateada = ahoraUTC.toLocaleTimeString('es-PE', { 
@@ -475,16 +528,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener estudiantes ACTIVOS de la clase con sus asistencias del día
-    // Parsear la fecha correctamente para evitar problemas de zona horaria
+    // Parsear la fecha correctamente - usar UTC para consistencia con guardado
     // fecha viene como "YYYY-MM-DD", la parseamos manualmente
     const [anioConsulta, mesConsulta, diaConsulta] = fecha.split('-').map(Number)
     
-    // Crear fechas en hora local (no UTC)
-    const fechaConsulta = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0)
-    const fechaInicio = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0)
-    const fechaFin = new Date(anioConsulta, mesConsulta - 1, diaConsulta, 23, 59, 59, 999)
+    // Crear fechas en UTC para consistencia con la API de guardado
+    const fechaConsulta = new Date(Date.UTC(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0))
+    const fechaInicio = new Date(Date.UTC(anioConsulta, mesConsulta - 1, diaConsulta, 0, 0, 0, 0))
+    const fechaFin = new Date(Date.UTC(anioConsulta, mesConsulta - 1, diaConsulta, 23, 59, 59, 999))
     
-    console.log(`🔍 Buscando asistencias para fecha: ${fecha} (local: ${fechaConsulta.toLocaleDateString()})`)
+    console.log(`🔍 Buscando asistencias para fecha: ${fecha} (UTC: ${fechaConsulta.toISOString()})`)
     
     const estudiantes = await prisma.estudiante.findMany({
       where: {
@@ -570,10 +623,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Crear mapa de asistencias directas por estudiante para acceso rápido
+    // Crear mapa de asistencias directas por estudiante - usar la más reciente (mayor ID)
     const asistenciasPorEstudiante = new Map<number, typeof asistenciasDirectas[0]>()
-    asistenciasDirectas.forEach(a => {
-      asistenciasPorEstudiante.set(a.idEstudiante, a)
+    // Ordenar por ID descendente para que el más reciente quede primero
+    const asistenciasOrdenadas = [...asistenciasDirectas].sort((a, b) => b.idAsistencia - a.idAsistencia)
+    asistenciasOrdenadas.forEach(a => {
+      // Solo guardar si no existe ya (así mantenemos la más reciente)
+      if (!asistenciasPorEstudiante.has(a.idEstudiante)) {
+        asistenciasPorEstudiante.set(a.idEstudiante, a)
+      }
     })
 
     // Transformar datos

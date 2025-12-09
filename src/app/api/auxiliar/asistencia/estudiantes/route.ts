@@ -166,30 +166,26 @@ export async function GET(request: NextRequest) {
         }
         // SEGUNDO: Determinar estado basado en AsistenciaIE
         else if (asistenciaIE) {
-          // Verificar estados especiales guardados
-          if (asistenciaIE.estado === 'RETIRO') {
-            estado = 'RETIRADO'
+          // Si tiene hora de ingreso
+          if (asistenciaIE.horaIngreso) {
             horaEntrada = formatearHora(asistenciaIE.horaIngreso)
-            horaSalida = formatearHora(asistenciaIE.horaSalida)
-          } else if (asistenciaIE.estado === 'JUSTIFICADO' || asistenciaIE.estado === 'JUSTIFICADA') {
-            estado = 'PRESENTE' // Mostrar como presente pero con justificación
-            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
-          } else if (asistenciaIE.horaSalida) {
-            estado = 'RETIRADO'
-            horaSalida = formatearHora(asistenciaIE.horaSalida)
-            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
-          } else if (asistenciaIE.horaIngreso) {
-            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
-            // Si tiene hora de ingreso pero no salida, está presente
-            // Verificar si el estado guardado es TARDANZA
+            
+            // Si tiene hora de salida SIN retiro autorizado, sigue siendo PRESENTE (salida normal)
+            // Solo es RETIRADO si hay un retiro autorizado (ya verificado arriba)
+            if (asistenciaIE.horaSalida) {
+              horaSalida = formatearHora(asistenciaIE.horaSalida)
+            }
+            
+            // Determinar estado según el estado guardado
             if (asistenciaIE.estado === 'TARDANZA') {
               estado = 'TARDANZA'
             } else {
               estado = 'PRESENTE'
             }
           }
+          // Si no tiene hora de ingreso pero tiene registro, es AUSENTE
         }
-        // Si no tiene AsistenciaIE, el estado es AUSENTE (sin registro de entrada)
+        // Si no tiene AsistenciaIE ni retiro, el estado es AUSENTE
 
         return {
           id: estudiante.idEstudiante.toString(),

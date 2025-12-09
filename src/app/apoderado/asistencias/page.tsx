@@ -99,15 +99,36 @@ export default function AsistenciasPage() {
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'PRESENTE':
+      case 'COMPLETO':
         return 'bg-green-100 text-green-800'
       case 'AUSENTE':
         return 'bg-red-100 text-red-800'
       case 'TARDANZA':
+      case 'FALTA_SALIDA':
         return 'bg-yellow-100 text-yellow-800'
       case 'JUSTIFICADO':
         return 'bg-blue-100 text-blue-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getEstadoLabel = (estado: string) => {
+    switch (estado) {
+      case 'COMPLETO':
+        return 'Completo'
+      case 'PRESENTE':
+        return 'Presente'
+      case 'FALTA_SALIDA':
+        return 'Falta Salida'
+      case 'AUSENTE':
+        return 'Ausente'
+      case 'TARDANZA':
+        return 'Tardanza'
+      case 'JUSTIFICADO':
+        return 'Justificado'
+      default:
+        return estado
     }
   }
 
@@ -236,7 +257,7 @@ export default function AsistenciasPage() {
                             {new Date(asistencia.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </span>
                           <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                            {asistencia.estado}
+                            {getEstadoLabel(asistencia.estado)}
                           </span>
                         </div>
                         <div className="flex gap-4 text-xs text-gray-600">
@@ -271,7 +292,7 @@ export default function AsistenciasPage() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                                {asistencia.estado}
+                                {getEstadoLabel(asistencia.estado)}
                               </span>
                             </td>
                           </tr>
@@ -312,7 +333,7 @@ export default function AsistenciasPage() {
                             <span className="text-xs text-gray-500">{asistencia.aula}</span>
                           </div>
                           <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                            {asistencia.estado}
+                            {getEstadoLabel(asistencia.estado)}
                           </span>
                         </div>
                         <div className="text-xs text-gray-600">
@@ -346,7 +367,7 @@ export default function AsistenciasPage() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(asistencia.estado)}`}>
-                                {asistencia.estado}
+                                {getEstadoLabel(asistencia.estado)}
                               </span>
                             </td>
                           </tr>

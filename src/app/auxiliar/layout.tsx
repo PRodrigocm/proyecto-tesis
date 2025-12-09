@@ -20,7 +20,7 @@ export default function AuxiliarLayout({
   // Hook para procesar faltas automáticamente
   useAutoAttendance(user?.ie?.idIe || user?.idIe)
 
-  // Cargar datos del usuario
+  // Cargar datos del usuario y verificar autenticación
   useEffect(() => {
     setMounted(true)
     
@@ -29,42 +29,60 @@ export default function AuxiliarLayout({
         const storedUser = localStorage.getItem('user')
         const token = localStorage.getItem('token')
         
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser)
-            console.log('👤 Usuario cargado en layout auxiliar:', parsedUser)
-            setUser(parsedUser)
-            
-            // Si faltan datos importantes, intentar cargar desde el servidor
-            if ((!parsedUser.nombre || !parsedUser.apellido || !parsedUser.ie?.nombre) && token) {
-              try {
-                const response = await fetch('/api/auth/me', {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                })
-                
-                if (response.ok) {
-                  const userData = await response.json()
-                  console.log('👤 Datos actualizados del servidor:', userData)
-                  
-                  // Actualizar localStorage con datos completos
-                  localStorage.setItem('user', JSON.stringify(userData.user))
-                  setUser(userData.user)
-                }
-              } catch (error) {
-                console.log('⚠️ No se pudieron cargar datos adicionales del servidor:', error)
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing user data:', error)
+        // Redirigir al login si no hay token o usuario
+        if (!token || !storedUser) {
+          router.push('/login')
+          return
+        }
+        
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          
+          // Verificar que el rol sea AUXILIAR
+          if (parsedUser.rol !== 'AUXILIAR') {
+            router.push('/login')
+            return
           }
+          
+          console.log('👤 Usuario cargado en layout auxiliar:', parsedUser)
+          setUser(parsedUser)
+          
+          // Si faltan datos importantes, intentar cargar desde el servidor
+          if ((!parsedUser.nombre || !parsedUser.apellido || !parsedUser.ie?.nombre) && token) {
+            try {
+              const response = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              })
+              
+              if (response.ok) {
+                const userData = await response.json()
+                console.log('👤 Datos actualizados del servidor:', userData)
+                
+                // Actualizar localStorage con datos completos
+                localStorage.setItem('user', JSON.stringify(userData.user))
+                setUser(userData.user)
+              } else if (response.status === 401) {
+                // Token inválido o expirado
+                localStorage.removeItem('token')
+                localStorage.removeItem('user')
+                router.push('/login')
+                return
+              }
+            } catch (error) {
+              console.log('⚠️ No se pudieron cargar datos adicionales del servidor:', error)
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error)
+          router.push('/login')
         }
       }
     }
     
     loadUserData()
-  }, [])
+  }, [router])
 
   const navigation = [
     {

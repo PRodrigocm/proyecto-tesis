@@ -83,10 +83,7 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     { value: 7, label: 'Domingo' }
   ]
 
-  const horasComunes = [
-    '07:00', '07:45', '08:30', '09:15', '10:00', '10:45', 
-    '11:30', '12:15', '13:00', '13:45', '14:30', '15:15'
-  ]
+  // Ya no se usa horasComunes - ahora usamos input type="time"
 
   useEffect(() => {
     if (isOpen) {
@@ -354,45 +351,65 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
     setSelectedGradoSeccion(value)
     
     if (value) {
-      // Modo individual: cargar horarios de un grado-sección específico
-      loadExistingHorarios(value)
+      // Cargar aulas específicas
       loadAulas(value)
       
       // Obtener información del grado-sección para determinar el aula y docente automáticos
       const gradoSeccionSeleccionado = gradosSecciones.find(gs => gs.idGradoSeccion.toString() === value)
-      if (gradoSeccionSeleccionado) {
-        const aulaAutomatica = `Aula ${gradoSeccionSeleccionado.grado.nombre}° ${gradoSeccionSeleccionado.seccion.nombre}`
+      const aulaAutomatica = gradoSeccionSeleccionado 
+        ? `Aula ${gradoSeccionSeleccionado.grado.nombre}° ${gradoSeccionSeleccionado.seccion.nombre}`
+        : ''
+      
+      // Buscar el docente asignado a este grado-sección
+      let docenteAutomatico = ''
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/docentes/asignacion?gradoSeccionId=${value}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
         
-        // Buscar el docente asignado a este grado-sección
-        let docenteAutomatico = ''
-        try {
-          const token = localStorage.getItem('token')
-          const response = await fetch(`/api/docentes/asignacion?gradoSeccionId=${value}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            if (data.docente) {
-              docenteAutomatico = `${data.docente.nombre} ${data.docente.apellido}`
-              console.log(`✅ Docente automático encontrado: ${docenteAutomatico}`)
-            }
+        if (response.ok) {
+          const data = await response.json()
+          if (data.docente) {
+            docenteAutomatico = `${data.docente.nombre} ${data.docente.apellido}`
+            console.log(`✅ Docente automático encontrado: ${docenteAutomatico}`)
           }
-        } catch (error) {
-          console.log('⚠️ No se pudo cargar el docente automático:', error)
         }
+      } catch (error) {
+        console.log('⚠️ No se pudo cargar el docente automático:', error)
+      }
+      
+      // Cargar horarios existentes y aplicar docente/aula automáticos
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/horarios/anuales?idGradoSeccion=${value}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
         
-        // Actualizar todos los horarios existentes con el aula y docente automáticos
-        setHorarios(prev => prev.map(horario => ({
-          ...horario,
-          aula: aulaAutomatica,
-          docente: docenteAutomatico
-        })))
-        
-        console.log(`✅ Aula automática asignada: ${aulaAutomatica}`)
-        if (docenteAutomatico) {
-          console.log(`✅ Docente automático asignado: ${docenteAutomatico}`)
+        if (response.ok) {
+          const data = await response.json()
+          const horariosExistentes = data.data.map((h: any) => ({
+            diaSemana: h.diaSemana,
+            horaInicio: h.horaInicio,
+            horaFin: h.horaFin,
+            // Precargar docente: usar el del horario si existe, sino el automático
+            docente: h.docente?.nombre ? `${h.docente.nombre} ${h.docente.apellido || ''}`.trim() : docenteAutomatico,
+            aula: h.aula || aulaAutomatica,
+            tipoActividad: h.tipoActividad
+          }))
+          setHorarios(horariosExistentes)
+          console.log(`✅ ${horariosExistentes.length} horarios cargados con docente precargado`)
+        } else {
+          setHorarios([])
         }
+      } catch (error) {
+        console.error('Error loading existing horarios:', error)
+        setHorarios([])
+      }
+      
+      console.log(`✅ Aula automática: ${aulaAutomatica}`)
+      if (docenteAutomatico) {
+        console.log(`✅ Docente automático: ${docenteAutomatico}`)
       }
     } else {
       setHorarios([])
@@ -997,35 +1014,55 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                   </button>
                 </div>
 
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                   {horarios.map((horario, index) => (
-                <div key={`horario-${index}-${horario.diaSemana}-${horario.tipoActividad}`} className={`p-4 border rounded-lg ${
-                  horario.tipoActividad === 'RECUPERACION' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
+                <div key={`horario-${index}-${horario.diaSemana}-${horario.tipoActividad}`} className={`p-5 rounded-xl shadow-sm transition-all hover:shadow-md ${
+                  horario.tipoActividad === 'RECUPERACION' 
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300' 
+                    : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300'
                 }`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-medium text-gray-900">
-                      {horario.tipoActividad === 'RECUPERACION' ? '🔄 Recuperación' : '📚 Clase Regular'}
-                    </h5>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${
+                        horario.tipoActividad === 'RECUPERACION' ? 'bg-green-500' : 'bg-blue-500'
+                      }`}>
+                        {horario.tipoActividad === 'RECUPERACION' ? (
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        )}
+                      </div>
+                      <h5 className="font-semibold text-gray-900">
+                        {horario.tipoActividad === 'RECUPERACION' ? 'Recuperación' : 'Clase Regular'}
+                      </h5>
+                    </div>
                     {horario.tipoActividad === 'RECUPERACION' && (
                       <button
                         type="button"
                         onClick={() => eliminarHorario(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm font-medium bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
                       >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                         Eliminar
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
                         Día
                       </label>
                       <select
                         value={horario.diaSemana}
                         onChange={(e) => handleHorarioChange(index, 'diaSemana', parseInt(e.target.value))}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
                       >
                         {diasSemana.map(dia => (
                           <option key={`dia-${dia.value}`} value={dia.value}>
@@ -1036,43 +1073,37 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Hora Inicio
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                        🕐 Hora Inicio
                       </label>
-                      <select
+                      <input
+                        type="time"
                         value={horario.horaInicio}
                         onChange={(e) => handleHorarioChange(index, 'horaInicio', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
-                      >
-                        {horasComunes.map((hora, horaIndex) => (
-                          <option key={`hora-inicio-${hora}-${horaIndex}`} value={hora}>{hora}</option>
-                        ))}
-                      </select>
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white cursor-pointer hover:border-blue-400"
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Hora Fin
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                        🕐 Hora Fin
                       </label>
-                      <select
+                      <input
+                        type="time"
                         value={horario.horaFin}
                         onChange={(e) => handleHorarioChange(index, 'horaFin', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
-                      >
-                        {horasComunes.map((hora, horaIndex) => (
-                          <option key={`hora-fin-${hora}-${horaIndex}`} value={hora}>{hora}</option>
-                        ))}
-                      </select>
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white cursor-pointer hover:border-blue-400"
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Aula
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                        🏫 Aula
                       </label>
                       <select
                         value={horario.aula}
                         onChange={(e) => handleHorarioChange(index, 'aula', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
                         disabled={loadingAulas}
                       >
                         <option value="">Seleccionar aula...</option>
@@ -1104,14 +1135,14 @@ export default function EditHorarioClasesModal({ isOpen, onClose, onSave }: Edit
                       )}
                     </div>
 
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Docente
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                        👨‍🏫 Docente
                       </label>
                       <select
                         value={horario.docente}
                         onChange={(e) => handleHorarioChange(index, 'docente', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
                         disabled={loadingDocentes}
                       >
                         <option value="">Seleccionar docente...</option>
