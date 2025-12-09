@@ -1,5 +1,3 @@
-import nodemailer from 'nodemailer'
-
 interface EmailAttachment {
   filename: string
   content: Buffer
@@ -7,7 +5,8 @@ interface EmailAttachment {
 }
 
 /**
- * Enviar email usando Gmail SMTP
+ * Enviar email usando Pipedream (HTTP webhook que envía via Gmail)
+ * Pipedream no tiene restricciones de SMTP como Railway
  */
 export async function enviarEmail(
   destinatario: string,
@@ -15,75 +14,55 @@ export async function enviarEmail(
   contenidoHTML: string
 ): Promise<boolean> {
   try {
-    // Debug: Verificar credenciales de Gmail
-    console.log('🔍 Verificando credenciales de Gmail SMTP:')
-    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
-    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
+    const pipedreamUrl = process.env.PIPEDREAM_URL
     
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.error('❌ Credenciales de Gmail no configuradas en .env')
-      console.error('💡 Configura GMAIL_USER y GMAIL_APP_PASSWORD')
+    console.log('🔍 Verificando configuración de Pipedream:')
+    console.log('   PIPEDREAM_URL:', pipedreamUrl ? '✅ Configurado' : '❌ No configurado')
+    
+    if (!pipedreamUrl) {
+      console.error('❌ PIPEDREAM_URL no configurada en variables de entorno')
+      console.error('💡 Configura PIPEDREAM_URL con tu webhook de Pipedream')
       return false
     }
 
-    console.log(`📧 Enviando desde: ${process.env.GMAIL_USER}`)
     console.log(`📧 Enviando a: ${destinatario}`)
     console.log(`📧 Asunto: ${asunto}`)
+    console.log('🚀 Enviando via Pipedream...')
     
-    // Crear transportador de Nodemailer con Gmail SMTP directo
-    console.log('🔧 Creando transportador SMTP...')
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // SSL directo en puerto 465
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
+    const response = await fetch(pipedreamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 30000,
-      greetingTimeout: 30000,
-      socketTimeout: 30000
+      body: JSON.stringify({
+        to: destinatario,
+        subject: asunto,
+        html: contenidoHTML,
+        body_type: 'html'
+      })
     })
 
-    // Verificar conexión SMTP
-    console.log('🔌 Verificando conexión SMTP...')
-    try {
-      await transporter.verify()
-      console.log('✅ Conexión SMTP verificada')
-    } catch (verifyError: any) {
-      console.error('❌ Error verificando conexión SMTP:', verifyError.message)
-      console.error('💡 Verifica que GMAIL_APP_PASSWORD sea una App Password válida')
+    console.log('📬 Status HTTP:', response.status)
+    
+    if (response.ok) {
+      const result = await response.text()
+      console.log('✅ Email enviado via Pipedream')
+      console.log('📬 Respuesta:', result)
+      return true
+    } else {
+      const errorText = await response.text()
+      console.error('❌ Error de Pipedream:', response.status, errorText)
       return false
     }
-
-    // Configurar el email
-    const mailOptions = {
-      from: `"Sistema de Asistencia Escolar" <${process.env.GMAIL_USER}>`,
-      to: destinatario,
-      subject: asunto,
-      html: contenidoHTML
-    }
-
-    // Enviar el email
-    console.log('📤 Enviando email...')
-    const info = await transporter.sendMail(mailOptions)
-
-    console.log('✅ Email enviado via Gmail SMTP:', info.messageId)
-    console.log('📬 Respuesta:', info.response)
-    return true
   } catch (error: any) {
-    console.error('❌ Error enviando email via Gmail:', error.message || error)
-    console.error('📋 Stack:', error.stack)
-    console.error('🔢 Código:', error.code)
+    console.error('❌ Error enviando email via Pipedream:', error.message || error)
     return false
   }
 }
 
 /**
- * Enviar email con adjuntos usando Gmail SMTP
+ * Enviar email con adjuntos usando Pipedream
+ * Los adjuntos se envían como base64
  */
 export async function enviarEmailConAdjuntos(
   destinatario: string,
@@ -92,62 +71,49 @@ export async function enviarEmailConAdjuntos(
   adjuntos: EmailAttachment[]
 ): Promise<boolean> {
   try {
-    console.log('🔍 Verificando credenciales de Gmail SMTP:')
-    console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
-    console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? '✅ Configurado' : '❌ No configurado')
+    const pipedreamUrl = process.env.PIPEDREAM_URL
     
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.error('❌ Credenciales de Gmail no configuradas en .env')
+    console.log('🔍 Verificando configuración de Pipedream:')
+    console.log('   PIPEDREAM_URL:', pipedreamUrl ? '✅ Configurado' : '❌ No configurado')
+    
+    if (!pipedreamUrl) {
+      console.error('❌ PIPEDREAM_URL no configurada')
       return false
     }
 
     console.log(`📧 Enviando a: ${destinatario}`)
     console.log(`📎 Adjuntos: ${adjuntos.length} archivos`)
     
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
+    // Convertir adjuntos a base64
+    const adjuntosBase64 = adjuntos.map(adj => ({
+      filename: adj.filename,
+      content: adj.content.toString('base64'),
+      contentType: adj.contentType || 'application/octet-stream'
+    }))
+
+    const response = await fetch(pipedreamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 30000,
-      greetingTimeout: 30000,
-      socketTimeout: 30000
+      body: JSON.stringify({
+        to: destinatario,
+        subject: asunto,
+        html: contenidoHTML,
+        attachments: adjuntosBase64
+      })
     })
 
-    // Verificar conexión
-    try {
-      await transporter.verify()
-      console.log('✅ Conexión SMTP verificada')
-    } catch (verifyError: any) {
-      console.error('❌ Error verificando SMTP:', verifyError.message)
+    if (response.ok) {
+      console.log('✅ Email con adjuntos enviado via Pipedream')
+      return true
+    } else {
+      const errorText = await response.text()
+      console.error('❌ Error de Pipedream:', response.status, errorText)
       return false
     }
-
-    const mailOptions = {
-      from: `"Sistema de Asistencia Escolar" <${process.env.GMAIL_USER}>`,
-      to: destinatario,
-      subject: asunto,
-      html: contenidoHTML,
-      attachments: adjuntos.map(adj => ({
-        filename: adj.filename,
-        content: adj.content,
-        contentType: adj.contentType
-      }))
-    }
-
-    console.log('📤 Enviando email con adjuntos...')
-    const info = await transporter.sendMail(mailOptions)
-    console.log('✅ Email con adjuntos enviado:', info.messageId)
-    return true
   } catch (error: any) {
     console.error('❌ Error enviando email con adjuntos:', error.message || error)
-    console.error('🔢 Código:', error.code)
     return false
   }
 }
