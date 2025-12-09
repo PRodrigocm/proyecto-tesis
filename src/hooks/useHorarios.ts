@@ -211,11 +211,11 @@ export const useHorarios = () => {
   const actualizarHorarios = async (id: string, horaInicio: string, horaFin: string) => {
     try {
       console.log('🌐 Hook actualizarHorarios llamado:')
-      console.log(`URL: /api/docentes/horarios/${id}/horarios`)
+      console.log(`URL: /api/docentes/horarios/${id}`)
       console.log(`Datos: ${JSON.stringify({ horaInicio, horaFin })}`)
       
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/docentes/horarios/${id}/horarios`, {
+      const response = await fetch(`/api/docentes/horarios/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
