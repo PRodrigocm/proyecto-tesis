@@ -28,15 +28,37 @@ export async function enviarEmail(
 
     console.log(`📧 Enviando desde: ${process.env.GMAIL_USER}`)
     console.log(`📧 Enviando a: ${destinatario}`)
+    console.log(`📧 Asunto: ${asunto}`)
     
-    // Crear transportador de Nodemailer con Gmail
+    // Crear transportador de Nodemailer con Gmail SMTP directo
+    console.log('🔧 Creando transportador SMTP...')
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // true para 465, false para otros puertos
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
-      }
+      },
+      tls: {
+        rejectUnauthorized: false // Permite certificados auto-firmados
+      },
+      // Timeout de 30 segundos
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000
     })
+
+    // Verificar conexión SMTP
+    console.log('🔌 Verificando conexión SMTP...')
+    try {
+      await transporter.verify()
+      console.log('✅ Conexión SMTP verificada')
+    } catch (verifyError: any) {
+      console.error('❌ Error verificando conexión SMTP:', verifyError.message)
+      console.error('💡 Verifica que GMAIL_APP_PASSWORD sea una App Password válida')
+      return false
+    }
 
     // Configurar el email
     const mailOptions = {
@@ -47,12 +69,16 @@ export async function enviarEmail(
     }
 
     // Enviar el email
+    console.log('📤 Enviando email...')
     const info = await transporter.sendMail(mailOptions)
 
     console.log('✅ Email enviado via Gmail SMTP:', info.messageId)
+    console.log('📬 Respuesta:', info.response)
     return true
   } catch (error: any) {
     console.error('❌ Error enviando email via Gmail:', error.message || error)
+    console.error('📋 Stack:', error.stack)
+    console.error('🔢 Código:', error.code)
     return false
   }
 }
@@ -80,12 +106,29 @@ export async function enviarEmailConAdjuntos(
     console.log(`📎 Adjuntos: ${adjuntos.length} archivos`)
     
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
-      }
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000
     })
+
+    // Verificar conexión
+    try {
+      await transporter.verify()
+      console.log('✅ Conexión SMTP verificada')
+    } catch (verifyError: any) {
+      console.error('❌ Error verificando SMTP:', verifyError.message)
+      return false
+    }
 
     const mailOptions = {
       from: `"Sistema de Asistencia Escolar" <${process.env.GMAIL_USER}>`,
@@ -99,11 +142,13 @@ export async function enviarEmailConAdjuntos(
       }))
     }
 
+    console.log('📤 Enviando email con adjuntos...')
     const info = await transporter.sendMail(mailOptions)
     console.log('✅ Email con adjuntos enviado:', info.messageId)
     return true
   } catch (error: any) {
     console.error('❌ Error enviando email con adjuntos:', error.message || error)
+    console.error('🔢 Código:', error.code)
     return false
   }
 }
