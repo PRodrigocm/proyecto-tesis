@@ -34,16 +34,15 @@ export async function enviarEmail(
     console.log('🔧 Creando transportador SMTP...')
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true para 465, false para otros puertos
+      port: 465,
+      secure: true, // SSL directo en puerto 465
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
       },
       tls: {
-        rejectUnauthorized: false // Permite certificados auto-firmados
+        rejectUnauthorized: false
       },
-      // Timeout de 30 segundos
       connectionTimeout: 30000,
       greetingTimeout: 30000,
       socketTimeout: 30000
@@ -107,8 +106,8 @@ export async function enviarEmailConAdjuntos(
     
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
