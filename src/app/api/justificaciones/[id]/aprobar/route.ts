@@ -49,16 +49,31 @@ export async function POST(
       )
     }
 
-    // Obtener el estado APROBADA
-    const estadoAprobada = await prisma.estadoJustificacion.findFirst({
-      where: { codigo: 'APROBADA' }
+    // Obtener el estado APROBADO (código en BD es APROBADO, no APROBADA)
+    let estadoAprobada = await prisma.estadoJustificacion.findFirst({
+      where: { codigo: 'APROBADO', activo: true }
     })
 
+    // Si el estado no existe, crearlo automáticamente
     if (!estadoAprobada) {
-      return NextResponse.json(
-        { error: 'Estado de justificación no configurado' },
-        { status: 500 }
-      )
+      console.warn('⚠️ El estado "APROBADO" no existe. Creándolo automáticamente...')
+      
+      try {
+        estadoAprobada = await prisma.estadoJustificacion.create({
+          data: {
+            codigo: 'APROBADO',
+            nombre: 'Aprobado',
+            activo: true
+          }
+        })
+        console.log('✅ Estado "APROBADO" creado exitosamente')
+      } catch (createError) {
+        console.error('❌ Error al crear el estado "APROBADO":', createError)
+        return NextResponse.json(
+          { error: 'No se pudo crear el estado APROBADO. Contacte al administrador del sistema.' },
+          { status: 500 }
+        )
+      }
     }
 
     // Iniciar transacción

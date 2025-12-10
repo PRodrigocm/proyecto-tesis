@@ -75,16 +75,38 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    // Obtener el nuevo estado (los códigos en BD son APROBADO y RECHAZADO, sin la A final)
+    // Obtener el nuevo estado (verificar que exista en la BD)
     const codigoNuevoEstado = accion === 'APROBAR' ? 'APROBADO' : 'RECHAZADO'
-    const nuevoEstado = await prisma.estadoJustificacion.findFirst({
-      where: { codigo: codigoNuevoEstado }
+    const nombreNuevoEstado = accion === 'APROBAR' ? 'Aprobado' : 'Rechazado'
+    
+    // Validar que el estado exista en la BD
+    let nuevoEstado = await prisma.estadoJustificacion.findFirst({
+      where: { 
+        codigo: codigoNuevoEstado,
+        activo: true
+      }
     })
 
+    // Si el estado no existe, crearlo automáticamente
     if (!nuevoEstado) {
-      return NextResponse.json({ 
-        error: `Estado ${codigoNuevoEstado} no configurado en el sistema` 
-      }, { status: 500 })
+      console.warn(`⚠️ El estado "${codigoNuevoEstado}" no existe. Creándolo automáticamente...`)
+      
+      try {
+        nuevoEstado = await prisma.estadoJustificacion.create({
+          data: {
+            codigo: codigoNuevoEstado,
+            nombre: nombreNuevoEstado,
+            activo: true
+          }
+        })
+        console.log(`✅ Estado "${codigoNuevoEstado}" creado exitosamente`)
+      } catch (createError) {
+        console.error(`❌ Error al crear el estado "${codigoNuevoEstado}":`, createError)
+        return NextResponse.json({ 
+          error: `No se pudo crear el estado "${codigoNuevoEstado}". Contacte al administrador del sistema.`,
+          errorCode: 'ESTADO_NO_CREADO'
+        }, { status: 500 })
+      }
     }
 
     // Actualizar la justificación

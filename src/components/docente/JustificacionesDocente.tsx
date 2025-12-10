@@ -9,7 +9,9 @@ export default function JustificacionesDocente() {
     loading, 
     error, 
     pagination,
-    loadJustificaciones, 
+    estadosDisponibles,
+    loadJustificaciones,
+    loadEstados,
     revisarJustificacion,
     getEstadisticas 
   } = useJustificaciones()
@@ -22,6 +24,11 @@ export default function JustificacionesDocente() {
   const [accionModal, setAccionModal] = useState<'APROBAR' | 'RECHAZAR'>('APROBAR')
   const [observacionesRevision, setObservacionesRevision] = useState('')
   const [procesando, setProcesando] = useState(false)
+
+  // Cargar estados disponibles al montar el componente
+  useEffect(() => {
+    loadEstados()
+  }, [])
 
   // Cargar justificaciones al montar el componente
   useEffect(() => {
@@ -142,24 +149,68 @@ export default function JustificacionesDocente() {
             />
           </div>
           <div className="grid grid-cols-5 gap-1.5 sm:flex sm:gap-2">
-            {['', 'PENDIENTE', 'EN_REVISION', 'APROBADO', 'RECHAZADO'].map((estado) => (
-              <button
-                key={estado}
-                onClick={() => setFiltroEstado(estado)}
-                className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all min-h-[40px] ${
-                  filtroEstado === estado
-                    ? estado === 'PENDIENTE' ? 'bg-yellow-500 text-white shadow-md'
-                    : estado === 'EN_REVISION' ? 'bg-orange-500 text-white shadow-md'
-                    : estado === 'APROBADO' ? 'bg-green-500 text-white shadow-md'
-                    : estado === 'RECHAZADO' ? 'bg-red-500 text-white shadow-md'
-                    : 'bg-blue-500 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
-                }`}
-              >
-                <span className="sm:hidden">{estado === '' ? '📋' : estado === 'PENDIENTE' ? '⏳' : estado === 'EN_REVISION' ? '🔍' : estado === 'APROBADO' ? '✅' : '❌'}</span>
-                <span className="hidden sm:inline">{estado === '' ? 'Todos' : estado === 'PENDIENTE' ? '⏳ Pend.' : estado === 'EN_REVISION' ? '🔍 Revisión' : estado === 'APROBADO' ? '✅ Aprob.' : '❌ Rech.'}</span>
-              </button>
-            ))}
+            {/* Botón "Todos" */}
+            <button
+              onClick={() => setFiltroEstado('')}
+              className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all min-h-[40px] ${
+                filtroEstado === ''
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+              }`}
+            >
+              <span className="sm:hidden">📋</span>
+              <span className="hidden sm:inline">Todos</span>
+            </button>
+            
+            {/* Botones dinámicos desde la BD - Filtrar estados no deseados */}
+            {estadosDisponibles
+              .filter(estado => !['EN_REVISION', 'REQUIERE_DOCUMENTACION'].includes(estado.codigo))
+              .map((estado) => {
+              const getEstadoColor = (codigo: string) => {
+                switch(codigo) {
+                  case 'PENDIENTE': return 'bg-yellow-500'
+                  case 'EN_REVISION': return 'bg-orange-500'
+                  case 'APROBADO': return 'bg-green-500'
+                  case 'RECHAZADO': return 'bg-red-500'
+                  default: return 'bg-gray-500'
+                }
+              }
+              
+              const getEstadoIcon = (codigo: string) => {
+                switch(codigo) {
+                  case 'PENDIENTE': return '⏳'
+                  case 'EN_REVISION': return '🔍'
+                  case 'APROBADO': return '✅'
+                  case 'RECHAZADO': return '❌'
+                  default: return '📝'
+                }
+              }
+              
+              const getEstadoLabel = (codigo: string, nombre: string) => {
+                switch(codigo) {
+                  case 'PENDIENTE': return '⏳ Pend.'
+                  case 'EN_REVISION': return '🔍 Revisión'
+                  case 'APROBADO': return '✅ Aprob.'
+                  case 'RECHAZADO': return '❌ Rech.'
+                  default: return nombre
+                }
+              }
+              
+              return (
+                <button
+                  key={estado.codigo}
+                  onClick={() => setFiltroEstado(estado.codigo)}
+                  className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all min-h-[40px] ${
+                    filtroEstado === estado.codigo
+                      ? `${getEstadoColor(estado.codigo)} text-white shadow-md`
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
+                >
+                  <span className="sm:hidden">{getEstadoIcon(estado.codigo)}</span>
+                  <span className="hidden sm:inline">{getEstadoLabel(estado.codigo, estado.nombre)}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 

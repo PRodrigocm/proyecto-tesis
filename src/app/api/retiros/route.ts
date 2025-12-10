@@ -322,6 +322,8 @@ export async function GET(request: NextRequest) {
       // Determinar quién creó el retiro basándose en origen y relaciones
       let creadoPor: { nombre: string; apellido: string; rol: string } | null = null
       
+      console.log(`🔍 Retiro ${retiro.idRetiro} - Origen: ${retiro.origen}`)
+      
       if (retiro.origen === 'SOLICITUD_DOCENTE' || retiro.origen === 'DOCENTE') {
         // Creado por docente
         if (retiro.docenteReportador?.usuario) {
@@ -330,6 +332,9 @@ export async function GET(request: NextRequest) {
             apellido: retiro.docenteReportador.usuario.apellido || '',
             rol: 'Docente'
           }
+          console.log(`✅ Creado por Docente: ${creadoPor.nombre} ${creadoPor.apellido}`)
+        } else {
+          console.log(`⚠️ Origen DOCENTE pero no hay docenteReportador`)
         }
       } else if (retiro.origen === 'SOLICITUD_APODERADO' || retiro.origen === 'APODERADO') {
         // Creado por apoderado
@@ -339,6 +344,9 @@ export async function GET(request: NextRequest) {
             apellido: retiro.apoderadoContacto.usuario.apellido || '',
             rol: 'Apoderado'
           }
+          console.log(`✅ Creado por Apoderado: ${creadoPor.nombre} ${creadoPor.apellido}`)
+        } else {
+          console.log(`⚠️ Origen APODERADO pero no hay apoderadoContacto`)
         }
       } else if (retiro.origen === 'PANEL_ADMINISTRATIVO' || retiro.origen === 'AUXILIAR') {
         // Creado por auxiliar/admin
@@ -348,7 +356,12 @@ export async function GET(request: NextRequest) {
             apellido: retiro.usuarioVerificador.apellido || '',
             rol: 'Auxiliar'
           }
+          console.log(`✅ Creado por Auxiliar: ${creadoPor.nombre} ${creadoPor.apellido}`)
+        } else {
+          console.log(`⚠️ Origen ADMINISTRATIVO pero no hay usuarioVerificador`)
         }
+      } else {
+        console.log(`⚠️ Origen desconocido: ${retiro.origen}`)
       }
 
       return {

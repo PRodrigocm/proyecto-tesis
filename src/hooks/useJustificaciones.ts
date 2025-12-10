@@ -69,6 +69,14 @@ export interface FiltrosJustificaciones {
   limit?: number
 }
 
+export interface EstadoJustificacion {
+  idEstadoJustificacion: number
+  codigo: string
+  nombre: string
+  orden: number
+  activo: boolean
+}
+
 export function useJustificaciones() {
   const [justificaciones, setJustificaciones] = useState<Justificacion[]>([])
   const [loading, setLoading] = useState(false)
@@ -79,6 +87,7 @@ export function useJustificaciones() {
     total: 0,
     pages: 0
   })
+  const [estadosDisponibles, setEstadosDisponibles] = useState<EstadoJustificacion[]>([])
 
   // Cargar justificaciones
   const loadJustificaciones = async (filtros: FiltrosJustificaciones = {}) => {
@@ -272,7 +281,17 @@ export function useJustificaciones() {
         return data.data
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
-        throw new Error(errorData.error || `Error ${response.status}`)
+        
+        // Manejar errores específicos
+        if (errorData.errorCode === 'ESTADO_NO_ENCONTRADO') {
+          throw new Error('El estado configurado no existe en la base de datos. El sistema intentará crearlo automáticamente. Si el problema persiste, contacte al administrador.')
+        }
+        
+        if (errorData.errorCode === 'ESTADO_NO_CREADO') {
+          throw new Error('No se pudo crear el estado automáticamente. Contacte al administrador del sistema para que inicialice los estados de justificación.')
+        }
+        
+        throw new Error(errorData.error || `Error ${response.status}: ${errorData.details || 'Error desconocido'}`)
       }
     } catch (error) {
       console.error('❌ Error al revisar justificación:', error)
@@ -287,8 +306,8 @@ export function useJustificaciones() {
   // Obtener estadísticas
   const getEstadisticas = () => {
     const pendientes = justificaciones.filter(j => j.estadoJustificacion.codigo === 'PENDIENTE').length
-    const aprobadas = justificaciones.filter(j => j.estadoJustificacion.codigo === 'APROBADA').length
-    const rechazadas = justificaciones.filter(j => j.estadoJustificacion.codigo === 'RECHAZADA').length
+    const aprobadas = justificaciones.filter(j => j.estadoJustificacion.codigo === 'APROBADO').length
+    const rechazadas = justificaciones.filter(j => j.estadoJustificacion.codigo === 'RECHAZADO').length
     
     return {
       total: justificaciones.length,
@@ -298,12 +317,43 @@ export function useJustificaciones() {
     }
   }
 
+  // Cargar estados disponibles desde la BD
+  const loadEstados = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('No hay token de autenticación')
+      }
+
+      const response = await fetch('/api/estados/justificacion', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setEstadosDisponibles(data.data)
+        console.log(`✅ Estados cargados: ${data.data.length}`)
+        return data.data
+      } else {
+        console.error('❌ Error al cargar estados')
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar estados:', error)
+      return []
+    }
+  }
+
   return {
     justificaciones,
     loading,
     error,
     pagination,
+    estadosDisponibles,
     loadJustificaciones,
+    loadEstados,
     revisarJustificacion,
     getEstadisticas
   }

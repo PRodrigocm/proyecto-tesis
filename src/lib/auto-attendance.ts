@@ -180,7 +180,12 @@ async function enviarEmailInasistencia(data: {
   emailApoderado: string
   nombreApoderado: string
 }): Promise<boolean> {
-  const fechaFormateada = new Date(data.fecha).toLocaleDateString('es-ES', {
+  // Parsear la fecha correctamente para evitar problemas de zona horaria
+  // Si la fecha viene como "2025-12-10", crear la fecha en hora local
+  const fechaParts = data.fecha.split('-')
+  const fechaLocal = new Date(parseInt(fechaParts[0]), parseInt(fechaParts[1]) - 1, parseInt(fechaParts[2]))
+  
+  const fechaFormateada = fechaLocal.toLocaleDateString('es-ES', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
