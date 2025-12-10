@@ -141,22 +141,23 @@ export default function JustificacionesDocente() {
               className="w-full pl-9 sm:pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-sm"
             />
           </div>
-          <div className="grid grid-cols-4 gap-1.5 sm:flex sm:gap-2">
-            {['', 'PENDIENTE', 'APROBADA', 'RECHAZADA'].map((estado) => (
+          <div className="grid grid-cols-5 gap-1.5 sm:flex sm:gap-2">
+            {['', 'PENDIENTE', 'EN_REVISION', 'APROBADA', 'RECHAZADA'].map((estado) => (
               <button
                 key={estado}
                 onClick={() => setFiltroEstado(estado)}
                 className={`px-2 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all min-h-[40px] ${
                   filtroEstado === estado
                     ? estado === 'PENDIENTE' ? 'bg-yellow-500 text-white shadow-md'
+                    : estado === 'EN_REVISION' ? 'bg-orange-500 text-white shadow-md'
                     : estado === 'APROBADA' ? 'bg-green-500 text-white shadow-md'
                     : estado === 'RECHAZADA' ? 'bg-red-500 text-white shadow-md'
                     : 'bg-blue-500 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
                 }`}
               >
-                <span className="sm:hidden">{estado === '' ? '📋' : estado === 'PENDIENTE' ? '⏳' : estado === 'APROBADA' ? '✅' : '❌'}</span>
-                <span className="hidden sm:inline">{estado === '' ? 'Todos' : estado === 'PENDIENTE' ? '⏳ Pend.' : estado === 'APROBADA' ? '✅ Aprob.' : '❌ Rech.'}</span>
+                <span className="sm:hidden">{estado === '' ? '📋' : estado === 'PENDIENTE' ? '⏳' : estado === 'EN_REVISION' ? '🔍' : estado === 'APROBADA' ? '✅' : '❌'}</span>
+                <span className="hidden sm:inline">{estado === '' ? 'Todos' : estado === 'PENDIENTE' ? '⏳ Pend.' : estado === 'EN_REVISION' ? '🔍 Revisión' : estado === 'APROBADA' ? '✅ Aprob.' : '❌ Rech.'}</span>
               </button>
             ))}
           </div>
@@ -220,6 +221,8 @@ export default function JustificacionesDocente() {
                 className={`rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 transition-all hover:shadow-lg active:bg-opacity-80 ${
                   justificacion.estadoJustificacion.codigo === 'PENDIENTE' 
                     ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-white'
+                    : justificacion.estadoJustificacion.codigo === 'EN_REVISION'
+                    ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-white'
                     : justificacion.estadoJustificacion.codigo === 'APROBADA'
                     ? 'border-green-200 bg-gradient-to-r from-green-50 to-white'
                     : 'border-red-200 bg-gradient-to-r from-red-50 to-white'
@@ -247,11 +250,13 @@ export default function JustificacionesDocente() {
                     <span className={`flex-shrink-0 px-2 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-bold rounded-full ${
                       justificacion.estadoJustificacion.codigo === 'PENDIENTE' 
                         ? 'bg-yellow-100 text-yellow-800'
+                        : justificacion.estadoJustificacion.codigo === 'EN_REVISION'
+                        ? 'bg-orange-100 text-orange-800'
                         : justificacion.estadoJustificacion.codigo === 'APROBADA'
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {justificacion.estadoJustificacion.codigo === 'PENDIENTE' ? '⏳' : justificacion.estadoJustificacion.codigo === 'APROBADA' ? '✅' : '❌'}
+                      {justificacion.estadoJustificacion.codigo === 'PENDIENTE' ? '⏳' : justificacion.estadoJustificacion.codigo === 'EN_REVISION' ? '🔍' : justificacion.estadoJustificacion.codigo === 'APROBADA' ? '✅' : '❌'}
                       <span className="hidden sm:inline ml-1">{justificacion.estadoJustificacion.nombre}</span>
                     </span>
                   </div>
@@ -311,7 +316,7 @@ export default function JustificacionesDocente() {
                     >
                       👁️ <span className="hidden sm:inline">Ver Detalle</span>
                     </button>
-                    {justificacion.estadoJustificacion.codigo === 'PENDIENTE' && (
+                    {(justificacion.estadoJustificacion.codigo === 'PENDIENTE' || justificacion.estadoJustificacion.codigo === 'EN_REVISION') && (
                       <>
                         <button
                           onClick={() => handleRevisar(justificacion, 'APROBAR')}
@@ -449,6 +454,8 @@ export default function JustificacionesDocente() {
                 <span className={`ml-auto px-3 py-1 text-xs font-bold rounded-full ${
                   justificacionSeleccionada.estadoJustificacion.codigo === 'PENDIENTE' 
                     ? 'bg-yellow-100 text-yellow-800'
+                    : justificacionSeleccionada.estadoJustificacion.codigo === 'EN_REVISION'
+                    ? 'bg-orange-100 text-orange-800'
                     : justificacionSeleccionada.estadoJustificacion.codigo === 'APROBADA'
                     ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'

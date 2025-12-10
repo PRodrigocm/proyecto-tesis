@@ -24,6 +24,11 @@ export interface Retiro {
     nombre: string
     apellido: string
   } | null
+  creadoPor?: {
+    nombre: string
+    apellido: string
+    rol: string
+  } | null
 }
 
 export interface RetirosFilters {

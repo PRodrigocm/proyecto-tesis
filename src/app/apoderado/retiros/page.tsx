@@ -15,6 +15,7 @@ interface Retiro {
   fecha: string
   hora: string
   motivo: string
+  tipoRetiro: string
   observaciones: string
   estado: 'PENDIENTE' | 'AUTORIZADO' | 'RECHAZADO' | 'COMPLETADO'
   origen: string
@@ -31,6 +32,11 @@ interface Estudiante {
   seccion: string
 }
 
+interface TipoRetiro {
+  id: string
+  nombre: string
+}
+
 export default function RetirosApoderadoPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -38,6 +44,7 @@ export default function RetirosApoderadoPage() {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [tiposRetiro, setTiposRetiro] = useState<TipoRetiro[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     estudianteId: '',
@@ -45,7 +52,7 @@ export default function RetirosApoderadoPage() {
     hora: '',
     motivo: '',
     observaciones: '',
-    tipoRetiro: 'TEMPRANO'
+    tipoRetiro: ''
   })
 
   useEffect(() => {
@@ -81,6 +88,7 @@ export default function RetirosApoderadoPage() {
     if (checkAuth()) {
       cargarRetiros()
       cargarEstudiantes()
+      cargarTiposRetiro()
     }
   }, [router])
 
@@ -125,6 +133,28 @@ export default function RetirosApoderadoPage() {
     }
   }
 
+  const cargarTiposRetiro = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/tipos-retiro', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTiposRetiro(data.data || [])
+        // Establecer el primer tipo como valor por defecto si hay tipos disponibles
+        if (data.data && data.data.length > 0) {
+          setFormData(prev => ({ ...prev, tipoRetiro: data.data[0].nombre }))
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando tipos de retiro:', error)
+    }
+  }
+
   const abrirModal = () => {
     const now = new Date()
     setFormData({
@@ -133,7 +163,7 @@ export default function RetirosApoderadoPage() {
       hora: now.toTimeString().slice(0, 5),
       motivo: '',
       observaciones: '',
-      tipoRetiro: 'TEMPRANO'
+      tipoRetiro: tiposRetiro.length > 0 ? tiposRetiro[0].nombre : ''
     })
     setModalAbierto(true)
   }
@@ -380,15 +410,15 @@ export default function RetirosApoderadoPage() {
                       </div>
                     </div>
 
-                    {/* Motivo */}
+                    {/* Tipo de Retiro y Motivo */}
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <span className="text-lg">📋</span>
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Motivo</p>
-                        <p className="text-sm font-semibold text-gray-900 truncate" title={retiro.motivo}>
-                          {retiro.motivo}
+                        <p className="text-sm font-semibold text-gray-900 truncate" title={retiro.tipoRetiro || retiro.motivo}>
+                          {retiro.tipoRetiro || retiro.motivo || 'No especificado'}
                         </p>
                         {retiro.observaciones && (
                           <p className="text-xs text-gray-500 truncate" title={retiro.observaciones}>
@@ -534,33 +564,44 @@ export default function RetirosApoderadoPage() {
                 </div>
               </div>
 
-              {/* Tipo de Retiro con iconos */}
+              {/* Tipo de Retiro dinámico desde BD */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  📋 Tipo de Retiro
+                  📋 Tipo de Retiro *
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'TEMPRANO', label: 'Temprano', icon: '🕐' },
-                    { value: 'EMERGENCIA', label: 'Emergencia', icon: '🚨' },
-                    { value: 'MEDICO', label: 'Cita Médica', icon: '🏥' },
-                    { value: 'FAMILIAR', label: 'Familiar', icon: '👨‍👩‍👧' }
-                  ].map((tipo) => (
-                    <button
-                      key={tipo.value}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, tipoRetiro: tipo.value }))}
-                      className={`p-3 rounded-xl border-2 text-left transition-all ${
-                        formData.tipoRetiro === tipo.value
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
-                    >
-                      <span className="text-lg mr-2">{tipo.icon}</span>
-                      <span className="text-sm font-medium">{tipo.label}</span>
-                    </button>
-                  ))}
+                  {tiposRetiro.map((tipo) => {
+                    // Asignar iconos según el nombre del tipo
+                    const getIcon = (nombre: string) => {
+                      const nombreLower = nombre.toLowerCase()
+                      if (nombreLower.includes('médic') || nombreLower.includes('medic') || nombreLower.includes('cita')) return '🏥'
+                      if (nombreLower.includes('emergencia')) return '🚨'
+                      if (nombreLower.includes('familiar')) return '👨‍👩‍👧'
+                      if (nombreLower.includes('malestar')) return '🤒'
+                      if (nombreLower.includes('temprano')) return '🕐'
+                      if (nombreLower.includes('otro')) return '📝'
+                      return '📋'
+                    }
+                    return (
+                      <button
+                        key={tipo.id}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, tipoRetiro: tipo.nombre }))}
+                        className={`p-3 rounded-xl border-2 text-left transition-all ${
+                          formData.tipoRetiro === tipo.nombre
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        <span className="text-lg mr-2">{getIcon(tipo.nombre)}</span>
+                        <span className="text-sm font-medium">{tipo.nombre}</span>
+                      </button>
+                    )
+                  })}
                 </div>
+                {tiposRetiro.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-2">Cargando tipos de retiro...</p>
+                )}
               </div>
 
               {/* Motivo */}

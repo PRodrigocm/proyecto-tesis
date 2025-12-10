@@ -90,10 +90,10 @@ export async function inicializarEstadosRetiro() {
  */
 export async function inicializarTiposRetiro() {
   const tiposBasicos = [
-    { nombre: 'Retiro Médico' },
-    { nombre: 'Retiro Familiar' },
-    { nombre: 'Retiro Personal' },
-    { nombre: 'Retiro de Emergencia' },
+    { nombre: 'Cita médica' },
+    { nombre: 'Emergencia familiar' },
+    { nombre: 'Malestar del estudiante' },
+    { nombre: 'Retiro temprano autorizado' },
     { nombre: 'Otro' }
   ]
 

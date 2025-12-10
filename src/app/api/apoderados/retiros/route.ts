@@ -160,27 +160,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Estudiante no encontrado' }, { status: 404 })
     }
 
-    // Obtener estado PENDIENTE o SOLICITADO
+    // Obtener estado PENDIENTE de la BD
     let estadoRetiro = await prisma.estadoRetiro.findFirst({
-      where: { codigo: 'SOLICITADO' }
+      where: { codigo: 'PENDIENTE' }
     })
 
     if (!estadoRetiro) {
-      estadoRetiro = await prisma.estadoRetiro.findFirst({
-        where: { codigo: 'PENDIENTE' }
+      // Crear el estado si no existe
+      estadoRetiro = await prisma.estadoRetiro.create({
+        data: {
+          codigo: 'PENDIENTE',
+          nombre: 'Pendiente',
+          orden: 1
+        }
       })
-    }
-
-    if (!estadoRetiro) {
-      return NextResponse.json({ error: 'Estado de retiro no configurado' }, { status: 500 })
     }
 
     // Obtener tipo de retiro si se especificó
-    let tipoRetiroDb: { idTipoRetiro: number } | null = null
+    // Mapear valores del frontend a nombres de la BD
+    const mapeoTiposRetiro: Record<string, string[]> = {
+      'TEMPRANO': ['Retiro temprano autorizado', 'Retiro temprano', 'Temprano'],
+      'EMERGENCIA': ['Emergencia familiar', 'Emergencia'],
+      'MEDICO': ['Cita médica', 'Cita medica', 'Médico', 'Medico'],
+      'FAMILIAR': ['Emergencia familiar', 'Familiar'],
+      'MALESTAR': ['Malestar del estudiante', 'Malestar'],
+      'OTRO': ['Otro', 'Otros']
+    }
+    
+    let tipoRetiroDb: { idTipoRetiro: number; nombre: string } | null = null
     if (tipoRetiro) {
+      // Primero intentar buscar por nombre exacto
       tipoRetiroDb = await prisma.tipoRetiro.findFirst({
         where: { nombre: tipoRetiro }
       })
+      
+      // Si no se encuentra, buscar usando el mapeo
+      if (!tipoRetiroDb && mapeoTiposRetiro[tipoRetiro]) {
+        tipoRetiroDb = await prisma.tipoRetiro.findFirst({
+          where: { 
+            nombre: { in: mapeoTiposRetiro[tipoRetiro] }
+          }
+        })
+      }
+      
+      // Si aún no se encuentra, buscar por coincidencia parcial
+      if (!tipoRetiroDb) {
+        tipoRetiroDb = await prisma.tipoRetiro.findFirst({
+          where: { 
+            nombre: { contains: tipoRetiro, mode: 'insensitive' }
+          }
+        })
+      }
+      
+      console.log(`📋 Tipo de retiro recibido: "${tipoRetiro}", encontrado en BD: ${tipoRetiroDb ? tipoRetiroDb.nombre : 'NO ENCONTRADO'}`)
     }
 
     // Crear retiro
@@ -198,7 +230,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log(`✅ Retiro solicitado por apoderado ${decoded.userId} para estudiante ${estudianteIdFinal}`)
+    console.log(`✅ Retiro solicitado por apoderado ${decoded.userId} para estudiante ${estudianteIdFinal}, tipoRetiro: ${tipoRetiroDb?.nombre || 'No especificado'}`)
 
     return NextResponse.json({
       success: true,
@@ -211,7 +243,8 @@ export async function POST(request: NextRequest) {
         grado: estudiante.gradoSeccion 
           ? `${estudiante.gradoSeccion.grado.nombre} ${estudiante.gradoSeccion.seccion.nombre}`
           : 'Sin asignar',
-        estado: estadoRetiro.nombre
+        estado: estadoRetiro.nombre,
+        tipoRetiro: tipoRetiroDb?.nombre || 'No especificado'
       }
     })
 

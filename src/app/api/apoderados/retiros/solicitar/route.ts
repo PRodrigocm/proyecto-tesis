@@ -52,19 +52,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener o crear el estado "SOLICITADO" o "PENDIENTE"
-    let estadoSolicitado = await prisma.estadoRetiro.findFirst({
-      where: { 
-        OR: [
-          { codigo: 'SOLICITADO' },
-          { codigo: 'PENDIENTE' }
-        ]
-      }
+    // Obtener el estado "PENDIENTE" de la BD
+    let estadoPendiente = await prisma.estadoRetiro.findFirst({
+      where: { codigo: 'PENDIENTE' }
     })
 
-    if (!estadoSolicitado) {
+    if (!estadoPendiente) {
       // Crear el estado si no existe
-      estadoSolicitado = await prisma.estadoRetiro.create({
+      estadoPendiente = await prisma.estadoRetiro.create({
         data: {
           codigo: 'PENDIENTE',
           nombre: 'Pendiente',
@@ -108,7 +103,7 @@ export async function POST(request: NextRequest) {
         idEstudiante: parseInt(estudianteId),
         fecha: new Date(fecha),
         idEstadoRetiro: {
-          in: [estadoSolicitado.idEstadoRetiro] // Solo verificar estados activos
+          in: [estadoPendiente.idEstadoRetiro] // Solo verificar estados activos
         }
       }
     })
@@ -133,7 +128,7 @@ export async function POST(request: NextRequest) {
         hora: new Date(`1970-01-01T${hora}:00.000Z`), // Convertir hora a Time
         observaciones: observacionesFinal || null,
         idTipoRetiro: tipoRetiroObj?.idTipoRetiro || null,
-        idEstadoRetiro: estadoSolicitado.idEstadoRetiro,
+        idEstadoRetiro: estadoPendiente.idEstadoRetiro,
         origen: 'APODERADO'
       }
     })
@@ -147,7 +142,7 @@ export async function POST(request: NextRequest) {
         hora: nuevoRetiro.hora.toISOString().split('T')[1].substring(0, 5),
         observaciones: nuevoRetiro.observaciones || '',
         tipoRetiro: tipoRetiroObj?.nombre || 'No especificado',
-        estado: estadoSolicitado.nombre,
+        estado: estadoPendiente.nombre,
         estudiante: `${estudiante.usuario.apellido}, ${estudiante.usuario.nombre}`,
         grado: estudiante.gradoSeccion ? 
           `${estudiante.gradoSeccion.grado.nombre}° ${estudiante.gradoSeccion.seccion.nombre}` : 

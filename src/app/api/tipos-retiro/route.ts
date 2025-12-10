@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     // Si no hay tipos de retiro, crear los predeterminados
     if (tiposRetiro.length === 0) {
       const tiposPredeterminados = [
-        { nombre: 'Médico' },
-        { nombre: 'Familiar' },
-        { nombre: 'Personal' },
-        { nombre: 'Emergencia' },
+        { nombre: 'Cita médica' },
+        { nombre: 'Emergencia familiar' },
+        { nombre: 'Malestar del estudiante' },
+        { nombre: 'Retiro temprano autorizado' },
         { nombre: 'Otro' }
       ]
 
@@ -56,12 +56,63 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Filtrar tipos duplicados o similares - mantener solo los principales
+    // Mapeo de tipos a consolidar (variantes -> tipo principal)
+    const tiposConsolidados = new Map<string, { id: string; nombre: string }>()
+    
+    // Función para normalizar y categorizar tipos
+    const categorizarTipo = (nombre: string): string => {
+      const nombreLower = nombre.toLowerCase()
+      
+      if (nombreLower.includes('médic') || nombreLower.includes('medic') || nombreLower.includes('cita')) {
+        return 'Cita médica'
+      }
+      if (nombreLower.includes('emergencia') && !nombreLower.includes('familiar')) {
+        return 'Emergencia familiar'
+      }
+      if (nombreLower.includes('familiar') || nombreLower.includes('emergencia')) {
+        return 'Emergencia familiar'
+      }
+      if (nombreLower.includes('malestar')) {
+        return 'Malestar del estudiante'
+      }
+      if (nombreLower.includes('temprano') || nombreLower.includes('autorizado')) {
+        return 'Retiro temprano autorizado'
+      }
+      if (nombreLower.includes('personal')) {
+        return 'Personal'
+      }
+      if (nombreLower.includes('extracurricular') || nombreLower.includes('actividad')) {
+        return 'Actividad extracurricular'
+      }
+      if (nombreLower === 'otro' || nombreLower === 'otros') {
+        return 'Otro'
+      }
+      
+      // Si no coincide con ninguna categoría, mantener el nombre original
+      return nombre
+    }
+    
+    // Consolidar tipos
+    for (const tipo of tiposRetiro) {
+      const categoria = categorizarTipo(tipo.nombre)
+      
+      // Solo agregar si no existe ya esta categoría
+      if (!tiposConsolidados.has(categoria)) {
+        tiposConsolidados.set(categoria, {
+          id: tipo.idTipoRetiro.toString(),
+          nombre: categoria
+        })
+      }
+    }
+    
+    // Convertir a array y ordenar
+    const tiposFiltrados = Array.from(tiposConsolidados.values())
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
     return NextResponse.json({
       success: true,
-      data: tiposRetiro.map(t => ({
-        id: t.idTipoRetiro.toString(),
-        nombre: t.nombre
-      }))
+      data: tiposFiltrados
     })
 
   } catch (error) {

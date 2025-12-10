@@ -11,10 +11,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
     }
 
-    const decoded = verifyToken(token)
+    const decoded = verifyToken(token) as any
     if (!decoded) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
+
+    // Obtener información del usuario para filtrar por IE
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario: decoded.userId || decoded.idUsuario },
+      select: { idIe: true }
+    })
+
+    if (!usuario) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
+    }
+
+    const rolUsuario = decoded.rol || ''
+    console.log(`📋 Cargando justificaciones para usuario ${decoded.userId}, IE: ${usuario.idIe}, rol: ${rolUsuario}`)
 
     const { searchParams } = new URL(request.url)
     const estudianteId = searchParams.get('estudianteId')
@@ -24,8 +37,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
 
-    // Construir filtros
+    // Construir filtros - IMPORTANTE: filtrar por IE del usuario
     const where: any = {}
+    
+    // Filtrar por IE del usuario (docentes y auxiliares solo ven su IE)
+    if (usuario.idIe && ['DOCENTE', 'AUXILIAR', 'ADMINISTRATIVO'].includes(rolUsuario)) {
+      where.idIe = usuario.idIe
+    }
     
     if (estudianteId) {
       where.idEstudiante = parseInt(estudianteId)
@@ -90,6 +108,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.justificacion.count({ where })
     ])
+
+    console.log(`✅ Justificaciones encontradas: ${justificaciones.length} de ${total} total`)
 
     return NextResponse.json({
       success: true,

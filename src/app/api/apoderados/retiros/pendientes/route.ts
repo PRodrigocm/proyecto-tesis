@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Obtener los IDs de estados pendientes
-    const estadosPendientesIds = await getEstadosRetiroIds(['SOLICITADO', 'EN_REVISION'])
+    // Obtener los IDs de estados pendientes (usar PENDIENTE que es el que existe en la BD)
+    const estadosPendientesIds = await getEstadosRetiroIds(['PENDIENTE'])
 
     // Obtener retiros pendientes de aprobación
     const retirosPendientes = await prisma.retiro.findMany({

@@ -170,19 +170,21 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   
-  // Columna izquierda
+  // Fila 1: Generado por
   doc.setFont('helvetica', 'bold')
   doc.text('Generado por:', 25, yPos)
   doc.setFont('helvetica', 'normal')
   doc.text(metadatos.generadoPor.nombre || 'N/A', 70, yPos)
   
-  // Columna derecha
+  yPos += 7
+  // Fila 2: Cargo
   doc.setFont('helvetica', 'bold')
-  doc.text('Cargo:', 115, yPos)
+  doc.text('Cargo:', 25, yPos)
   doc.setFont('helvetica', 'normal')
-  doc.text(metadatos.generadoPor.especialidad || 'Docente', 140, yPos)
+  doc.text(metadatos.generadoPor.especialidad || 'Docente', 70, yPos)
   
-  yPos += 8
+  yPos += 7
+  // Fila 3: Fecha de generación
   doc.setFont('helvetica', 'bold')
   doc.text('Fecha de generación:', 25, yPos)
   doc.setFont('helvetica', 'normal')
@@ -190,7 +192,8 @@ async function generarPDF(datos: any, configuracion: any): Promise<Buffer> {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
   }), 70, yPos)
   
-  yPos += 8
+  yPos += 7
+  // Fila 4: Período evaluado
   doc.setFont('helvetica', 'bold')
   doc.text('Período evaluado:', 25, yPos)
   doc.setFont('helvetica', 'normal')

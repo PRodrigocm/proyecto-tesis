@@ -319,6 +319,38 @@ export async function GET(request: NextRequest) {
       observacionesLimpias = observacionesLimpias.replace(/\s*\|\s*Persona que recoge:[^|]*/g, '').trim()
       observacionesLimpias = observacionesLimpias.replace(/^Persona que recoge:[^|]*\s*\|?\s*/g, '').trim()
 
+      // Determinar quién creó el retiro basándose en origen y relaciones
+      let creadoPor: { nombre: string; apellido: string; rol: string } | null = null
+      
+      if (retiro.origen === 'SOLICITUD_DOCENTE' || retiro.origen === 'DOCENTE') {
+        // Creado por docente
+        if (retiro.docenteReportador?.usuario) {
+          creadoPor = {
+            nombre: retiro.docenteReportador.usuario.nombre || '',
+            apellido: retiro.docenteReportador.usuario.apellido || '',
+            rol: 'Docente'
+          }
+        }
+      } else if (retiro.origen === 'SOLICITUD_APODERADO' || retiro.origen === 'APODERADO') {
+        // Creado por apoderado
+        if (retiro.apoderadoContacto?.usuario) {
+          creadoPor = {
+            nombre: retiro.apoderadoContacto.usuario.nombre || '',
+            apellido: retiro.apoderadoContacto.usuario.apellido || '',
+            rol: 'Apoderado'
+          }
+        }
+      } else if (retiro.origen === 'PANEL_ADMINISTRATIVO' || retiro.origen === 'AUXILIAR') {
+        // Creado por auxiliar/admin
+        if (retiro.usuarioVerificador) {
+          creadoPor = {
+            nombre: retiro.usuarioVerificador.nombre || '',
+            apellido: retiro.usuarioVerificador.apellido || '',
+            rol: 'Auxiliar'
+          }
+        }
+      }
+
       return {
         id: retiro.idRetiro.toString(),
         fecha: retiro.fecha.toISOString(),
@@ -342,7 +374,8 @@ export async function GET(request: NextRequest) {
         autorizadoPor: retiro.usuarioVerificador ? {
           nombre: retiro.usuarioVerificador.nombre,
           apellido: retiro.usuarioVerificador.apellido
-        } : null
+        } : null,
+        creadoPor: creadoPor
       }
     })
 
@@ -677,7 +710,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Enviar notificaciones según quién creó el retiro
+    const mensaje = esAdministrativo 
+      ? 'Retiro aprobado y asistencia actualizada exitosamente'
+      : 'Retiro solicitado y asistencia actualizada exitosamente'
+    
+    // Preparar respuesta ANTES de enviar notificaciones
+    const respuesta = NextResponse.json({
+      success: true,
+      message: mensaje,
+      data: {
+        id: resultado.idRetiro,
+        estado: estadoRetiro.nombre,
+        codigo: estadoRetiro.codigo
+      }
+    })
+
+    // Enviar notificaciones EN SEGUNDO PLANO (no bloquea la respuesta)
+    // Esto permite que el modal se cierre inmediatamente
     if (estudianteInfo && creadorInfo) {
       const notificationData = {
         retiroId: resultado.idRetiro,
@@ -694,31 +743,28 @@ export async function POST(request: NextRequest) {
         ieId: ieId
       }
 
-      // Flujo de aprobación cruzada
-      if (creadorRol === 'APODERADO') {
-        // Si crea el apoderado -> notificar a docentes y admin
-        console.log('📧 Notificando retiro creado por APODERADO...')
-        await notificarRetiroCreadoPorApoderado(notificationData, creadorInfo)
-      } else if (creadorRol === 'DOCENTE' || creadorRol === 'AUXILIAR') {
-        // Si crea el docente -> notificar a apoderados y admin
-        console.log('📧 Notificando retiro creado por DOCENTE/AUXILIAR...')
-        await notificarRetiroCreadoPorDocente(notificationData, creadorInfo)
+      // Ejecutar notificaciones sin await para no bloquear la respuesta
+      // El modal se cierra inmediatamente y las notificaciones se envían en segundo plano
+      const enviarNotificaciones = async () => {
+        try {
+          if (creadorRol === 'APODERADO') {
+            console.log('📧 [ASYNC] Notificando retiro creado por APODERADO...')
+            await notificarRetiroCreadoPorApoderado(notificationData, creadorInfo!)
+          } else if (creadorRol === 'DOCENTE' || creadorRol === 'AUXILIAR') {
+            console.log('📧 [ASYNC] Notificando retiro creado por DOCENTE/AUXILIAR...')
+            await notificarRetiroCreadoPorDocente(notificationData, creadorInfo!)
+          }
+          console.log('✅ [ASYNC] Notificaciones enviadas exitosamente')
+        } catch (error) {
+          console.error('❌ [ASYNC] Error enviando notificaciones:', error)
+        }
       }
+      
+      // Iniciar envío de notificaciones sin esperar
+      enviarNotificaciones()
     }
 
-    const mensaje = esAdministrativo 
-      ? 'Retiro aprobado y asistencia actualizada exitosamente'
-      : 'Retiro solicitado y asistencia actualizada exitosamente'
-    
-    return NextResponse.json({
-      success: true,
-      message: mensaje,
-      data: {
-        id: resultado.idRetiro,
-        estado: estadoRetiro.nombre,
-        codigo: estadoRetiro.codigo
-      }
-    })
+    return respuesta
 
   } catch (error) {
     console.error('Error creating retiro:', error)
