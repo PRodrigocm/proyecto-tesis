@@ -75,8 +75,8 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    // Obtener el nuevo estado
-    const codigoNuevoEstado = accion === 'APROBAR' ? 'APROBADA' : 'RECHAZADA'
+    // Obtener el nuevo estado (los códigos en BD son APROBADO y RECHAZADO, sin la A final)
+    const codigoNuevoEstado = accion === 'APROBAR' ? 'APROBADO' : 'RECHAZADO'
     const nuevoEstado = await prisma.estadoJustificacion.findFirst({
       where: { codigo: codigoNuevoEstado }
     })
