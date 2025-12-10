@@ -344,11 +344,19 @@ export async function GET(request: NextRequest) {
             apellido: retiro.apoderadoContacto.usuario.apellido || '',
             rol: 'Apoderado'
           }
-          console.log(`✅ Creado por Apoderado: ${creadoPor.nombre} ${creadoPor.apellido}`)
+          console.log(`✅ Creado por Apoderado (contacto): ${creadoPor.nombre} ${creadoPor.apellido}`)
+        } else if (retiro.apoderadoRetira?.usuario) {
+          // Fallback: usar apoderadoRetira si no hay apoderadoContacto
+          creadoPor = {
+            nombre: retiro.apoderadoRetira.usuario.nombre || '',
+            apellido: retiro.apoderadoRetira.usuario.apellido || '',
+            rol: 'Apoderado'
+          }
+          console.log(`✅ Creado por Apoderado (retira): ${creadoPor.nombre} ${creadoPor.apellido}`)
         } else {
-          console.log(`⚠️ Origen APODERADO pero no hay apoderadoContacto`)
+          console.log(`⚠️ Origen APODERADO pero no hay apoderadoContacto ni apoderadoRetira`)
         }
-      } else if (retiro.origen === 'PANEL_ADMINISTRATIVO' || retiro.origen === 'AUXILIAR') {
+      } else if (retiro.origen === 'PANEL_ADMINISTRATIVO' || retiro.origen === 'AUXILIAR' || retiro.origen === 'ADMINISTRATIVO') {
         // Creado por auxiliar/admin
         if (retiro.usuarioVerificador) {
           creadoPor = {
@@ -363,6 +371,26 @@ export async function GET(request: NextRequest) {
       } else {
         console.log(`⚠️ Origen desconocido: ${retiro.origen}`)
       }
+
+      // Convertir origen a texto legible
+      const getOrigenLegible = (origen: string | null) => {
+        switch (origen) {
+          case 'SOLICITUD_DOCENTE':
+          case 'DOCENTE':
+            return { texto: 'Docente', color: 'blue' }
+          case 'SOLICITUD_APODERADO':
+          case 'APODERADO':
+            return { texto: 'Apoderado', color: 'purple' }
+          case 'PANEL_ADMINISTRATIVO':
+          case 'ADMINISTRATIVO':
+          case 'AUXILIAR':
+            return { texto: 'Auxiliar', color: 'orange' }
+          default:
+            return { texto: origen || 'No especificado', color: 'gray' }
+        }
+      }
+
+      const origenInfo = getOrigenLegible(retiro.origen)
 
       return {
         id: retiro.idRetiro.toString(),
@@ -388,7 +416,9 @@ export async function GET(request: NextRequest) {
           nombre: retiro.usuarioVerificador.nombre,
           apellido: retiro.usuarioVerificador.apellido
         } : null,
-        creadoPor: creadoPor
+        creadoPor: creadoPor,
+        origen: origenInfo.texto,
+        origenColor: origenInfo.color
       }
     })
 

@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
       console.log(`📋 Tipo de retiro recibido: "${tipoRetiro}", encontrado en BD: ${tipoRetiroDb ? tipoRetiroDb.nombre : 'NO ENCONTRADO'}`)
     }
 
-    // Crear retiro
+    // Crear retiro - IMPORTANTE: Guardar el apoderado que creó el retiro
     const nuevoRetiro = await prisma.retiro.create({
       data: {
         idEstudiante: parseInt(estudianteIdFinal),
@@ -226,7 +226,9 @@ export async function POST(request: NextRequest) {
         observaciones: motivo || observaciones || null,
         idTipoRetiro: tipoRetiroDb?.idTipoRetiro || null,
         idEstadoRetiro: estadoRetiro.idEstadoRetiro,
-        origen: 'APODERADO'
+        origen: 'SOLICITUD_APODERADO',
+        apoderadoContactado: apoderado.idApoderado, // Guardar quién creó el retiro
+        apoderadoQueRetira: apoderado.idApoderado   // El apoderado que solicita también retira
       }
     })
 

@@ -83,6 +83,19 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
             </div>
           </div>
 
+          {/* Origen del Retiro */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Origen del Retiro</h4>
+            <span className={`inline-flex px-3 py-1.5 rounded-full text-sm font-medium ${
+              retiro.origenColor === 'blue' ? 'bg-blue-100 text-blue-800' :
+              retiro.origenColor === 'purple' ? 'bg-purple-100 text-purple-800' :
+              retiro.origenColor === 'orange' ? 'bg-orange-100 text-orange-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {retiro.origen || 'No especificado'}
+            </span>
+          </div>
+
           {/* Persona que Recoge */}
           <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
             <h4 className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-3">Persona que Recoge</h4>
@@ -97,10 +110,12 @@ export default function ViewRetiroModal({ isOpen, onClose, retiro }: ViewRetiroM
             </div>
           </div>
 
-          {/* Autorización */}
-          {retiro.autorizadoPor && (
-            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-              <h4 className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Autorizado por</h4>
+          {/* Autorización - Solo mostrar si el estado es AUTORIZADO o RECHAZADO */}
+          {(retiro.estado === 'AUTORIZADO' || retiro.estado === 'RECHAZADO') && retiro.autorizadoPor && (
+            <div className={`p-4 rounded-xl border ${retiro.estado === 'AUTORIZADO' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+              <h4 className={`text-xs font-semibold uppercase tracking-wide mb-2 ${retiro.estado === 'AUTORIZADO' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {retiro.estado === 'AUTORIZADO' ? 'Autorizado por' : 'Rechazado por'}
+              </h4>
               <p className="font-medium text-slate-900">{retiro.autorizadoPor.nombre} {retiro.autorizadoPor.apellido}</p>
               {retiro.fechaAutorizacion && (
                 <p className="text-xs text-slate-500 mt-1">{new Date(retiro.fechaAutorizacion).toLocaleString('es-ES')}</p>

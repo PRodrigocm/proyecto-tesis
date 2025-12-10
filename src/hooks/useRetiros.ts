@@ -29,6 +29,8 @@ export interface Retiro {
     apellido: string
     rol: string
   } | null
+  origen?: string
+  origenColor?: string
 }
 
 export interface RetirosFilters {

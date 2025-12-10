@@ -111,9 +111,14 @@ export default function JustificacionesDocente() {
     }
   }
 
-  // Formatear fecha
+  // Formatear fecha - Extraer componentes directamente para evitar problemas de zona horaria
   const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+    const fechaStr = fecha.split('T')[0]
+    const [year, month, day] = fechaStr.split('-').map(Number)
+    // Crear fecha local a mediodía para evitar cambios de día
+    const fechaLocal = new Date(year, month - 1, day, 12, 0, 0)
+    return fechaLocal.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'

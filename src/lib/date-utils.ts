@@ -4,16 +4,18 @@
  */
 
 /**
- * Convierte una fecha UTC a string de fecha en zona horaria de Lima
- * @param fechaUTC - Fecha en UTC (Date object)
- * @returns String en formato YYYY-MM-DD en hora de Lima
+ * Convierte una fecha de la BD a string de fecha YYYY-MM-DD
+ * IMPORTANTE: Para campos @db.Date de Prisma, la fecha viene como UTC medianoche.
+ * Debemos extraer directamente los componentes UTC para evitar conversiones de zona horaria.
+ * @param fechaDB - Fecha de la base de datos (Date object)
+ * @returns String en formato YYYY-MM-DD
  */
-export function fechaUTCaLima(fechaUTC: Date): string {
-  // Crear fecha en zona horaria de Lima
-  const fechaLima = new Date(fechaUTC.toLocaleString('en-US', { timeZone: 'America/Lima' }))
-  const year = fechaLima.getFullYear()
-  const month = String(fechaLima.getMonth() + 1).padStart(2, '0')
-  const day = String(fechaLima.getDate()).padStart(2, '0')
+export function fechaUTCaLima(fechaDB: Date): string {
+  // Para campos @db.Date, Prisma devuelve la fecha en UTC medianoche
+  // Extraemos directamente los componentes UTC para evitar problemas de zona horaria
+  const year = fechaDB.getUTCFullYear()
+  const month = String(fechaDB.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(fechaDB.getUTCDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 

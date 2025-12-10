@@ -73,7 +73,7 @@ export default function RetirosTable({ retiros, onAutorizar, onModificar, onElim
               Estudiante
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Creado por
+              Origen
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Hora Retiro
@@ -109,24 +109,14 @@ export default function RetirosTable({ retiros, onAutorizar, onModificar, onElim
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {retiro.creadoPor ? (
-                  <>
-                    <div className="text-sm text-gray-900">
-                      {retiro.creadoPor.nombre} {retiro.creadoPor.apellido}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        retiro.creadoPor.rol === 'Docente' ? 'bg-blue-100 text-blue-800' :
-                        retiro.creadoPor.rol === 'Apoderado' ? 'bg-purple-100 text-purple-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {retiro.creadoPor.rol}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-sm text-gray-400">Sin información</div>
-                )}
+                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                  retiro.origenColor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                  retiro.origenColor === 'purple' ? 'bg-purple-100 text-purple-800' :
+                  retiro.origenColor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {retiro.origen || 'No especificado'}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900">
