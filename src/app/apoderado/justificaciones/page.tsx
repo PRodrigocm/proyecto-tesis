@@ -10,14 +10,13 @@ import {
 } from '@/services/apoderado.service'
 
 /**
- * Parsea una fecha ISO string y la muestra correctamente sin problemas de zona horaria
- * Evita que 2025-12-04T00:00:00.000Z se muestre como 3 de diciembre en Lima
+ * Parsea una fecha en formato YYYY-MM-DD a Date local sin problemas de zona horaria
  */
-function parsearFechaLocal(fechaISO: string): Date {
-  // Extraer solo la parte de la fecha (YYYY-MM-DD)
-  const fechaStr = fechaISO.split('T')[0]
-  const [anio, mes, dia] = fechaStr.split('-').map(Number)
-  // Crear fecha a mediodía para evitar problemas de zona horaria
+function parsearFechaLocal(fechaStr: string): Date {
+  // Si viene con hora (T), extraer solo la parte de la fecha
+  const soloFecha = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr
+  const [anio, mes, dia] = soloFecha.split('-').map(Number)
+  // Crear fecha a mediodía en hora local para evitar problemas de zona horaria
   return new Date(anio, mes - 1, dia, 12, 0, 0)
 }
 

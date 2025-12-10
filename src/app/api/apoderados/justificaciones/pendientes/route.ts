@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
       
       return {
         id: inasistencia.idAsistencia.toString(),
-        fecha: `${fechaLimaStr}T00:00:00.000Z`, // Fecha normalizada en Lima
+        fecha: fechaLimaStr, // Solo la fecha YYYY-MM-DD sin hora ni zona horaria
         sesion,
         estudiante: {
           id: inasistencia.estudiante.idEstudiante.toString(),
