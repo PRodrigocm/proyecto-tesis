@@ -67,7 +67,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Justificación no encontrada' }, { status: 404 })
     }
 
-    if (justificacionExistente.estadoJustificacion.codigo !== 'PENDIENTE') {
+    // Permitir revisar justificaciones en estado PENDIENTE o EN_REVISION
+    const estadosRevisables = ['PENDIENTE', 'EN_REVISION']
+    if (!estadosRevisables.includes(justificacionExistente.estadoJustificacion.codigo)) {
       return NextResponse.json({ 
         error: `La justificación ya fue ${justificacionExistente.estadoJustificacion.nombre.toLowerCase()}` 
       }, { status: 400 })
