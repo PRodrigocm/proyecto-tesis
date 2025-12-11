@@ -78,14 +78,41 @@ export async function GET(request: NextRequest) {
 
     // Procesar datos para el reporte
     const reportes = estudiantes.map(estudiante => {
-      const asistencias = estudiante.asistencias.map((asistencia: any) => ({
-        fecha: asistencia.fecha.toISOString().split('T')[0],
-        estado: asistencia.estadoAsistencia?.nombreEstado || 'PRESENTE' as 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO'
-      }))
+      const asistencias = estudiante.asistencias.map((asistencia: any) => {
+        // Usar el código del estado si existe, sino el nombre normalizado
+        const estadoCodigo = asistencia.estadoAsistencia?.codigo?.toUpperCase() || ''
+        const estadoNombre = asistencia.estadoAsistencia?.nombreEstado?.toUpperCase() || ''
+        
+        // Determinar el estado normalizado
+        let estadoNormalizado: 'PRESENTE' | 'AUSENTE' | 'TARDANZA' | 'RETIRADO' | 'JUSTIFICADA' = 'PRESENTE'
+        
+        if (estadoCodigo.includes('PRESENTE') || estadoNombre.includes('PRESENTE')) {
+          estadoNormalizado = 'PRESENTE'
+        } else if (estadoCodigo.includes('AUSENTE') || estadoNombre.includes('AUSENTE') || 
+                   estadoCodigo.includes('FALTA') || estadoNombre.includes('FALTA') ||
+                   estadoCodigo.includes('INASISTENCIA') || estadoNombre.includes('INASISTENCIA')) {
+          estadoNormalizado = 'AUSENTE'
+        } else if (estadoCodigo.includes('TARDANZA') || estadoNombre.includes('TARDANZA') ||
+                   estadoCodigo.includes('TARDE') || estadoNombre.includes('TARDE')) {
+          estadoNormalizado = 'TARDANZA'
+        } else if (estadoCodigo.includes('RETIRADO') || estadoNombre.includes('RETIRADO') ||
+                   estadoCodigo.includes('RETIRO') || estadoNombre.includes('RETIRO')) {
+          estadoNormalizado = 'RETIRADO'
+        } else if (estadoCodigo.includes('JUSTIFICAD') || estadoNombre.includes('JUSTIFICAD')) {
+          estadoNormalizado = 'JUSTIFICADA'
+        }
+        
+        return {
+          fecha: asistencia.fecha.toISOString().split('T')[0],
+          estado: estadoNormalizado,
+          horaEntrada: asistencia.horaEntrada,
+          horaSalida: asistencia.horaSalida
+        }
+      })
 
       // Calcular estadísticas
       const totalDias = asistencias.length
-      const diasPresente = asistencias.filter((a: any) => a.estado === 'PRESENTE').length
+      const diasPresente = asistencias.filter((a: any) => a.estado === 'PRESENTE' || a.estado === 'JUSTIFICADA').length
       const diasAusente = asistencias.filter((a: any) => a.estado === 'AUSENTE').length
       const diasTardanza = asistencias.filter((a: any) => a.estado === 'TARDANZA').length
       const diasRetirado = asistencias.filter((a: any) => a.estado === 'RETIRADO').length
