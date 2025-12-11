@@ -154,7 +154,13 @@ export async function PUT(
     if (accion === 'APROBAR') {
       console.log('✅ Justificación aprobada, actualizando asistencias...')
       
-      // Buscar asistencias en el rango de fechas que necesiten justificación
+      // Determinar si es justificación de tardanza
+      const esTardanza = justificacionExistente.tipoJustificacion?.codigo === 'TARDANZA'
+      console.log(`📝 Tipo de justificación: ${justificacionExistente.tipoJustificacion?.codigo || 'No especificado'}, esTardanza: ${esTardanza}`)
+      
+      // Buscar asistencias en el rango de fechas
+      // Para tardanzas, buscar específicamente estado TARDANZA
+      // Para inasistencias, buscar estados que requieren justificación
       const asistenciasPorJustificar = await prisma.asistencia.findMany({
         where: {
           idEstudiante: justificacionExistente.idEstudiante,
@@ -162,21 +168,55 @@ export async function PUT(
             gte: justificacionExistente.fechaInicio,
             lte: justificacionExistente.fechaFin
           },
-          estadoAsistencia: {
-            requiereJustificacion: true
-          }
+          estadoAsistencia: esTardanza 
+            ? { codigo: { in: ['TARDANZA', 'TARDE'] } }
+            : { requiereJustificacion: true }
+        },
+        include: {
+          estadoAsistencia: true
         }
       })
 
       console.log(`📊 Encontradas ${asistenciasPorJustificar.length} asistencias para justificar`)
 
-      // Obtener el estado "JUSTIFICADA"
-      const estadoJustificada = await prisma.estadoAsistencia.findFirst({
-        where: { codigo: 'JUSTIFICADA' }
+      // Obtener el estado apropiado según el tipo
+      const codigoEstadoDestino = esTardanza ? 'TARDANZA_JUSTIFICADA' : 'JUSTIFICADA'
+      let estadoDestino = await prisma.estadoAsistencia.findFirst({
+        where: { codigo: codigoEstadoDestino }
       })
 
-      if (estadoJustificada && asistenciasPorJustificar.length > 0) {
-        // Actualizar las asistencias a estado JUSTIFICADA
+      // Si no existe el estado TARDANZA_JUSTIFICADA, crearlo
+      if (!estadoDestino && esTardanza) {
+        console.log('⚠️ Estado TARDANZA_JUSTIFICADA no existe, creándolo...')
+        estadoDestino = await prisma.estadoAsistencia.create({
+          data: {
+            codigo: 'TARDANZA_JUSTIFICADA',
+            nombreEstado: 'Tardanza Justificada',
+            afectaAsistencia: false,
+            requiereJustificacion: false,
+            activo: true
+          }
+        })
+        console.log('✅ Estado TARDANZA_JUSTIFICADA creado')
+      }
+
+      // Si no existe JUSTIFICADA, intentar crearlo
+      if (!estadoDestino && !esTardanza) {
+        console.log('⚠️ Estado JUSTIFICADA no existe, creándolo...')
+        estadoDestino = await prisma.estadoAsistencia.create({
+          data: {
+            codigo: 'JUSTIFICADA',
+            nombreEstado: 'Justificada',
+            afectaAsistencia: false,
+            requiereJustificacion: false,
+            activo: true
+          }
+        })
+        console.log('✅ Estado JUSTIFICADA creado')
+      }
+
+      if (estadoDestino && asistenciasPorJustificar.length > 0) {
+        // Actualizar las asistencias al estado correspondiente
         await prisma.asistencia.updateMany({
           where: {
             idAsistencia: {
@@ -184,7 +224,7 @@ export async function PUT(
             }
           },
           data: {
-            idEstadoAsistencia: estadoJustificada.idEstadoAsistencia
+            idEstadoAsistencia: estadoDestino.idEstadoAsistencia
           }
         })
 
@@ -216,7 +256,7 @@ export async function PUT(
           })
         }
 
-        console.log(`✅ ${asistenciasPorJustificar.length} asistencias actualizadas a JUSTIFICADA (${asistenciasNuevas.length} nuevos registros)`)
+        console.log(`✅ ${asistenciasPorJustificar.length} asistencias actualizadas a ${codigoEstadoDestino} (${asistenciasNuevas.length} nuevos registros)`)
       }
     }
 

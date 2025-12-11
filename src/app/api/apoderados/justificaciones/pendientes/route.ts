@@ -73,23 +73,25 @@ export async function GET(request: NextRequest) {
     const todosEstados = await prisma.estadoAsistencia.findMany()
     console.log('📋 Estados de asistencia disponibles:', todosEstados.map(e => ({ id: e.idEstadoAsistencia, codigo: e.codigo })))
 
-    // Buscar solo estados que representan INASISTENCIA SIN JUSTIFICAR
-    // Excluir: PRESENTE, TARDANZA, JUSTIFICADO, JUSTIFICADA, RETIRO, etc.
-    const estadosAusente = todosEstados.filter(e => {
+    // Buscar estados que representan INASISTENCIA o TARDANZA SIN JUSTIFICAR
+    // Incluir: AUSENTE, INASISTENCIA, FALTA, SIN_REGISTRAR, TARDANZA
+    const estadosJustificables = todosEstados.filter(e => {
       const codigo = e.codigo.toUpperCase()
-      // Solo incluir estados que son realmente inasistencias sin justificar
+      // Incluir estados que pueden ser justificados (inasistencias Y tardanzas)
       return codigo === 'AUSENTE' || 
              codigo === 'INASISTENCIA' || 
              codigo === 'FALTA' ||
-             codigo === 'SIN_REGISTRAR'
+             codigo === 'SIN_REGISTRAR' ||
+             codigo === 'TARDANZA' ||
+             codigo === 'TARDE'
     })
 
-    console.log('🔍 Estados considerados como inasistencia pendiente:', estadosAusente.map(e => e.codigo))
+    console.log('🔍 Estados considerados como justificables (inasistencia/tardanza):', estadosJustificables.map(e => e.codigo))
 
-    const estadoAusenteIds = estadosAusente.map(e => e.idEstadoAsistencia)
+    const estadoJustificableIds = estadosJustificables.map(e => e.idEstadoAsistencia)
 
-    if (estadoAusenteIds.length === 0) {
-      console.log('⚠️ No se encontraron estados de ausencia en la BD')
+    if (estadoJustificableIds.length === 0) {
+      console.log('⚠️ No se encontraron estados justificables en la BD')
       return NextResponse.json({
         success: true,
         inasistencias: []
@@ -137,25 +139,25 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    // También obtener IDs de estados que NO son inasistencia (para doble verificación)
-    const estadosNoInasistencia = todosEstados.filter(e => {
+    // También obtener IDs de estados que NO requieren justificación (para doble verificación)
+    const estadosNoJustificables = todosEstados.filter(e => {
       const codigo = e.codigo.toUpperCase()
       return codigo === 'PRESENTE' || 
-             codigo === 'TARDANZA' || 
              codigo === 'JUSTIFICADO' || 
              codigo === 'JUSTIFICADA' ||
+             codigo === 'TARDANZA_JUSTIFICADA' ||
              codigo === 'RETIRO' ||
              codigo === 'RETIRADO'
     })
-    const estadosNoInasistenciaIds = new Set(estadosNoInasistencia.map(e => e.idEstadoAsistencia))
-    console.log('🔍 Estados que NO son inasistencia:', estadosNoInasistencia.map(e => e.codigo))
+    const estadosNoJustificablesIds = new Set(estadosNoJustificables.map(e => e.idEstadoAsistencia))
+    console.log('🔍 Estados que NO requieren justificación:', estadosNoJustificables.map(e => e.codigo))
 
-    // IMPORTANTE: Obtener TODAS las asistencias con estados válidos (PRESENTE, JUSTIFICADA, etc.)
-    // para excluir esas fechas de las inasistencias pendientes
+    // IMPORTANTE: Obtener TODAS las asistencias con estados que ya no requieren justificación
+    // para excluir esas fechas de las pendientes
     const asistenciasConEstadoValido = await prisma.asistencia.findMany({
       where: {
         idEstudiante: { in: estudianteIds },
-        idEstadoAsistencia: { in: Array.from(estadosNoInasistenciaIds) }
+        idEstadoAsistencia: { in: Array.from(estadosNoJustificablesIds) }
       },
       select: {
         idEstudiante: true,
@@ -175,11 +177,11 @@ export async function GET(request: NextRequest) {
 
     console.log(`📋 Total de fechas con estado válido (no requieren justificación): ${fechasConEstadoValido.size}`)
 
-    // Obtener inasistencias de la BD
-    const inasistencias = await prisma.asistencia.findMany({
+    // Obtener asistencias justificables (inasistencias y tardanzas) de la BD
+    const asistenciasJustificables = await prisma.asistencia.findMany({
       where: {
         idEstudiante: { in: estudianteIds },
-        idEstadoAsistencia: { in: estadoAusenteIds }
+        idEstadoAsistencia: { in: estadoJustificableIds }
       },
       include: {
         estudiante: {
@@ -201,16 +203,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Filtrar inasistencias:
+    // Filtrar asistencias justificables:
     // 1. Excluir las que ya tienen otro registro con estado válido (PRESENTE, JUSTIFICADA, etc.)
     // 2. Excluir las que ya tienen justificación
-    // 3. Excluir las que tienen retiro en esa fecha
+    // 3. Excluir las que tienen retiro en esa fecha (solo para inasistencias, no tardanzas)
     // 4. Eliminar duplicados por estudiante+fecha
     const fechasVistas = new Map<string, boolean>()
     
-    console.log(`📊 Total de asistencias con estado ausente encontradas: ${inasistencias.length}`)
+    console.log(`📊 Total de asistencias justificables encontradas: ${asistenciasJustificables.length}`)
     
-    const inasistenciasFiltradas = inasistencias.filter(asist => {
+    const asistenciasFiltradas = asistenciasJustificables.filter(asist => {
       // Obtener fecha en zona horaria de Lima (no UTC)
       const fechaLimaStr = fechaUTCaLima(asist.fecha)
       const keyEstudianteFecha = claveEstudianteFecha(asist.idEstudiante, asist.fecha)
@@ -230,11 +232,16 @@ export async function GET(request: NextRequest) {
         return false
       }
 
-      // Excluir si hay retiro en esa fecha para ese estudiante
-      const retirosEstudiante = fechasConRetiro.get(asist.idEstudiante)
-      if (retirosEstudiante && retirosEstudiante.has(fechaLimaStr)) {
-        console.log(`⏭️ Excluida asistencia ${asist.idAsistencia}: tiene retiro en esa fecha`)
-        return false
+      // Excluir si hay retiro en esa fecha para ese estudiante (solo para inasistencias, no tardanzas)
+      const estadoCodigo = asist.estadoAsistencia?.codigo?.toUpperCase() || ''
+      const esTardanza = estadoCodigo === 'TARDANZA' || estadoCodigo === 'TARDE'
+      
+      if (!esTardanza) {
+        const retirosEstudiante = fechasConRetiro.get(asist.idEstudiante)
+        if (retirosEstudiante && retirosEstudiante.has(fechaLimaStr)) {
+          console.log(`⏭️ Excluida asistencia ${asist.idAsistencia}: tiene retiro en esa fecha`)
+          return false
+        }
       }
 
       // Evitar duplicados por estudiante+fecha
@@ -246,16 +253,16 @@ export async function GET(request: NextRequest) {
       return true
     })
     
-    console.log(`✅ Inasistencias pendientes después de filtrar: ${inasistenciasFiltradas.length}`)
+    console.log(`✅ Asistencias pendientes de justificar después de filtrar: ${asistenciasFiltradas.length}`)
     
-    // Log detallado de las inasistencias que se van a devolver
-    inasistenciasFiltradas.forEach(asist => {
+    // Log detallado de las asistencias que se van a devolver
+    asistenciasFiltradas.forEach(asist => {
       const fechaLima = fechaUTCaLima(asist.fecha)
       console.log(`📌 PENDIENTE: ID=${asist.idAsistencia}, Estudiante=${asist.estudiante.usuario.nombre} ${asist.estudiante.usuario.apellido}, FechaUTC=${asist.fecha.toISOString()}, FechaLima=${fechaLima}, Estado=${asist.estadoAsistencia?.codigo}`)
     })
 
     // Transformar a formato esperado por el frontend
-    const inasistenciasPendientes = inasistenciasFiltradas.map((inasistencia) => {
+    const asistenciasPendientes = asistenciasFiltradas.map((inasistencia) => {
       // Determinar sesión basada en la hora de registro
       let sesion = 'Sin especificar'
       if (inasistencia.horaRegistro) {
@@ -270,6 +277,10 @@ export async function GET(request: NextRequest) {
       // Convertir fecha a formato local de Lima para mostrar correctamente
       const fechaLimaStr = fechaUTCaLima(inasistencia.fecha)
       
+      // Determinar el tipo de estado (INASISTENCIA o TARDANZA)
+      const estadoCodigo = inasistencia.estadoAsistencia?.codigo?.toUpperCase() || 'INASISTENCIA'
+      const esTardanza = estadoCodigo === 'TARDANZA' || estadoCodigo === 'TARDE'
+      
       return {
         id: inasistencia.idAsistencia.toString(),
         fecha: fechaLimaStr, // Solo la fecha YYYY-MM-DD sin hora ni zona horaria
@@ -282,14 +293,15 @@ export async function GET(request: NextRequest) {
           grado: inasistencia.estudiante.gradoSeccion?.grado.nombre || 'Sin grado',
           seccion: inasistencia.estudiante.gradoSeccion?.seccion.nombre || 'Sin sección'
         },
-        estado: 'INASISTENCIA',
+        estado: esTardanza ? 'TARDANZA' : 'INASISTENCIA',
+        tipo: esTardanza ? 'tardanza' : 'inasistencia',
         fechaRegistro: inasistencia.createdAt.toISOString()
       }
     })
 
     return NextResponse.json({
       success: true,
-      inasistencias: inasistenciasPendientes
+      inasistencias: asistenciasPendientes
     })
 
   } catch (error) {

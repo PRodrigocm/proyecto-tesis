@@ -24,7 +24,7 @@ interface JustificacionForm {
   inasistenciaId: string
   motivo: string
   descripcion: string
-  tipoJustificacion: 'MEDICA' | 'FAMILIAR' | 'PERSONAL' | 'OTRA'
+  tipoJustificacion: 'MEDICA' | 'FAMILIAR' | 'PERSONAL' | 'OTRA' | 'TARDANZA'
   documentoAdjunto?: File
 }
 
@@ -115,11 +115,13 @@ export default function JustificarInasistencias() {
 
   const openJustificarModal = (inasistencia: InasistenciaPendiente) => {
     setSelectedInasistencia(inasistencia)
+    // Determinar tipo de justificación por defecto según el estado
+    const esTardanza = inasistencia.estado === 'TARDANZA' || (inasistencia as any).tipo === 'tardanza'
     setFormData({
       inasistenciaId: inasistencia.id,
       motivo: '',
       descripcion: '',
-      tipoJustificacion: 'PERSONAL'
+      tipoJustificacion: esTardanza ? 'TARDANZA' : 'PERSONAL'
     })
     setShowJustificarModal(true)
   }
@@ -183,6 +185,8 @@ export default function JustificarInasistencias() {
         return 'Familiar'
       case 'PERSONAL':
         return 'Personal'
+      case 'TARDANZA':
+        return 'Tardanza'
       case 'OTRA':
         return 'Otra'
       default:
@@ -203,10 +207,10 @@ export default function JustificarInasistencias() {
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <span>📝</span> Justificar Inasistencias
+          <span>📝</span> Justificar Inasistencias y Tardanzas
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-gray-600">
-          Justifica las inasistencias con documentación de respaldo
+          Justifica las inasistencias y tardanzas con documentación de respaldo
         </p>
       </div>
 
@@ -248,12 +252,14 @@ export default function JustificarInasistencias() {
             </h3>
           </div>
           <div className="divide-y divide-gray-100">
-            {inasistenciasPendientes.map((inasistencia) => (
+            {inasistenciasPendientes.map((inasistencia) => {
+              const esTardanza = inasistencia.estado === 'TARDANZA' || (inasistencia as any).tipo === 'tardanza'
+              return (
               <div key={inasistencia.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex items-start gap-3 flex-1">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl sm:text-2xl">❌</span>
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 ${esTardanza ? 'bg-yellow-100' : 'bg-red-100'} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-xl sm:text-2xl">{esTardanza ? '⏰' : '❌'}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm sm:text-base font-semibold text-gray-900 truncate">
@@ -273,7 +279,7 @@ export default function JustificarInasistencias() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-red-100 text-red-800">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${esTardanza ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                       {inasistencia.estado}
                     </span>
                     <button
@@ -285,7 +291,7 @@ export default function JustificarInasistencias() {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}
@@ -297,7 +303,7 @@ export default function JustificarInasistencias() {
             {/* Header del modal */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center z-10">
               <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span>📝</span> Justificar Inasistencia
+                <span>{selectedInasistencia.estado === 'TARDANZA' ? '⏰' : '📝'}</span> Justificar {selectedInasistencia.estado === 'TARDANZA' ? 'Tardanza' : 'Inasistencia'}
               </h3>
               <button
                 onClick={() => setShowJustificarModal(false)}
@@ -308,11 +314,11 @@ export default function JustificarInasistencias() {
             </div>
 
             <div className="p-4">
-              {/* Información de la inasistencia */}
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+              {/* Información de la inasistencia/tardanza */}
+              <div className={`${selectedInasistencia.estado === 'TARDANZA' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'} border rounded-xl p-3 mb-4`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">❌</span>
+                  <div className={`w-10 h-10 ${selectedInasistencia.estado === 'TARDANZA' ? 'bg-yellow-100' : 'bg-red-100'} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                    <span className="text-xl">{selectedInasistencia.estado === 'TARDANZA' ? '⏰' : '❌'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
@@ -338,10 +344,22 @@ export default function JustificarInasistencias() {
                     className="block w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm min-h-[44px]"
                     required
                   >
-                    <option value="PERSONAL">👤 Personal</option>
-                    <option value="MEDICA">🏥 Médica</option>
-                    <option value="FAMILIAR">👨‍👩‍👧 Familiar</option>
-                    <option value="OTRA">📋 Otra</option>
+                    {selectedInasistencia.estado === 'TARDANZA' ? (
+                      <>
+                        <option value="TARDANZA">⏰ Justificación de Tardanza</option>
+                        <option value="MEDICA">🏥 Médica</option>
+                        <option value="FAMILIAR">👨‍👩‍👧 Familiar</option>
+                        <option value="PERSONAL">👤 Personal</option>
+                        <option value="OTRA">📋 Otra</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PERSONAL">👤 Personal</option>
+                        <option value="MEDICA">🏥 Médica</option>
+                        <option value="FAMILIAR">👨‍👩‍👧 Familiar</option>
+                        <option value="OTRA">📋 Otra</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
