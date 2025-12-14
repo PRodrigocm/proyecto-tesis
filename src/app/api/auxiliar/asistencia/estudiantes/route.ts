@@ -102,110 +102,112 @@ export async function GET(request: NextRequest) {
     })
 
     console.log(`📊 Estudiantes encontrados en BD: ${estudiantes.length}`)
-    estudiantes.forEach(e => {
-      console.log(`  - ${e.usuario.nombre} ${e.usuario.apellido} (idIe usuario: ${e.usuario.idIe})`)
-    })
 
-    // Buscar asistencias IE (entrada/salida) para cada estudiante
-    const estudiantesConEstado = await Promise.all(
-      estudiantes.map(async (estudiante) => {
-        // Buscar asistencia IE del día (entrada/salida de la institución)
-        const asistenciaIE = await prisma.asistenciaIE.findFirst({
-          where: {
-            idEstudiante: estudiante.idEstudiante,
-            fecha: fechaBusqueda
-          },
-          orderBy: {
-            createdAt: 'desc'
+    // OPTIMIZACIÓN: Obtener todas las asistencias IE y retiros en batch (1 query cada uno)
+    const idsEstudiantes = estudiantes.map(e => e.idEstudiante)
+    
+    const [asistenciasIE, retirosAutorizados] = await Promise.all([
+      // Obtener todas las asistencias IE del día en una sola query
+      prisma.asistenciaIE.findMany({
+        where: {
+          idEstudiante: { in: idsEstudiantes },
+          fecha: fechaBusqueda
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      // Obtener todos los retiros autorizados del día en una sola query
+      prisma.retiro.findMany({
+        where: {
+          idEstudiante: { in: idsEstudiantes },
+          fecha: fechaBusqueda,
+          estadoRetiro: {
+            codigo: 'AUTORIZADO'
           }
-        })
-        
-        // Buscar retiro autorizado del día
-        const retiroAutorizado = await prisma.retiro.findFirst({
-          where: {
-            idEstudiante: estudiante.idEstudiante,
-            fecha: fechaBusqueda,
-            estadoRetiro: {
-              codigo: 'AUTORIZADO'
-            }
-          },
-          include: {
-            estadoRetiro: true
-          }
-        })
-
-        // Función para formatear hora en zona horaria local (Lima/Peru)
-        const formatearHora = (fecha: Date | null): string => {
-          if (!fecha) return ''
-          return fecha.toLocaleTimeString('es-PE', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'America/Lima'
-          })
-        }
-
-        if (asistenciaIE) {
-          console.log(`📋 Asistencia encontrada para ${estudiante.usuario.nombre}:`, {
-            fecha: asistenciaIE.fecha,
-            horaIngreso: asistenciaIE.horaIngreso,
-            horaSalida: asistenciaIE.horaSalida,
-            estado: asistenciaIE.estado
-          })
-        }
-
-        let estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' = 'AUSENTE'
-        let horaEntrada: string | undefined
-        let horaSalida: string | undefined
-
-        // PRIMERO: Verificar si hay un retiro AUTORIZADO - tiene máxima prioridad
-        if (retiroAutorizado) {
-          estado = 'RETIRADO'
-          horaEntrada = asistenciaIE?.horaIngreso ? formatearHora(asistenciaIE.horaIngreso) : undefined
-          horaSalida = retiroAutorizado.hora ? formatearHora(retiroAutorizado.hora) : undefined
-        }
-        // SEGUNDO: Determinar estado basado en AsistenciaIE
-        else if (asistenciaIE) {
-          // Si tiene hora de ingreso
-          if (asistenciaIE.horaIngreso) {
-            horaEntrada = formatearHora(asistenciaIE.horaIngreso)
-            
-            // Si tiene hora de salida SIN retiro autorizado, sigue siendo PRESENTE (salida normal)
-            // Solo es RETIRADO si hay un retiro autorizado (ya verificado arriba)
-            if (asistenciaIE.horaSalida) {
-              horaSalida = formatearHora(asistenciaIE.horaSalida)
-            }
-            
-            // Determinar estado según el estado guardado
-            if (asistenciaIE.estado === 'TARDANZA') {
-              estado = 'TARDANZA'
-            } else {
-              estado = 'PRESENTE'
-            }
-          }
-          // Si no tiene hora de ingreso pero tiene registro, es AUSENTE
-        }
-        // Si no tiene AsistenciaIE ni retiro, el estado es AUSENTE
-
-        return {
-          id: estudiante.idEstudiante.toString(),
-          nombre: estudiante.usuario.nombre || '',
-          apellido: estudiante.usuario.apellido || '',
-          dni: estudiante.usuario.dni,
-          grado: estudiante.gradoSeccion?.grado?.nombre || '',
-          seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
-          nivel: estudiante.gradoSeccion?.grado?.nivel?.nombre || '',
-          codigo: estudiante.codigoQR || estudiante.usuario.dni,
-          codigoQR: estudiante.codigoQR || estudiante.usuario.dni,
-          estado,
-          horaEntrada,
-          horaSalida
+        },
+        include: {
+          estadoRetiro: true
         }
       })
+    ])
+
+    console.log(`📋 Asistencias IE encontradas: ${asistenciasIE.length}`)
+    console.log(`🚪 Retiros autorizados encontrados: ${retirosAutorizados.length}`)
+
+    // Crear mapas para acceso rápido O(1)
+    const asistenciasMap = new Map(
+      asistenciasIE.map(a => [a.idEstudiante, a])
+    )
+    const retirosMap = new Map(
+      retirosAutorizados.map(r => [r.idEstudiante, r])
     )
 
-    console.log(`✅ ${estudiantesConEstado.length} estudiantes obtenidos`)
-    console.log('🕐 Ejemplo de estudiante con horarios:', estudiantesConEstado.find(e => e.horaEntrada || e.horaSalida))
+    // Función para formatear hora en zona horaria local (Lima/Peru)
+    const formatearHora = (fecha: Date | null): string => {
+      if (!fecha) return ''
+      return fecha.toLocaleTimeString('es-PE', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Lima'
+      })
+    }
+
+    // Mapear estudiantes con su estado (procesamiento en memoria, sin queries adicionales)
+    const estudiantesConEstado = estudiantes.map((estudiante) => {
+      const asistenciaIE = asistenciasMap.get(estudiante.idEstudiante)
+      const retiroAutorizado = retirosMap.get(estudiante.idEstudiante)
+
+      let estado: 'PRESENTE' | 'AUSENTE' | 'RETIRADO' | 'TARDANZA' = 'AUSENTE'
+      let horaEntrada: string | undefined
+      let horaSalida: string | undefined
+
+      // PRIMERO: Verificar si hay un retiro AUTORIZADO - tiene máxima prioridad
+      if (retiroAutorizado) {
+        estado = 'RETIRADO'
+        horaEntrada = asistenciaIE?.horaIngreso ? formatearHora(asistenciaIE.horaIngreso) : undefined
+        horaSalida = retiroAutorizado.hora ? formatearHora(retiroAutorizado.hora) : undefined
+      }
+      // SEGUNDO: Determinar estado basado en AsistenciaIE
+      else if (asistenciaIE) {
+        // Si tiene hora de ingreso
+        if (asistenciaIE.horaIngreso) {
+          horaEntrada = formatearHora(asistenciaIE.horaIngreso)
+          
+          // Si tiene hora de salida SIN retiro autorizado, sigue siendo PRESENTE (salida normal)
+          if (asistenciaIE.horaSalida) {
+            horaSalida = formatearHora(asistenciaIE.horaSalida)
+          }
+          
+          // Determinar estado según el estado guardado
+          if (asistenciaIE.estado === 'TARDANZA') {
+            estado = 'TARDANZA'
+          } else {
+            estado = 'PRESENTE'
+          }
+        }
+      }
+
+      return {
+        id: estudiante.idEstudiante.toString(),
+        nombre: estudiante.usuario.nombre || '',
+        apellido: estudiante.usuario.apellido || '',
+        dni: estudiante.usuario.dni,
+        grado: estudiante.gradoSeccion?.grado?.nombre || '',
+        seccion: estudiante.gradoSeccion?.seccion?.nombre || '',
+        nivel: estudiante.gradoSeccion?.grado?.nivel?.nombre || '',
+        codigo: estudiante.codigoQR || estudiante.usuario.dni,
+        codigoQR: estudiante.codigoQR || estudiante.usuario.dni,
+        estado,
+        horaEntrada,
+        horaSalida
+      }
+    })
+
+    console.log(`✅ ${estudiantesConEstado.length} estudiantes procesados`)
+    const conAsistencia = estudiantesConEstado.filter(e => e.estado !== 'AUSENTE').length
+    console.log(`📊 Resumen: ${conAsistencia} con asistencia, ${estudiantesConEstado.length - conAsistencia} ausentes`)
 
     return NextResponse.json({
       success: true,
