@@ -370,9 +370,9 @@ export default function TomarAsistenciaPopup({
           // Verificar si la clase ya terminó y hay estudiantes sin registrar
           if (data.clase?.horaFin && !inasistenciasMarcadas) {
             const ahora = new Date()
-            // Convertir a hora Perú (UTC-5)
-            const horaActualPeru = new Date(ahora.getTime() - (5 * 60 * 60 * 1000))
-            const horaActualMinutos = horaActualPeru.getHours() * 60 + horaActualPeru.getMinutes()
+            // Obtener hora actual en Lima (UTC-5)
+            const horaLima = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Lima' }))
+            const horaActualMinutos = horaLima.getHours() * 60 + horaLima.getMinutes()
             
             // Parsear hora fin de clase
             const horaFinDate = new Date(data.clase.horaFin)

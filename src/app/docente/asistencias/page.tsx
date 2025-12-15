@@ -252,9 +252,10 @@ export default function DocenteAsistencias() {
           return
         }
         
-        // Obtener hora actual
+        // Obtener hora actual en Lima (UTC-5)
         const ahora = new Date()
-        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes()
+        const horaLima = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Lima' }))
+        const horaActualMinutos = horaLima.getHours() * 60 + horaLima.getMinutes()
         
         // Verificar si hay estudiantes sin registrar
         const sinRegistrar = estudiantes.filter(e => e.estado === 'sin_registrar')
