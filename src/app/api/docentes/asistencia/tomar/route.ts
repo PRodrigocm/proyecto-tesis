@@ -682,9 +682,11 @@ export async function GET(request: NextRequest) {
             estadoFrontend = 'sin_registrar'
         }
         horaLlegada = asistenciaDelDia?.horaRegistro ? 
-          asistenciaDelDia.horaRegistro.toLocaleTimeString('es-ES', { 
+          asistenciaDelDia.horaRegistro.toLocaleTimeString('es-PE', { 
+            timeZone: 'America/Lima',
             hour: '2-digit', 
-            minute: '2-digit' 
+            minute: '2-digit',
+            hour12: true
           }) : null
       }
       // SEGUNDO: Si no hay asistencia en aula pero SÍ hay asistencia IE
@@ -693,18 +695,22 @@ export async function GET(request: NextRequest) {
         if (asistenciaIEDelDia.estado === 'RETIRO') {
           estadoFrontend = 'retirado'
           horaLlegada = asistenciaIEDelDia.horaIngreso ? 
-            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-PE', { 
+              timeZone: 'America/Lima',
               hour: '2-digit', 
-              minute: '2-digit' 
+              minute: '2-digit',
+              hour12: true
             }) : null
         }
         // Si está precargado por auxiliar, marcar como pendiente de verificación
         else if (asistenciaIEDelDia.estado === 'INGRESADO' || asistenciaIEDelDia.estado === 'PRESENTE' || asistenciaIEDelDia.estado === 'TARDANZA') {
           pendienteVerificacion = true
           horaIngresoIE = asistenciaIEDelDia.horaIngreso ? 
-            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-ES', { 
+            new Date(asistenciaIEDelDia.horaIngreso).toLocaleTimeString('es-PE', { 
+              timeZone: 'America/Lima',
               hour: '2-digit', 
-              minute: '2-digit' 
+              minute: '2-digit',
+              hour12: true
             }) : null
         }
       }
