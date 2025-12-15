@@ -13,6 +13,16 @@ interface DiaCalendario {
 }
 
 /**
+ * Parsear fecha string YYYY-MM-DD de forma segura (evita problemas de zona horaria)
+ */
+function parsearFechaSegura(fecha: string): { year: number; month: number; day: number; diaSemana: number } {
+  const [year, month, day] = fecha.split('T')[0].split('-').map(Number)
+  // Crear fecha en hora local (mediodía para evitar problemas de zona horaria)
+  const fechaLocal = new Date(year, month - 1, day, 12, 0, 0)
+  return { year, month, day, diaSemana: fechaLocal.getDay() }
+}
+
+/**
  * Verificar si una fecha es feriado consultando la API
  */
 export async function verificarFeriado(
@@ -21,13 +31,21 @@ export async function verificarFeriado(
   token: string
 ): Promise<DiaCalendario> {
   try {
-    const fechaObj = new Date(fecha)
-    const diaSemana = fechaObj.getDay()
+    // Parsear fecha de forma segura para evitar problemas de zona horaria
+    const { year, month, day, diaSemana } = parsearFechaSegura(fecha)
     const esFinDeSemana = diaSemana === 0 || diaSemana === 6
+    
+    console.log('📅 verificarFeriado:', {
+      fechaOriginal: fecha,
+      fechaParsed: `${year}-${month}-${day}`,
+      diaSemana,
+      diaNombre: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSemana],
+      esFinDeSemana
+    })
 
     // Obtener eventos del calendario para esa fecha
-    const mes = fechaObj.getMonth() + 1
-    const año = fechaObj.getFullYear()
+    const mes = month
+    const año = year
 
     const response = await fetch(
       `/api/calendario?mes=${mes}&año=${año}&ieId=${ieId}`,
@@ -52,7 +70,7 @@ export async function verificarFeriado(
     const eventos = data.data || []
 
     // Buscar si hay un evento para esta fecha
-    const fechaStr = fechaObj.toISOString().split('T')[0]
+    const fechaStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const eventoDelDia = eventos.find((evento: any) => {
       const fechaEvento = new Date(evento.fechaInicio).toISOString().split('T')[0]
       return fechaEvento === fechaStr
@@ -91,9 +109,8 @@ export async function verificarFeriado(
     }
   } catch (error) {
     console.error('Error verificando feriado:', error)
-    // En caso de error, asumir día lectivo
-    const fechaObj = new Date(fecha)
-    const diaSemana = fechaObj.getDay()
+    // En caso de error, parsear fecha de forma segura
+    const { diaSemana } = parsearFechaSegura(fecha)
     return {
       esFeriado: false,
       esFinDeSemana: diaSemana === 0 || diaSemana === 6,

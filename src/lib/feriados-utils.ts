@@ -63,10 +63,33 @@ export function esDiaNoLectivo(fecha: Date | string, diasNoLectivos: Map<string,
 
 /**
  * Verifica si una fecha es fin de semana
+ * Usa parsing manual para evitar problemas de zona horaria
  */
 export function esFinDeSemana(fecha: Date | string): boolean {
-  const fechaObj = typeof fecha === 'string' ? new Date(fecha + 'T12:00:00') : fecha
-  const dia = fechaObj.getDay()
+  let dia: number
+  
+  if (typeof fecha === 'string') {
+    // Parsear manualmente la fecha YYYY-MM-DD para evitar problemas de zona horaria
+    const [year, month, day] = fecha.split('T')[0].split('-').map(Number)
+    // Crear fecha en hora local (mediodía para evitar problemas)
+    const fechaLocal = new Date(year, month - 1, day, 12, 0, 0)
+    dia = fechaLocal.getDay()
+    
+    console.log('📅 esFinDeSemana check:', {
+      fechaOriginal: fecha,
+      fechaParsed: `${year}-${month}-${day}`,
+      diaSemana: dia,
+      diaNombre: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dia],
+      esFinDeSemana: dia === 0 || dia === 6
+    })
+  } else {
+    // Si es un objeto Date, convertir a Lima primero
+    const fechaLima = fechaUTCaLima(fecha)
+    const [year, month, day] = fechaLima.split('-').map(Number)
+    const fechaLocal = new Date(year, month - 1, day, 12, 0, 0)
+    dia = fechaLocal.getDay()
+  }
+  
   return dia === 0 || dia === 6
 }
 
