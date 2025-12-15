@@ -6,6 +6,59 @@ interface EmailAttachment {
   contentType?: string
 }
 
+// =====================================================
+// PIPEDREAM INTEGRATION (SOLO PARA EMAILS)
+// =====================================================
+
+/**
+ * Enviar email via Pipedream Webhook
+ * Configura PIPEDREAM_URL en variables de entorno
+ */
+async function enviarEmailViaPipedream(
+  destinatario: string,
+  asunto: string,
+  contenidoHTML: string
+): Promise<boolean> {
+  try {
+    const webhookUrl = process.env.PIPEDREAM_URL
+    
+    if (!webhookUrl) {
+      console.log('⚠️ PIPEDREAM_URL no configurado')
+      return false
+    }
+
+    console.log('🔗 Enviando email via Pipedream...')
+    console.log(`   Destinatario: ${destinatario}`)
+    console.log(`   Asunto: ${asunto}`)
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        to: destinatario,
+        subject: asunto,
+        html: contenidoHTML,
+        timestamp: new Date().toISOString(),
+        source: 'sistema-escolar'
+      })
+    })
+
+    if (response.ok) {
+      console.log('✅ Email enviado via Pipedream')
+      return true
+    } else {
+      const errorText = await response.text()
+      console.error('❌ Error en Pipedream:', response.status, errorText)
+      return false
+    }
+  } catch (error: any) {
+    console.error('❌ Error enviando email via Pipedream:', error.message)
+    return false
+  }
+}
+
 // Crear transporter de nodemailer con Gmail SMTP
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -18,14 +71,24 @@ const createTransporter = () => {
 }
 
 /**
- * Enviar email usando SMTP (Gmail)
- * Configurar GMAIL_USER y GMAIL_APP_PASSWORD en variables de entorno
+ * Enviar email usando Pipedream (prioridad) o Gmail SMTP (fallback)
+ * Configura PIPEDREAM_URL para usar Pipedream
+ * O configura GMAIL_USER/GMAIL_APP_PASSWORD para Gmail SMTP
  */
 export async function enviarEmail(
   destinatario: string,
   asunto: string,
   contenidoHTML: string
 ): Promise<boolean> {
+  // Intentar con Pipedream primero si está configurado
+  if (process.env.PIPEDREAM_URL) {
+    console.log('📧 Usando Pipedream para enviar email...')
+    const resultado = await enviarEmailViaPipedream(destinatario, asunto, contenidoHTML)
+    if (resultado) return true
+    console.log('⚠️ Pipedream falló, intentando con Gmail SMTP...')
+  }
+  
+  // Fallback a Gmail SMTP
   try {
     console.log('🔍 Verificando configuración de SMTP:')
     console.log('   GMAIL_USER:', process.env.GMAIL_USER ? '✅ Configurado' : '❌ No configurado')
@@ -33,7 +96,7 @@ export async function enviarEmail(
     
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       console.error('❌ Credenciales de Gmail no configuradas')
-      console.error('💡 Configura GMAIL_USER y GMAIL_APP_PASSWORD en variables de entorno')
+      console.error('💡 Configura PIPEDREAM_URL o GMAIL_USER/GMAIL_APP_PASSWORD')
       return false
     }
 
